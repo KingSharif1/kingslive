@@ -19,7 +19,7 @@ body {
 
 @layer utilities {
   .btn_white_rounded  { 
-    @apply  border-white bg-white px-6 py-3 text-gray-90
+    @apply  border-gray-10 bg-white px-6 py-3 text-gray-950 transition-all hover:bg-gray-300
   }
   .btn_blue_rounded { 
     @apply  border-blue-500 bg-blue-500 px-6 py-3 text-white

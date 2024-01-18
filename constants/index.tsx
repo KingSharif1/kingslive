@@ -60,15 +60,16 @@ export const NAV_LINKS = [
       description: 'Full-stack development encompasses both frontend and backend programming, enabling developers'
     }
   ];
-  
+
   
   
   // FOOTER SECTION
   export const SOCIALS = [
-    { href: '/', key: 'github', imgURL: '/github.svg' },
-    { href: '/', key: 'instagram', imgURL: '/instagram.svg' },
-    { href: '/', key: 'twitter', imgURL: '/twitter.svg' },
-    { href: '/', key: 'youtube ', imgURL: '/youtube.svg' }
+    { href: 'https://github.com/KingSharif1', key: 'github', imgURL: '/github.svg' },
+    { href: 'https://www.instagram.com/k1ngsharif', key: 'instagram', imgURL: '/instagram.svg' },
+    { href: 'https://twitter.com/k1ngsharif', key: 'twitter', imgURL: '/twitter.svg' },
+    { href: 'https://www.youtube.com/@K1ngSharif', key: 'youtube ', imgURL: '/youtube.svg' },
+    { href: 'https://www.linkedin.com/in/sharif-ahmed-2a2b011b5', key: 'linkedin ', imgURL: '/linkedin.png'},
   ];
   
   export const FOOTER_LINKS = [
