@@ -9,7 +9,7 @@ const About = () => {
       <div className="flex flex-col gap-20 mg:gap-28 xl:flex-row">
         <div className="flex-1 flexCenter flex-col m-auto">
           <p className="mb-8">
-            <span className='font-extrabold'>Amor Fati</span> is a latin phrase which means " Love of fate". 
+            <span className='font-extrabold'>Amor Fati</span> is a latin phrase which means &ldquo;Love of fate&rdquo;.
             A Stoic never complains about fate and accepts whatever fate throws his way. 
             He only focuses on what he controls and tries to make the best possible decisions.
           </p>

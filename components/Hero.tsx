@@ -14,7 +14,7 @@ const Hero = () => {
       {/* LEFT */}
       <div className='relative z-20 flex flex-1 flex-col pt-16'>
         <h4 className='bold-20'>Hello,</h4>
-        <h1 className='bold-48 lg:bold-64 relative'>I'm King Sharif</h1>
+        <h1 className='bold-48 lg:bold-64 relative'>I&apos;m King Sharif</h1>
         <h2 className='bold-28 lg:blod-32 text-[1.8rem] capitalize'>
           A {''}
           <span>
