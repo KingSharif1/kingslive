@@ -1,0 +1,15 @@
+{
+    "name": "kings/kingslive",
+    "autoload": {
+        "psr-4": {
+            "Kings\\Kingslive\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "KingSharif1",
+            "email": "147098256+KingSharif1@users.noreply.github.com"
+        }
+    ],
+    "require": {}
+}

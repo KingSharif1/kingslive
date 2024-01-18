@@ -19,7 +19,7 @@ const Hero = () => {
           A {''}
           <span>
             <Typewriter
-              words={['real one', 'the Toughest', 'HIM', 'That nigga']}
+              words={['real one', 'smart one', 'HIM', 'That guy']}
               loop={true}
               cursor
               cursorStyle=''
