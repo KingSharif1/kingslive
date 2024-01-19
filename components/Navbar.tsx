@@ -6,7 +6,7 @@ import React from 'react'
 
 export const Navbar = () => {
   return (
-    <nav className='padding-container relative z-30 rounded-lg bg-white shadow-xl ring-1 ring-slate-100 py-4 lg:py-0'>\
+    <nav className='padding-container relative z-30 rounded-lg bg-white shadow-xl ring-1 ring-slate-100 py-4 lg:py-0'>
       <div className="flexBetween max-container">
         <Link href="/" className='bold-28 capitalize relative'>
           Ki<span className='text-blue-700'>ng Sh</span>arif<span className='absolute top-[-0.3rem] right-[-1rem] h-5 w-5 
