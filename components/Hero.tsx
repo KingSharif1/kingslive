@@ -3,8 +3,33 @@ import Image from 'next/image'
 import React from 'react'
 import { Typewriter } from 'react-simple-typewriter'
 import Button from './Button'
+import useDownloader from "react-use-downloader"; 
+
 
 const Hero = () => {
+  const handleDownload = () => {
+    // Replace 'your-cv.pdf' with the actual path to your PDF file
+    const pdfPath = '/resume.pdf';
+
+    // Create an anchor element
+    const link = document.createElement('a');
+
+    // Set the href attribute to the PDF file path
+    link.href = pdfPath;
+
+    // Set the download attribute with the desired filename
+    link.download = 'KingSharif_CV.pdf';
+
+    // Append the anchor element to the document body
+    document.body.appendChild(link);
+
+    // Trigger a click event on the anchor element
+    link.click();
+
+    // Remove the anchor element from the document body
+    document.body.removeChild(link);
+  };
+
   return (
     <section className='max-container padding-container flex flex-col flexCenter gap-20 py-10 pb-32 
     md:gap-28 lg:py-20 lg:flex-row'>
@@ -54,6 +79,7 @@ const Hero = () => {
             title='Download CV'
             icon='/download.svg'
             variant='btn_dark_rounded'
+            onClick={handleDownload}
           />
           {/* redirect to contact page */}
           <Button
