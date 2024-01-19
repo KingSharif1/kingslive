@@ -60,8 +60,6 @@ export const NAV_LINKS = [
       description: 'Full-stack development encompasses both frontend and backend programming, enabling developers'
     }
   ];
-
-  
   
   // FOOTER SECTION
   export const SOCIALS = [

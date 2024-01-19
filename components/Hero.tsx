@@ -19,7 +19,7 @@ const Hero = () => {
           A {''}
           <span>
             <Typewriter
-              words={['real one', 'smart one', 'HIM', 'That guy']}
+              words={['Student', 'Software Engineer', 'Entrepreneur', 'Youtuber']}
               loop={true}
               cursor
               cursorStyle=''
@@ -29,32 +29,33 @@ const Hero = () => {
             />
           </span>
         </h2>
-        <p className='regular-16 max-w-[555px] my-4'> Mauris et libero condimentum, semper lectus sit amet, tincidunt odio.
-          Praesent quis enim iaculis, varius neque at, auctor odio. Nulla eget bibendum risus. Pellentesque pharetra nibh ac metus
-          euismod, in rhoncus neque accumsan. </p>
-        <div className='my-5 flex flex-wrap gap-5'>
+        <p className='regular-16 max-w-[555px] my-4'> 
+          <span className='font-extrabold'>Amor Fati</span> is a latin phrase which means &ldquo;Love of fate&rdquo;.
+          A Stoic never complains about fate and accepts whatever fate throws his way. 
+          He only focuses on what he controls and tries to make the best possible decisions.
+        </p>
+
+        {/* 5 star rating with num of review */}
+        {/* <div className='my-5 flex flex-wrap gap-5'>
           <div className='flex items-center gap-2'>
             {
               Array(5).fill(1).map((_, index) => (
-                <Image
-                  src={"/star.svg"}
-                  key={index}
-                  alt='star'
-                  height={24}
-                  width={24}
-                />
+                <Image src={"/star.svg"} key={index} alt='star' height={24} width={24} />
               ))
             }
           </div>
           <p className='bold-18 lg:bold-20'> 1100+ <span className='regular-16 lg:regular-20'> Excellent Reviews</span></p>
-        </div>
+        </div> */}
+        {/* Button part */}
         <div className='flexStart gap-1 pt-6 '>
+          {/* resume download */}
           <Button
             type='button'
             title='Download CV'
             icon='/download.svg'
             variant='btn_dark_rounded'
           />
+          {/* redirect to contact page */}
           <Button
             type='button'
             title='Contact me'
@@ -64,12 +65,10 @@ const Hero = () => {
         </div>
       </div>
 
-      {/*Right */}
-
+      {/* Image to the Right */}
       <div className='flex flex-1 xl:flexEnd'>
         <Image src='/p1.png' alt='bg' width={488} height={488} className='w-auto'/>
       </div>
-
     </section>
   )
 }
