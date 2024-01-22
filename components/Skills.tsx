@@ -5,7 +5,7 @@ import Image from 'next/image'
 /** to add more skill on /constants/index */
 const Skills = () => {
   return (
-    <section className="max-container padding-container gap-20 py-10 pb-32 md:gap-28 lg:py-20 xl:flex-row">
+    <section id="skills" className="max-container padding-container gap-20 py-10 pb-32 md:gap-28 lg:py-20 xl:flex-row">
       {/* Title */}
       <div className="text-center bold-18 uppercase tracking-[1rem] text-blue-500 pb-20">Skills</div>
       <ul className="mt-10 grid gap-20 md:grid-cols-2 lg:grid-cols-3 md:gap-12">

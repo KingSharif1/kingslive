@@ -9,12 +9,20 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@react-three/fiber": "^8.15.14",
+    "@studio-freight/lenis": "^1.0.34",
+    "@types/three": "^0.160.0",
     "@vercel/speed-insights": "^1.0.5",
+    "clsx": "^2.1.0",
+    "framer-motion": "^10.18.0",
+    "framer-motion-3d": "^10.18.0",
     "next": "14.0.4",
     "react": "^18",
     "react-dom": "^18",
     "react-simple-typewriter": "^5.0.1",
-    "react-use-downloader": "^1.2.4"
+    "react-use-downloader": "^1.2.4",
+    "sass": "^1.70.0",
+    "three": "^0.160.0"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -23,6 +31,7 @@
     "autoprefixer": "^10.0.1",
     "eslint": "^8",
     "eslint-config-next": "14.0.4",
+    "next-transpile-modules": "^10.0.1",
     "postcss": "^8",
     "tailwindcss": "^3.3.0",
     "typescript": "^5"
