@@ -1,12 +1,18 @@
+"use client"
 import { NAV_LINKS } from '@/constants'
 import { link } from 'fs'
 import Image from 'next/image'
 import Link from 'next/link'
 import React from 'react'
+import { usePathname } from 'next/navigation';
+import clsx from 'clsx';
+
 
 export const Navbar = () => {
+    const pathname = usePathname();
+
   return (
-    <nav className='padding-container relative z-30 rounded-lg bg-white shadow-xl ring-1 ring-slate-100 py-4 lg:py-0'>
+    <nav className='padding-container fixed z-30 w-full rounded-lg bg-white shadow-xl ring-1 ring-slate-100 py-4 lg:py-0'>
       <div className="flexBetween max-container">
         <Link href="/" className='bold-28 capitalize relative'>
           Ki<span className='text-blue-700'>ng Sh</span>arif<span className='absolute top-[-0.3rem] right-[-1rem] h-5 w-5 
@@ -14,12 +20,13 @@ export const Navbar = () => {
         </Link>
 
         <ul className='hidden h-full gap-6 lg:flex px-6 py-3'>
-          {
-            NAV_LINKS.map((link) => (
-              <Link href={link.href} key={link.key} className='flexCenter text-[15px] font-[500] text-black
-              hover:bg-blue-500 hover:text-white px-4 py-1 rounded-full cursor-pointer transition-all duration-300'>
+          {NAV_LINKS.map((link) => (
+              <Link href={link.href} key={link.key} className=
+              'flexCenter text-[15px] font-[500] text-black hover:bg-blue-500 hover:text-white px-4 py-1 rounded-full cursor-pointer transition-all duration-300'
+                replace>
                 {link.label}
-               </Link>
+                
+              </Link>  
             ))
           }
         </ul>

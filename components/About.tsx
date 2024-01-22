@@ -4,7 +4,7 @@ import Button from './Button'
 
 const About = () => {
   return (
-    <section className="max-container padding-container gap-20 py-10 pb-32 md:gap-28 lg:py-20 bg-[#f7f7f7]">
+    <section id="about" className="max-container padding-container gap-20 py-10 pb-32 md:gap-28 lg:py-20 bg-[#f7f7f7]">
       <div className="text-center bold-18 uppercase tracking-[1rem] text-blue-500 pb-20">About</div>
       <div className="flex flex-col gap-20 mg:gap-28 xl:flex-row">
         <div className="flex-1 flexCenter flex-col m-auto">
