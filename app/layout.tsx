@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 import Footer from '@/components/Footer'
 import Navbar from '@/components/Navbar'
+import { Provider } from './Providers'
+import ThemeSwitch from '@/components/ThemeSwitch'
 
 export const metadata: Metadata = {
   title: 'King Sharif',
@@ -14,14 +16,15 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
-        <Navbar/>
-        <main className='relative overflow-hidden'>
-          {children}
-        </main>
-        
-        <Footer/>
+        <Provider>
+          <Navbar/>
+          <main className='relative overflow-hidden'>
+            {children}
+          </main>
+          <Footer/>
+        </Provider>
       </body>
     </html>
   )
