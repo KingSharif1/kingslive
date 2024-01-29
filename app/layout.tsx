@@ -4,6 +4,7 @@ import Footer from '@/components/Footer'
 import Navbar from '@/components/Navbar'
 import { Provider } from './Providers'
 import ThemeSwitch from '@/components/ThemeSwitch'
+import "react-toastify/ReactToastify.css"
 
 export const metadata: Metadata = {
   title: 'King Sharif',

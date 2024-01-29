@@ -26,7 +26,7 @@ const Navbar = () => {
           </Link>
 
 
-          <ul className={clsx('hidden h-full gap-6 lg:flex px-6 py-3 flex-row-reverse items-center', { 'hidden': isMenuOpen })}>
+          <ul className={clsx('hidden h-full gap-6 lg:flex px-6 py-3 items-center', { 'hidden': isMenuOpen })}>
             {NAV_LINKS.map((link) => (
               <Link
                 href={link.href}
@@ -40,15 +40,16 @@ const Navbar = () => {
           </ul>
 
           {isMenuOpen ? (
-            <div className='rounded-lg pt-3.5 pr-7 flex flex-col justify-start content-end flex-wrap items-end fixed top-0 right-0 w-80 gap-y-8 h-full bg-white lg:hidden transition-transform duration-300 transform translate-x-0'>
-              <FiX className='text-4xl' onClick={toggleMenu} />
+            <div className='dark:bg-gray-900 rounded-lg pr-7 flex flex-row-reverse  flex-wrap content-start gap-y-[30px] pt-[1%] fixed top-0 right-0 w-80 h-[80%] bg-white lg:hidden transition-transform duration-300 transform translate-x-0'>
+              <FiX className='text-5xl dark:text-slate-300' onClick={toggleMenu} />
+              <div className=' lg:hidden flex w-[11%] items-center'>   <ThemeSwitch ></ThemeSwitch>  </div>
               <div className='w-[inherit]'>
                 <ul className='text-lg h-full flex flex-wrap flex-col content-around items-center gap-y-[25px]'>
                   {NAV_LINKS.map((link) => (
                     <Link
                       href={link.href}
                       key={link.key}
-                      className='text-black hover:bg-blue-500 hover:text-white rounded-full px-4 py-2 @apply transition-all duration-[.3s] relative'
+                      className='text-black dark:text-white hover:bg-blue-500 hover:text-white rounded-full px-4 py-2 @apply transition-all duration-[.3s] relative'
                       onClick={toggleMenu}
                     >
                       {link.label}
@@ -58,11 +59,11 @@ const Navbar = () => {
               </div>
             </div>
           ) : (
-            <FiMenu className='inline-block cursor-pointer text-4xl lg:hidden' onClick={toggleMenu} />
+            <FiMenu className='inline-block cursor-pointer text-4xl lg:hidden dark:text-slate-300' onClick={toggleMenu} />
           )}
         </div>
 
-        <div className='flex w-[2%] items-center'>   <ThemeSwitch></ThemeSwitch>  </div>
+        <div className=' hidden lg:flex w-[2%] items-center'>   <ThemeSwitch></ThemeSwitch>  </div>
       </nav>
     </header>
 
