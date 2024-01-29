@@ -131,7 +131,9 @@ const ContactForm = () => {
             </div>
           </div>
         </Form>
+
       </Formik>
+
       <ToastContainer
         position="top-center"
         autoClose={5000}
@@ -144,7 +146,6 @@ const ContactForm = () => {
         pauseOnHover
         theme="light"
       />
-
       {showConfetti && (
         <Confetti
           width={window.innerWidth}
