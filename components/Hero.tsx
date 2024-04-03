@@ -44,7 +44,7 @@ const Hero = () => {
           A {''}
           <span>
             <Typewriter
-              words={['Student', 'Software Engineer', 'Entrepreneur', 'Youtuber']}
+              words={['Student', 'Software Engineer', 'Entrepreneur']}
               loop={true}
               cursor
               cursorStyle=''

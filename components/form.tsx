@@ -31,7 +31,7 @@ const ContactForm = () => {
     try {
       setIsLoading(true);
       // Send email using Nodemailer
-      await fetch("/api/contact", {
+      await fetch("/api/send", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -49,7 +49,7 @@ const ContactForm = () => {
       console.error("Failed to send email:", error);
     } finally {
       setSubmitting(false);
-      toast.success("Form submitted successfully!");
+      toast.success(`Form submitted successfully!`);
       setShowConfetti(true);
       setIsLoading(false);
     }
@@ -63,7 +63,8 @@ const ContactForm = () => {
         onSubmit={handleSubmit}
       >
         <Form>
-          <div className="lg:w-1/2 md:w-2/3 mx-auto">
+          <div className="max-container padding-container gap-20 py-10 pb-32 md:gap-28 lg:py-20
+          ">
             <div className="flex flex-wrap -m-2">
               <div className="p-2 w-1/2">
                 <div className="relative">
