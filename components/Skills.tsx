@@ -35,7 +35,7 @@ type SkillItem = {
 }
 const SkillItem = ({title, icon, description}: SkillItem) => {
   return(
-    <li className='relative flex w-full flex-1 flex-col items-center text-center shadow-[0_35px_450px_-15px_rgba(0,0,0,0.2)] 
+    <li className='relative flex w-full flex-1 flex-col items-center text-center shadow-[0_35px_450px_-15px_rgba(0,0,0,0.2)] dark:shadow-[0_4px_6px_0px_rgba(0,0,0,0.5)]
       rounded-2xl p-10 hover:bg-blue-500 group duration-[950ms] transition'>
       <div className='rounded-full p-5 bg-blue-500 absolute -top-8 group-hover:bg-black'>
         <Image src={icon} alt='map' width={28} height={28}/>

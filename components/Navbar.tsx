@@ -18,7 +18,7 @@ const Navbar = () => {
 
   return (
     <header>
-      <nav className='flex padding-container sticky m-2.5  z-30 w-full rounded-lg  shadow-xl ring-1 ring-slate-100 dark:ring-slate-950 py-3 lg:py-2.5 lg:p-2'>
+      <nav className='flex padding-container sticky m-2.5  z-30 w-full rounded-lg  shadow-xl ring-1 ring-slate-100 dark:ring-transparent py-3 lg:py-2.5 lg:p-2'>
         <div className='flexBetween w-[99%]'>
           <Link href='/' className='bold-28 capitalize relative'>
             Ki<span className='text-blue-700'>ng Sh</span>arif

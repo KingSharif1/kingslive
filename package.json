@@ -29,8 +29,11 @@
     "react-simple-typewriter": "^5.0.1",
     "react-toastify": "^10.0.4",
     "react-use-downloader": "^1.2.4",
+    "resend": "^3.1.0",
     "sass": "^1.70.0",
     "three": "^0.160.0",
+    "update": "^0.7.4",
+    "upgrade": "^1.1.0",
     "zod": "^3.22.4",
     "zod-formik-adapter": "^1.2.0"
   },

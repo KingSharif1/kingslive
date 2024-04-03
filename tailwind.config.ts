@@ -25,6 +25,8 @@ module.exports = {
       },
       screens: {
         xs: '400px',
+        'md': '768px',
+        'lg': '1024px',
         '3xl': '1680px',
         '4xl': '2200px',
       },
@@ -34,6 +36,9 @@ module.exports = {
       borderRadius: {
         '5xl': '40px',
       },
+      width: {
+        '45': '45%',
+      }
     },
   },
   plugins: [],

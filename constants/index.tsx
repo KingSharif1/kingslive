@@ -65,8 +65,8 @@ export const NAV_LINKS = [
   export const SOCIALS = [
     { href: 'https://github.com/KingSharif1', key: 'github', imgURL: '/github.svg' },
     { href: 'https://www.instagram.com/k1ngsharif', key: 'instagram', imgURL: '/instagram.svg' },
-    { href: 'https://twitter.com/k1ngsharif', key: 'twitter', imgURL: '/twitter.svg' },
-    { href: 'https://www.youtube.com/@K1ngSharif', key: 'youtube ', imgURL: '/youtube.svg' },
+    // { href: 'https://twitter.com/k1ngsharif', key: 'twitter', imgURL: '/twitter.svg' },
+    // { href: 'https://www.youtube.com/@K1ngSharif', key: 'youtube ', imgURL: '/youtube.svg' },
     { href: 'https://www.linkedin.com/in/sharif-ahmed-2a2b011b5', key: 'linkedin ', imgURL: '/linkedin.png'},
   ];
   
