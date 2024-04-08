@@ -6,42 +6,43 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-console.log("Im in hereeeee");
-export default async function handler(req: NextApiRequest){
-  const data = req.body
-  console.log('body', data)
-}
+// console.log("Im in hereeeee");
+// export default async function handler(req: NextApiRequest){
+//   const data = req.body
+//   console.log('body', data)
+// }
 
-export async function POST(request: NextApiRequest, response: NextApiResponse) {
-  console.log("im in hereeere")
-  try {
-    const body = await request.body();
-    console.log("body", body)
-    const {name, email, message} = body;
-    const { data, error } = await resend.emails.send({
-      from: 'Acme <onboarding@resend.dev>',
-      to: ['delivered@resend.dev'],
-      subject: "Hello world",
-      react: EmailTemplate({
-        Name: name,
-        Email: email,
-        Message: message,
-      }) as React.ReactElement,
-    });
+// export async function POST(request: NextApiRequest, response: NextApiResponse) {
+//   console.log("im in hereeere")
+  
+//   try {
+//     const body = await request.body;
+//     console.log("body", body)
+//     const {name, email, message} = body;
+//     const { data, error } = await resend.emails.send({
+//       from: 'Acme <onboarding@resend.dev>',
+//       to: ['delivered@resend.dev'],
+//       subject: "Hello world",
+//       react: EmailTemplate({
+//         Name: name,
+//         Email: email,
+//         Message: message,
+//       }) as React.ReactElement,
+//     });
 
-    if (error) {
-      console.log("first error")
-      return response.json({ error });
-    }
+//     if (error) {
+//       console.log("first error")
+//       return response.json({ error });
+//     }
 
-    return response.json({ data });
-  } catch (error) {
+//     return response.json({ data });
+//   } catch (error) {
 
-    console.log("second error")
-    return response.json({ error });
+//     console.log("second error")
+//     return response.json({ error });
 
-  }
-}
+//   }
+// }
 
 
 
