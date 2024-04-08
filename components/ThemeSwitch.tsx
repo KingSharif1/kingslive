@@ -23,7 +23,7 @@ export default function ThemeSwitch() {
     />
   )
   const iconCommonStyles = {
-    fontSize: '24px',
+    fontSize: '30px',
     cursor: 'pointer',
     transition: 'color 0.3s ease',
   };

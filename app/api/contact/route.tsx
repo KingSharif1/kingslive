@@ -8,6 +8,7 @@ import { Email } from "@/components/email";
 
 export async function POST(req: NextRequest, res: NextResponse) {
   const body = await req.json();
+  console.log('body', body);
   const { name, email, message } = body;
 
   const emailHtml = render(
