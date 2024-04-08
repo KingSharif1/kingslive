@@ -27,18 +27,20 @@ const ContactForm = () => {
       setSubmitting: (isSubmitting: boolean) => void;
       resetForm: () => void;
     }
+
   ) => {
     try {
+      console.log("Sending to api...")
       setIsLoading(true);
       // Send email using Nodemailer
-      await fetch("/api/send", {
+      await fetch("/api/contact", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(values),
       });
-
+      console.log("restart form")
       // Reset the form
       resetForm();
 
@@ -49,92 +51,120 @@ const ContactForm = () => {
       console.error("Failed to send email:", error);
     } finally {
       setSubmitting(false);
-      toast.success(`Form submitted successfully!`);
+      toast.success(`submitted successfully!`);
       setShowConfetti(true);
       setIsLoading(false);
     }
   };
+
+  // const handleSubmit = async (values, { setSubmitting }) => {
+  //   try{
+  //     // Perform an API call using the values submitted
+  //     const response = await fetch('/api/send', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify(values),
+  //     });
+
+  //     // Handle the API response
+  //     const data = await response.json();
+
+  //     // Show a success message or perform any necessary actions
+  //     console.log('Login successful!', data);
+  //    }catch (error) {
+  //     // Handle any errors that occur during the API call
+  //     console.error('Login failed:', error);
+  //   } finally {
+  //     // Set the isSubmitting state to false to finish the submission cycle
+  //     setSubmitting(false);
+  //   }
+  // };
 
   return (
     <>
       <Formik
         initialValues={{ name: "", email: "", message: "" }}
         validationSchema={toFormikValidationSchema(validationSchema)}
+        
+        // onSubmit={(handleSubmit)}
         onSubmit={handleSubmit}
+
       >
-        <Form>
-          <div className="max-container padding-container gap-20 py-10 pb-32 md:gap-28 lg:py-20
-          ">
-            <div className="flex flex-wrap -m-2">
-              <div className="p-2 w-1/2">
-                <div className="relative">
-                  <label className="leading-7 text-sm text-gray-600">
-                    Name
-                  </label>
-                  <Field
-                    type="text"
-                    id="name"
-                    name="name"
-                    className="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out"
-                  />
-                  <ErrorMessage
-                    name="name"
-                    component="div"
-                    className="text-red-500"
-                  />
+          <Form>
+            <div className="max-container padding-container gap-20 py-10 pb-32 md:gap-28 lg:py-20
+            ">
+              <div className="flex flex-wrap -m-2">
+                <div className="p-2 w-1/2">
+                  <div className="relative">
+                    <label className="leading-7 text-sm text-gray-600">
+                      Name
+                    </label>
+                    <Field
+                      type="text"
+                      id="name"
+                      name="name"
+                      className="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out"
+                    />
+                    <ErrorMessage
+                      name="name"
+                      component="div"
+                      className="text-red-500"
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="p-2 w-1/2">
-                <div className="relative">
-                  <label className="leading-7 text-sm text-gray-600">
-                    Email
-                  </label>
-                  <Field
-                    type="email"
-                    id="email"
-                    name="email"
-                    className="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out"
-                  />
-                  <ErrorMessage
-                    name="email"
-                    component="div"
-                    className="text-red-500"
-                  />
+                <div className="p-2 w-1/2">
+                  <div className="relative">
+                    <label className="leading-7 text-sm text-gray-600">
+                      Email
+                    </label>
+                    <Field
+                      type="email"
+                      id="email"
+                      name="email"
+                      className="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out"
+                    />
+                    <ErrorMessage
+                      name="email"
+                      component="div"
+                      className="text-red-500"
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="p-2 w-full">
-                <div className="relative">
-                  <label className="leading-7 text-sm text-gray-600">
-                    Message
-                  </label>
-                  <Field
-                    id="message"
-                    name="message"
-                    as="textarea"
-                    className="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 h-32 text-base outline-none text-gray-700 py-1 px-3 resize-none leading-6 transition-colors duration-200 ease-in-out"
-                  />
-                  <ErrorMessage
-                    name="message"
-                    component="div"
-                    className="text-red-500"
-                  />
+                <div className="p-2 w-full">
+                  <div className="relative">
+                    <label className="leading-7 text-sm text-gray-600">
+                      Message
+                    </label>
+                    <Field
+                      id="message"
+                      name="message"
+                      as="textarea"
+                      className="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 h-32 text-base outline-none text-gray-700 py-1 px-3 resize-none leading-6 transition-colors duration-200 ease-in-out"
+                    />
+                    <ErrorMessage
+                      name="message"
+                      component="div"
+                      className="text-red-500"
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="p-2 w-full">
-                <button
-                  disabled={isLoading}
-                  type="submit"
-                  className="flex mx-auto text-white bg-indigo-500 border-0 py-2 px-8 focus:outline-none hover:bg-indigo-600 rounded text-lg"
-                >
-                  Send Message
-                </button>
+                <div className="p-2 w-full">
+                  <button
+                    disabled={isLoading}
+                    type="submit"
+                    className="flex mx-auto text-white bg-indigo-500 border-0 py-2 px-8 focus:outline-none hover:bg-indigo-600 rounded text-lg"
+                  >
+                    Send Message
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </Form>
-
+          </Form>
       </Formik>
 
+      
       <ToastContainer
         position="top-center"
         autoClose={5000}
@@ -153,7 +183,9 @@ const ContactForm = () => {
           height={window.innerHeight}
           recycle={false}
         />
-      )}
+      )} 
+     
+
     </>
   );
 };

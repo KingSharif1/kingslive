@@ -1,10 +1,7 @@
 import { z } from "zod"
 
 export const validationSchema = z.object({
-  firstname: z.string({
-    required_error: "Name is required.",
-  }),
-  lastname: z.string({
+  name: z.string({
     required_error: "Name is required.",
   }),
   email: z

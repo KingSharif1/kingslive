@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import clsx from 'clsx';
 import { FiMenu, FiX } from "react-icons/fi";
 import ThemeSwitch from './ThemeSwitch';
+import React from 'react';
 
 const Navbar = () => {
   const pathname = usePathname();
@@ -40,10 +41,17 @@ const Navbar = () => {
           </ul>
 
           {isMenuOpen ? (
-            <div className='dark:bg-gray-900 rounded-lg pr-7 flex flex-row-reverse  flex-wrap content-start gap-y-[30px] pt-[1%] fixed top-0 right-0 w-80 h-[80%] bg-white lg:hidden transition-transform duration-300 transform translate-x-0'>
-              <FiX className='text-5xl dark:text-slate-300' onClick={toggleMenu} />
-              <div className=' lg:hidden flex w-[11%] items-center'>   <ThemeSwitch ></ThemeSwitch>  </div>
-              <div className='w-[inherit]'>
+            <div className='dark:bg-slate-950 rounded-lg flex flex-row-reverse  flex-wrap content-start pt-[1%] fixed top-0 right-0 w-80 h-auto bg-slate-100 lg:hidden transition-transform duration-300 transform translate-x-0'>
+              <div className='w-[inherit] flex flex-row-reverse content-start px-[5%]'>
+                {/* Open and clost menu */}
+                <FiX className='text-5xl dark:text-slate-300' onClick={toggleMenu} />
+                {/* dark and light mode */}
+                <div className=' lg:hidden flex w-[inherit] items-center text-3xl'>   <ThemeSwitch ></ThemeSwitch>  </div>
+              </div>
+
+
+              {/* list of nav links */}
+              <div className='w-[inherit] py-2.5'>
                 <ul className='text-lg h-full flex flex-wrap flex-col content-around items-center gap-y-[25px]'>
                   {NAV_LINKS.map((link) => (
                     <Link
@@ -63,7 +71,7 @@ const Navbar = () => {
           )}
         </div>
 
-        <div className=' hidden lg:flex w-[2%] items-center'>   <ThemeSwitch></ThemeSwitch>  </div>
+        <div className='num1 hidden lg:flex w-[2%] items-center'> <ThemeSwitch></ThemeSwitch> </div>
       </nav>
     </header>
 

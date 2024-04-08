@@ -3,7 +3,6 @@ import Image from 'next/image'
 import React from 'react'
 import { Typewriter } from 'react-simple-typewriter'
 import Button from './Button'
-import useDownloader from "react-use-downloader"; 
 
 
 const Hero = () => {
@@ -87,6 +86,7 @@ const Hero = () => {
             title='Contact me'
             icon='/arrow-right.svg'
             variant='btn_white_rounded'
+            href='/contact'
           />
         </div>
       </div>
