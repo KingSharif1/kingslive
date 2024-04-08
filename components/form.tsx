@@ -33,7 +33,7 @@ const ContactForm = () => {
       console.log("Sending to api...")
       setIsLoading(true);
       // Send email using Nodemailer
-      await fetch("/api/contact", {
+      await fetch("/api/send", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
