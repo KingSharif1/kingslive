@@ -1,14 +1,15 @@
-import type { Metadata } from 'next'
 import './globals.css'
-import Footer from '@/components/Footer'
-import Navbar from '@/components/Navbar'
-import { Provider } from './Providers'
-import ThemeSwitch from '@/components/ThemeSwitch'
-import "react-toastify/ReactToastify.css"
+import { Inter } from 'next/font/google'
+import { Toaster } from "@/components/ui/toaster"
 
-export const metadata: Metadata = {
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata = {
   title: 'King Sharif',
-  description: 'King Sharif\' portfolio',
+  description: 'Portfolio of King Sharif',
+  icons: {
+    icon: '/favicon.ico',
+  },
 }
 
 export default function RootLayout({
@@ -17,15 +18,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className='w-[99%]'>
-        <Provider>
-          <Navbar/>
-          <main className='relative overflow-hidden'>
-            {children}
-          </main>
-          <Footer/>
-        </Provider>
+    <html lang="en">
+      <body className={inter.className}>
+        {children}
+        <Toaster />
       </body>
     </html>
   )
