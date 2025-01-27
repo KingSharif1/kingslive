@@ -6,9 +6,21 @@ import Image from "next/image"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
+import { useTypewriter, Cursor } from 'react-simple-typewriter'
 
 export default function Hero() {
   const { toast } = useToast()
+
+  const [text] = useTypewriter({
+    words: [
+      'Full Stack Developer',
+      'Software Engineer',
+      'UI/UX Designer',
+      'Problem Solver'
+    ],
+    loop: true,
+    delaySpeed: 2000,
+  })
 
   const handleDownloadCV = () => {
     toast({
@@ -35,8 +47,9 @@ export default function Hero() {
               <h1 className="text-5xl sm:text-6xl font-bold mt-2 mb-4 light-mode-text dark:text-white glow-text">
                 I&apos;m King Sharif
               </h1>
-              <h2 className="text-3xl sm:text-4xl font-semibold light-mode-text dark:text-white mb-6 glow-text">
-                A Full Stack Developer
+              <h2 className="text-3xl sm:text-4xl font-semibold light-mode-text dark:text-white mb-6 glow-text flex items-center">
+                a <span className="text-black dark:text-white ml-2">{text}</span>
+                <Cursor cursorColor="#3B82F6" />
               </h2>
               <p className="text-lg light-mode-text dark:text-white max-w-2xl mb-8">
                 <span className="font-semibold">Amor Fati</span> is a latin phrase which means &quot;Love of fate&quot;.
@@ -85,7 +98,7 @@ export default function Hero() {
             <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
             <div className="relative">
               <Image
-                src="https://www.kingsharif.live/_next/image?url=%2Fp1.PNG&w=640&q=75"
+                src="/p1.PNG"
                 alt="King Sharif"
                 width={500}
                 height={600}
