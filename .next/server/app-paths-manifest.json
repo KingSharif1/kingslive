@@ -1,4 +1,8 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/contact/route": "app/api/contact/route.js",
+  "/api/reserve/route": "app/api/reserve/route.js",
+  "/contact/page": "app/contact/page.js",
   "/page": "app/page.js",
   "/reserve/page": "app/reserve/page.js"
 }
