@@ -1,9 +1,16 @@
 import { google } from 'googleapis';
 
+// Debug logging
+// console.log('Checking environment variables:');
+// console.log('Project ID:', process.env.GOOGLE_SHEETS_PROJECT_ID);
+// console.log('Client Email:', process.env.GOOGLE_SHEETS_CLIENT_EMAIL);
+// console.log('Spreadsheet ID:', process.env.GOOGLE_SHEETS_SPREADSHEET_ID);
+// console.log('Private Key Length:', process.env.GOOGLE_SHEETS_PRIVATE_KEY?.length);
+
 // Initialize the sheets API
 const auth = new google.auth.GoogleAuth({
   credentials: {
-    private_key: process.env.GOOGLE_SHEETS_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    private_key: process.env.GOOGLE_SHEETS_PRIVATE_KEY,
     client_email: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
     project_id: process.env.GOOGLE_SHEETS_PROJECT_ID,
   },
