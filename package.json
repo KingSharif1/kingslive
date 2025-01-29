@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "set NODE_OPTIONS=--openssl-legacy-provider && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -46,6 +46,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
+    "crypto-browserify": "^3.12.1",
     "date-fns": "3.0.0",
     "embla-carousel-react": "8.5.1",
     "framer-motion": "latest",
@@ -62,10 +63,12 @@
     "react-resizable-panels": "^2.1.7",
     "react-simple-typewriter": "^5.0.1",
     "recharts": "2.15.0",
+    "stream-browserify": "^3.0.0",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "three": "latest",
     "tough-cookie": "^5.1.0",
+    "util": "^0.12.5",
     "vaul": "^0.9.6",
     "zod": "^3.24.1"
   },

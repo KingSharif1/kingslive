@@ -35,9 +35,22 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ message: 'Reservation recorded successfully' });
   } catch (error) {
-    console.error('Error processing reservation:', error);
+    if (error instanceof Error) {
+      console.error('Detailed error:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        cause: error.cause
+      });
+      return NextResponse.json(
+        { message: 'Error processing reservation', error: error.message },
+        { status: 500 }
+      );
+    }
+    // Handle cases where error is not an Error object
+    console.error('Unknown error:', error);
     return NextResponse.json(
-      { message: 'Error processing reservation' },
+      { message: 'Error processing reservation', error: 'An unknown error occurred' },
       { status: 500 }
     );
   }

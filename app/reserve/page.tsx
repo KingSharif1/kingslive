@@ -17,6 +17,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
 import { CompactCountdown } from "../components/CompactCountdown"
 import { useState } from "react"
+import { motion } from "framer-motion"
+import { ArrowLeft } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -42,6 +45,7 @@ export default function ReservePage() {
 
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const router = useRouter()
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
@@ -78,6 +82,27 @@ export default function ReservePage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-black text-white p-4">
       <div className="w-full max-w-md space-y-4">
+        <motion.div
+          className="mb-6"
+          initial={{ x: -100, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <motion.button
+            onClick={() => router.push('/')}
+            className="group flex items-center gap-2 text-primary hover:text-primary/80 transition-colors"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <motion.div
+              whileHover={{ x: -5 }}
+              transition={{ type: "spring", stiffness: 400 }}
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </motion.div>
+            <span className="font-medium">Back Home</span>
+          </motion.button>
+        </motion.div>
         <div className="scale-90 transform-gpu">
           <CompactCountdown />
         </div>
