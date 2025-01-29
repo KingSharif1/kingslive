@@ -3,6 +3,7 @@
 import { motion } from "framer-motion"
 import { Github, Linkedin, Mail } from "lucide-react"
 import { GraduationCountdown } from "./GraduationCountdown"
+import { AnimatedSignature } from "./AnimatedSignature"
 
 export default function Footer() {
   const socialLinks = [
@@ -54,6 +55,9 @@ export default function Footer() {
               </div>
             </div>
           </div>
+
+          {/* Animated Signature */}
+          <AnimatedSignature />
           
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
