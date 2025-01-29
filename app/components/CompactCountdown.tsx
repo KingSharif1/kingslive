@@ -13,20 +13,28 @@ export function CompactCountdown() {
     minutes: '00',
     seconds: '00'
   })
-  const [shouldPlayTick, setShouldPlayTick] = useState(false)
+  const [shouldAllowSound, setShouldAllowSound] = useState(true)
   const tickAudioRef = useRef<HTMLAudioElement | null>(null)
-  const tickTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const soundStartTimeRef = useRef<number>(Date.now())
 
   // Initialize tick sound
   useEffect(() => {
     if (typeof window !== 'undefined') {
       tickAudioRef.current = new Audio('/sounds/tick.mp3')
-      tickAudioRef.current.volume = 0.15
-    }
+      tickAudioRef.current.volume = 0.10
+      soundStartTimeRef.current = Date.now()
 
-    return () => {
-      if (tickTimeoutRef.current) {
-        clearTimeout(tickTimeoutRef.current)
+      // Disable sound after 5 seconds
+      const soundTimeout = setTimeout(() => {
+        setShouldAllowSound(false)
+      }, 500)
+
+      return () => {
+        clearTimeout(soundTimeout)
+        if (tickAudioRef.current) {
+          tickAudioRef.current.pause()
+          tickAudioRef.current.currentTime = 0
+        }
       }
     }
   }, [])
@@ -48,24 +56,19 @@ export function CompactCountdown() {
         seconds: seconds.toString().padStart(2, '0')
       })
 
-      setShouldPlayTick(true)
-      tickTimeoutRef.current = setTimeout(() => {
-        setShouldPlayTick(false)
-      }, 50)
+      // Play tick sound if within first 5 seconds
+      const elapsedTime = Date.now() - soundStartTimeRef.current
+      if (shouldAllowSound && tickAudioRef.current && elapsedTime <= 5000) {
+        tickAudioRef.current.currentTime = 0
+        tickAudioRef.current.play().catch(() => {})
+      }
     }
 
     updateCountdown()
     const interval = setInterval(updateCountdown, 1000)
 
     return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    if (shouldPlayTick && tickAudioRef.current) {
-      tickAudioRef.current.currentTime = 0
-      tickAudioRef.current.play().catch(() => {})
-    }
-  }, [shouldPlayTick])
+  }, [shouldAllowSound])
 
   return (
     <div className="flex flex-col items-center gap-4">
