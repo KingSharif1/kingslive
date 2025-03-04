@@ -7,19 +7,30 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
+import { useTheme } from "next-themes"
 
 export default function Navbar() {
-  const [isDark, setIsDark] = useState(false)
+  const { theme, setTheme } = useTheme()
+  const isDark = theme === "dark"
   const [isOpen, setIsOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const pathname = usePathname()
 
   useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add("dark")
-    } else {
-      document.documentElement.classList.remove("dark")
-    }
-  }, [isDark])
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return (
+      <div className="fixed w-full top-0 left-0 right-0 z-50 px-4 sm:px-6 lg:px-8 py-4">
+        <nav className="max-w-7xl mx-auto bg-gradient-to-b from-blue-100/80 to-blue-200/80 dark:from-blue-900/80 dark:to-blue-800/80 rounded-full shadow-lg overflow-hidden backdrop-blur-sm">
+          <div className="flex justify-between items-center px-6 py-3">
+            <div className="text-2xl font-bold text-blue-800 dark:text-blue-200">King Sharif</div>
+          </div>
+        </nav>
+      </div>
+    )
+  }
 
   const navItems = [
     { name: "Home", href: "/" },
@@ -65,7 +76,7 @@ export default function Navbar() {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setIsDark(!isDark)}
+              onClick={() => setTheme(isDark ? "light" : "dark")}
               className="p-2 rounded-full bg-blue-200 dark:bg-blue-700 hover:bg-blue-300 dark:hover:bg-blue-600 transition-colors"
             >
               {isDark ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-blue-800" />}
@@ -149,7 +160,7 @@ export default function Navbar() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => setIsDark(!isDark)}
+                        onClick={() => setTheme(isDark ? "light" : "dark")}
                         className="rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50"
                       >
                         {isDark ? (

@@ -1,6 +1,8 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from "sonner"
+import { ThemeProvider } from "@/components/theme-provider"
+import SnowAnimation from '@/components/SnowAnimation'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -18,10 +20,26 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        {children}
-        <Toaster />
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <SnowAnimation />
+          {children}
+          <Toaster 
+            richColors 
+            position="top-center"
+            toastOptions={{
+              style: {
+                background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 100%)',
+                color: 'white',
+                fontSize: '1.2em',
+                padding: '20px',
+                border: '1px solid rgba(255,255,255,0.1)',
+              },
+              className: 'celebration-toast'
+            }}
+          />
+        </ThemeProvider>
       </body>
     </html>
   )
