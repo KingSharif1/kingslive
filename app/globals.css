@@ -18,7 +18,21 @@ body {
 
 .dark body {
   color: rgb(var(--text-dark));
-  background-color: rgb(var(--background-dark));
+  background-color: #000; /* Pure black background like rasmic.xyz */
+}
+
+/* Add a subtle star effect to the background in dark mode */
+.dark body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .glass-section {
@@ -28,7 +42,8 @@ body {
 }
 
 .dark .glass-section {
-  background-color: rgba(17, 24, 39, 0.7);
+  background-color: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .skills-section,
@@ -87,6 +102,21 @@ body {
 
 .-transform-rotate-180 {
   transform: rotateX(-180deg);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
 }
 
 @font-face {
