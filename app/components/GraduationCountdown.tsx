@@ -65,28 +65,13 @@ export function GraduationCountdown() {
       onplayerror: (id, err) => console.log('Play error:', err)
     })
 
-    // Add scroll effect
-    const scrollToTimer = () => {
-      if (timerRef.current) {
-        timerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }
-    }
-
-    // Wait for page load then scroll
-    window.addEventListener('load', () => {
-      setTimeout(scrollToTimer, 500) // Small delay after load for smoother effect
-    })
-
-    // If page is already loaded, scroll after a short delay
-    if (document.readyState === 'complete') {
-      setTimeout(scrollToTimer, 500)
-    }
+    // We don't want to scroll on initial load anymore
+    // Only when graduation time is reached (handled in the celebration trigger)
 
     return () => {
       if (soundRef.current) {
         soundRef.current.unload()
       }
-      window.removeEventListener('load', scrollToTimer)
     }
   }, [])
 
@@ -209,6 +194,9 @@ export function GraduationCountdown() {
       timerRef.current.style.transition = 'opacity 1s ease-out'
       timerRef.current.style.opacity = '0'
       setTimeout(() => setShowTimer(false), 1000)
+      
+      // Scroll to timer when graduation time is reached
+      timerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
 
     // Start confetti immediately
