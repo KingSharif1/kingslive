@@ -9,28 +9,27 @@ import { useState } from "react"
 
 const projects = [
   {
+    title: "NEMT Billing",
+    description: "A modern web application I built with Next.js and Strapi to streamline billing for non-emergency medical transportation, featuring secure payment integration, automated invoice generation, user authentication, and a responsive interface.",
+    image: "/nemtbiling.png",
+    demo: "https://nemtbiling.com/",
+    tags: ["Next.js", "Strapi", "Context API", "Billing", "Payment Integration", "Authentication", "Automation", "TypeScript"],
+    status: "completed"
+  },
+  {
     title: "Come And Take It Collectibles",
     description: "A professional e-commerce platform specializing in rare coins, collectibles, and silver rounds. Features include secure payments, product categorization, and detailed numismatic descriptions.",
     image: "/coins-store.png",
     demo: "https://comeandtakeitcollectibles.com/",
-    tags: ["WordPress", "WooCommerce", "E-commerce", "Payment Gateway", "SEO", "Product Management"],
+    tags: ["WordPress", "WooCommerce", "E-commerce", "Payment Gateway", "SEO", "Product Management", "Collectibles"],
     status: "completed"
   },
   {
-    title: "Sweet Emporium",
+    title: "My Sweet Emporium",
     description: "An exotic candy e-commerce website offering unique and international sweets. Features modern design, inventory management, and seamless checkout experience.",
-    image: "/sweet-emporium.png",
+    image: "/se-update.png",
     demo: "https://mysweetemporium.com/",
-    tags: ["WordPress", "WooCommerce", "E-commerce", "Inventory Management", "Payment Processing"],
-    status: "in-progress"
-  },
-  {
-    title: "DFW NEMT Calculator",
-    description: "A specialized calculator for Non-Emergency Medical Transportation services in DFW area. Handles complex rate calculations, Excel processing, and integrates with Strapi backend.",
-    image: "/nemt-calc.png",
-    github: "https://github.com/KingSharif1/DfwNemt",
-    demo: "#",
-    tags: ["React", "Excel Processing", "Strapi", "API Integration", "Business Logic", "TypeScript"],
+    tags: ["WordPress", "WooCommerce", "E-commerce", "Inventory Management", "Payment Processing", "Candy Store"],
     status: "in-progress"
   },
   {
@@ -43,12 +42,12 @@ const projects = [
     status: "in-progress"
   },
   {
-    title: "Vision Board App",
-    description: "An interactive digital vision board creator that helps users visualize and organize their goals. Features include drag-and-drop interface, goal categorization, and progress tracking.",
-    image: "/vision-board.png",
+    title: "King's Mac",
+    description: "A nostalgic recreation of the classic Mac OS interface, featuring interactive apps like a paint program, text editor, and games, built with React, TypeScript, and React Konva.",
+    image: "/retromac.png",
     github: "https://github.com/KingSharif1/VisionBoard",
     demo: "#",
-    tags: ["React", "Next.js", "Drag-and-Drop", "User Authentication"],
+    tags: ["React", "TypeScript", "React Konva", "Zustand", "Tailwind CSS", "Lucide Icons"],
     status: "in-progress"
   }
 ]

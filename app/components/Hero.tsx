@@ -4,13 +4,11 @@ import { motion } from "framer-motion"
 import { ArrowRight, Download } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { useTypewriter, Cursor } from 'react-simple-typewriter'
 
 export default function Hero() {
-  const { toast } = useToast()
-
   const [text] = useTypewriter({
     words: [
       'Full Stack Developer',
@@ -23,10 +21,8 @@ export default function Hero() {
   })
 
   const handleDownloadCV = () => {
-    toast({
-      title: "Coming Soon!",
-      description: "I'm still working on my CV. Please check back later! :)",
-      variant: "default",
+    toast("Still Working On It", {
+      description: "I'm almost finished :)",
       duration: 3000,
     })
   }
