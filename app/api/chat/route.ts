@@ -32,12 +32,10 @@ function formatLinks(text: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages } = await req.json()
+    const { message } = await req.json()
     
-    // Get the last user message
-    const lastMessage = messages[messages.length - 1]
-    
-    if (!lastMessage || lastMessage.role !== 'user') {
+    // Check if the message is valid
+    if (!message || typeof message !== 'string') {
       return NextResponse.json(
         { error: 'Invalid message format' },
         { status: 400 }
@@ -45,7 +43,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Handle greetings differently
-    if (isGreeting(lastMessage.content)) {
+    if (isGreeting(message)) {
       return NextResponse.json({ 
         message: "Hi there! 👋 What would you like to know about King Sharif? I can tell you about his skills, projects, education, or interests."
       })
@@ -59,7 +57,7 @@ When including links (like LinkedIn, GitHub, or website URLs), don't write the f
 Here is information about King Sharif:
 ${KING_INFO}
 
-The user's question is: ${lastMessage.content} [/INST]</s>`
+The user's question is: ${message} [/INST]</s>`
     
     console.log('Sending request to Hugging Face API...')
     
