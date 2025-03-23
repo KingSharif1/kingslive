@@ -11,7 +11,7 @@ import { motion } from 'framer-motion'
 import { Play, Pause } from 'lucide-react'
 
 // Set your graduation date here (10:00 AM Central Time - Texas)
-const GRADUATION_DATE = new Date('2025-05-10T10:00:00-05:00')
+const GRADUATION_DATE = new Date('2025-05-09T10:00:00-05:00')
 
 export function GraduationCountdown() {
   const [timeLeft, setTimeLeft] = useState({

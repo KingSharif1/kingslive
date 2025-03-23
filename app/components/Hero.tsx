@@ -1,12 +1,13 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { ArrowRight, Download } from "lucide-react"
+import { ArrowRight, Download, FileText, File } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { useTypewriter, Cursor } from 'react-simple-typewriter'
+import { useState } from "react"
 
 export default function Hero() {
   const [text] = useTypewriter({
@@ -20,11 +21,24 @@ export default function Hero() {
     delaySpeed: 2000,
   })
 
-  const handleDownloadCV = () => {
-    toast("Still Working On It", {
-      description: "I'm almost finished :)",
+  const [showCVOptions, setShowCVOptions] = useState(false);
+
+  const handleDownloadCV = (fileType: 'pdf' | 'docx') => {
+    // Create a link to the CV file
+    const link = document.createElement('a');
+    link.href = `/assets/King_Sharif_CV.${fileType}`;
+    link.download = `King_Sharif_CV.${fileType}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast("CV Downloaded", {
+      description: `Thank you for interest!`,
       duration: 3000,
     })
+
+    // Hide the options after download
+    setShowCVOptions(false);
   }
 
   return (
@@ -56,14 +70,38 @@ export default function Hero() {
                 <motion.div
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
+                  className="relative"
                 >
                   <Button
-                    onClick={handleDownloadCV}
+                    onClick={() => setShowCVOptions(!showCVOptions)}
                     className="flex items-center gap-2 px-6 py-3 bg-blue-900 text-white dark:bg-white dark:text-black rounded-full font-medium hover:bg-blue-800 dark:hover:bg-gray-100"
                   >
                     Download CV
                     <Download className="w-4 h-4" />
                   </Button>
+                  
+                  {showCVOptions && (
+                    <div className="absolute top-full left-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50">
+                      <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                        <button
+                          onClick={() => handleDownloadCV('pdf')}
+                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          role="menuitem"
+                        >
+                          <File className="mr-2 h-4 w-4" />
+                          <span>PDF Version</span>
+                        </button>
+                        <button
+                          onClick={() => handleDownloadCV('docx')}
+                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          role="menuitem"
+                        >
+                          <FileText className="mr-2 h-4 w-4" />
+                          <span>DOCX Version</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
                 <motion.div
                   whileHover={{ scale: 1.05 }}
