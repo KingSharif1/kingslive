@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
 import SnowAnimation from '@/components/SnowAnimation'
+import ChatBot from './components/ChatBot'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -25,6 +26,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <SnowAnimation />
           {children}
+          <ChatBot />
           <Toaster 
             richColors 
             position="top-center"
