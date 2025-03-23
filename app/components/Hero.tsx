@@ -89,7 +89,7 @@ export default function Hero() {
                           role="menuitem"
                         >
                           <File className="mr-2 h-4 w-4" />
-                          <span>PDF Version</span>
+                          <span>PDF</span>
                         </button>
                         <button
                           onClick={() => handleDownloadCV('docx')}
@@ -97,7 +97,7 @@ export default function Hero() {
                           role="menuitem"
                         >
                           <FileText className="mr-2 h-4 w-4" />
-                          <span>DOCX Version</span>
+                          <span>DOCX</span>
                         </button>
                       </div>
                     </div>
