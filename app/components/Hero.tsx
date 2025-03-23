@@ -42,7 +42,7 @@ export default function Hero() {
   }
 
   return (
-    <section className="bg-transparent min-h-screen pt-16 overflow-hidden relative">
+    <section className="bg-transparent min-h-screen pt-16 overflow-hidden relative rounded-3xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row items-center justify-between relative z-10">
         <motion.div
           initial={{ opacity: 0, x: -50 }}
@@ -81,23 +81,23 @@ export default function Hero() {
                   </Button>
                   
                   {showCVOptions && (
-                    <div className="absolute top-full left-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50">
-                      <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                    <div className="absolute top-full left-0 mt-2 w-48 shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50 overflow-hidden rounded-xl">
+                      <div className="py-1 rounded-xl" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
                         <button
                           onClick={() => handleDownloadCV('pdf')}
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
                           role="menuitem"
                         >
                           <File className="mr-2 h-4 w-4" />
-                          <span>PDF Version</span>
+                          <span>PDF</span>
                         </button>
                         <button
                           onClick={() => handleDownloadCV('docx')}
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
                           role="menuitem"
                         >
                           <FileText className="mr-2 h-4 w-4" />
-                          <span>DOCX Version</span>
+                          <span>DOCX</span>
                         </button>
                       </div>
                     </div>
