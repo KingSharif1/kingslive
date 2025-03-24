@@ -41,6 +41,8 @@
     "@react-three/drei": "latest",
     "@react-three/fiber": "latest",
     "@shadcn/ui": "^0.0.4",
+    "@vercel/analytics": "^1.5.0",
+    "@vercel/speed-insights": "^1.2.0",
     "autoprefixer": "^10.4.20",
     "axios": "^1.7.9",
     "canvas-confetti": "^1.9.3",
