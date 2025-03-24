@@ -44,20 +44,6 @@ export default function Home() {
         <Portfolio />
         <Footer />
       </div>
-    <main className="min-h-screen relative">
-      <div className="fixed inset-0 w-full h-full z-0 opacity-60">
-        {" "}
-        {/* Reduced opacity here */}
-        <CowrieShell scrollY={scrollY} />
-      </div>
-      <div className="relative z-10">
-        <Navbar />
-        <Hero />
-        <About />
-        <Skills />
-        <Portfolio />
-        <Footer />
-      </div>
     </main>
   )
 }
