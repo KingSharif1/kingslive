@@ -16,7 +16,7 @@ export default function Footer() {
     <motion.footer 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800"
+      className="glass-section border-0 text-gray-800 dark:text-gray-100"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex flex-col items-center space-y-8">
