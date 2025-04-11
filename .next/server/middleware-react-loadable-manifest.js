@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST='{"app\\\\page.tsx -> ./components/CowrieShell":{"id":4907,"files":["static/chunks/b536a0f1.d181108dcee577ab.js","static/chunks/bd904a5c.c7a03fa91fec033c.js","static/chunks/46.5218b83d44306ccc.js","static/chunks/907.ea93d73976714b43.js"]}}';

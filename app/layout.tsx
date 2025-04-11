@@ -4,6 +4,8 @@ import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
 import SnowAnimation from '@/components/SnowAnimation'
 import ChatBot from './components/ChatBot'
+import { Analytics } from "@vercel/analytics/react"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -41,6 +43,8 @@ export default function RootLayout({
               className: 'celebration-toast'
             }}
           />
+          <Analytics />
+          <SpeedInsights />
         </ThemeProvider>
       </body>
     </html>

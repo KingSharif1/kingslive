@@ -40,7 +40,12 @@ export default function ChatBot() {
       try {
         const parsedMessages = JSON.parse(savedMessages);
         if (Array.isArray(parsedMessages)) {
-          setMessages(parsedMessages);
+          // Convert timestamp strings back to Date objects
+          const messagesWithDates = parsedMessages.map(msg => ({
+            ...msg,
+            timestamp: msg.timestamp ? new Date(msg.timestamp) : undefined
+          }));
+          setMessages(messagesWithDates);
         }
       } catch (error) {
         console.error('Failed to parse chat history:', error);
