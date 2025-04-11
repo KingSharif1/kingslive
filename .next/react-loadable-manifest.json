@@ -1,11 +1,14 @@
 {
   "app\\page.tsx -> ./components/CowrieShell": {
-    "id": 4907,
+    "id": "app\\page.tsx -> ./components/CowrieShell",
     "files": [
-      "static/chunks/b536a0f1.d181108dcee577ab.js",
-      "static/chunks/bd904a5c.c7a03fa91fec033c.js",
-      "static/chunks/46.5218b83d44306ccc.js",
-      "static/chunks/907.ea93d73976714b43.js"
+      "static/chunks/_app-pages-browser_app_components_CowrieShell_tsx.js"
+    ]
+  },
+  "node_modules\\next\\dist\\client\\components\\react-dev-overlay\\utils\\use-websocket.js -> @vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts": {
+    "id": "node_modules\\next\\dist\\client\\components\\react-dev-overlay\\utils\\use-websocket.js -> @vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_next_dist_client_dev_noop-turbopack-hmr_js.js"
     ]
   }
 }
