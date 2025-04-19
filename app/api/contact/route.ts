@@ -8,7 +8,7 @@ export async function POST(req: Request) {
 
     await emailApi.post('/smtp/email', {
       sender: {
-        name: 'Contact Form',
+        name: 'Contact Form - Kings Live',
         email: 'no-reply@kingsharif.live'
       },
       to: [{
@@ -19,11 +19,11 @@ export async function POST(req: Request) {
         email: email,
         name: name
       },
-      subject: 'New Contact Form Submission',
+      subject: 'Kings Live - Contact Form',
       htmlContent: `
         <html>
           <body>
-            <h1>New Contact Form Submission</h1>
+            <h3>New Contact Form Submission</h3>
             <p><strong>Name:</strong> ${name}</p>
             <p><strong>Email:</strong> ${email}</p>
             <p><strong>Message:</strong> ${message}</p>
