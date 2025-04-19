@@ -131,13 +131,29 @@ export default function Hero() {
             <div className="absolute top-0 -left-4 w-72 h-72 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
             <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
             <div className="relative">
-              <Image
-                src="/p1.PNG"
+              {/* <Image
+                src="/pfp/p1.PNG"
                 alt="King Sharif"
                 width={500}
                 height={600}
                 className="relative rounded-2xl shadow-2xl hover-lift"
                 priority
+              /> */}
+              {/* Light mode image */}
+              <img
+                src="/pfp/light3p.png"
+                alt="King Sharif Light"
+                width={500}
+                height={600}
+                className="block dark:hidden relative rounded-2xl shadow-2xl hover-lift"
+              />
+              {/* Dark mode image */}
+              <img
+                src="/pfp/dark.png"
+                alt="King Sharif Dark"
+                width={500}
+                height={600}
+                className="hidden dark:block relative rounded-2xl shadow-2xl hover-lift"
               />
             </div>
           </div>
