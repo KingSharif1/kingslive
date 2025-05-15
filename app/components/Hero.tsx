@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion"
 import { ArrowRight, Download, FileText, File } from "lucide-react"
-import Image from "next/image"
 import Link from "next/link"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -141,7 +140,7 @@ export default function Hero() {
               /> */}
               {/* Light mode image */}
               <img
-                src="/pfp/light3p.png"
+                src="/pfp/light.png"
                 alt="King Sharif Light"
                 width={500}
                 height={600}

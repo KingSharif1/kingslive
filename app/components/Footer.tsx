@@ -3,50 +3,41 @@
 import { motion } from "framer-motion"
 import { Github, Linkedin, Mail } from "lucide-react"
 import { GraduationCountdown } from "./GraduationCountdown"
-import { AnimatedSignature } from "./AnimatedSignature"
+import AnimatedCursiveName from "./AnimatedCursiveName"
 
 export default function Footer() {
   const socialLinks = [
-    { icon: <Github className="w-5 h-5" />, href: "https://github.com/KingSharif1" },
-    { icon: <Linkedin className="w-5 h-5" />, href: "https://linkedin.com/in/king-sharif/" },
-    { icon: <Mail className="w-5 h-5" />, href: "/contact" },
-  ]
+    { icon: <Github className="w-4 h-4" />, href: "https://github.com/KingSharif1" },
+    { icon: <Linkedin className="w-4 h-4" />, href: "https://linkedin.com/in/king-sharif/" },
+    { icon: <Mail className="w-4 h-4" />, href: "/contact" },
+  ];
 
   return (
-    <motion.footer 
+    <motion.footer
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="glass-section border-0 text-gray-800 dark:text-gray-100"
+      className="bg-white/95 dark:bg-black/95 shadow-sm text-gray-700 dark:text-gray-300"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex flex-col items-center space-y-8">
-          {/* Graduation Countdown */}
-          <GraduationCountdown />
-          
-          {/* Desktop: Name and Description */}
-          <div className="hidden md:block text-center max-w-2xl">
-
-            <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-              Full Stack Developer passionate about creating innovative solutions and pushing the boundaries of web technology.
-            </p>
+      <div className="max-w-4xl mx-auto flex  flex-wrap gap-3 justify-center items-center px-4 sm:px-6 lg:px-8 pt-6 pb-2">
+        <div className="flex flex-col md:flex-row justify-center items-center gap-4 md:gap-6">
+          {/* Animated Cursive Name */}
+          <div className="md:basis-1/3 text-left flex items-center justify-center md:justify-start">
+            <AnimatedCursiveName />
           </div>
-          
-          {/* Animated Signature - Centered */}
-          <div className="w-full max-w-md mx-auto">
-            <AnimatedSignature />
+          {/* Summary */}
+          <div className="md:basis-1/3 text-center text-sm text-gray-600 dark:text-gray-400">
+            Full Stack Developer passionate about creative solutions and pushing the boundaries of web technology.
           </div>
-
-          {/* Connect with me - Centered */}
-          <div className="text-center">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Connect with me</h3>
-            <div className="flex justify-center space-x-8">
+          {/* Socials and Copyright */}
+          <div className="md:basis-1/3 flex justify-end md:justify-start gap-2">
+            <div className="flex gap-4">
               {socialLinks.map((link, index) => (
                 <motion.a
                   key={index}
                   href={link.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
+                  className="text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors duration-200"
                   whileHover={{ scale: 1.15, y: -2 }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -54,19 +45,13 @@ export default function Footer() {
                 </motion.a>
               ))}
             </div>
+
           </div>
-          
-          {/* Copyright */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="text-center text-sm text-gray-600 dark:text-gray-400 mt-8"
-          >
-            <p>{new Date().getFullYear()} King Sharif. All rights reserved.</p>
-          </motion.div>
+        </div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">
+          &copy; {new Date().getFullYear()} King Sharif. All rights reserved.
         </div>
       </div>
     </motion.footer>
-  )
+  );
 }
