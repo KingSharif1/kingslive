@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { useTypewriter, Cursor } from 'react-simple-typewriter'
 import { useState } from "react"
+import CVModal from "./CVModal"
 
 export default function Hero() {
   const [text] = useTypewriter({
@@ -21,6 +22,7 @@ export default function Hero() {
   })
 
   const [showCVOptions, setShowCVOptions] = useState(false);
+  const [showCVModal, setShowCVModal] = useState(false);
 
   const handleDownloadCV = (fileType: 'pdf' | 'docx') => {
     // Create a link to the CV file
@@ -41,7 +43,9 @@ export default function Hero() {
   }
 
   return (
-    <section className="bg-transparent min-h-screen pt-16 overflow-hidden relative rounded-3xl">
+    <>
+      <CVModal open={showCVModal} onClose={() => setShowCVModal(false)} cvUrl="/assets/King_Sharif_CV.pdf" />
+      <section className="bg-transparent min-h-screen pt-16 overflow-hidden relative rounded-3xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row items-center justify-between relative z-10">
         <motion.div
           initial={{ opacity: 0, x: -50 }}
@@ -72,35 +76,12 @@ export default function Hero() {
                   className="relative"
                 >
                   <Button
-                    onClick={() => setShowCVOptions(!showCVOptions)}
+                    onClick={() => setShowCVModal(true)}
                     className="flex items-center gap-2 px-6 py-3 bg-blue-900 text-white dark:bg-white dark:text-black rounded-full font-medium hover:bg-blue-800 dark:hover:bg-gray-100"
                   >
                     Download CV
                     <Download className="w-4 h-4" />
                   </Button>
-                  
-                  {showCVOptions && (
-                    <div className="absolute top-full left-0 mt-2 w-48 shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50 overflow-hidden rounded-xl">
-                      <div className="py-1 rounded-xl" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                        <button
-                          onClick={() => handleDownloadCV('pdf')}
-                          className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
-                          role="menuitem"
-                        >
-                          <File className="mr-2 h-4 w-4" />
-                          <span>PDF</span>
-                        </button>
-                        <button
-                          onClick={() => handleDownloadCV('docx')}
-                          className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
-                          role="menuitem"
-                        >
-                          <FileText className="mr-2 h-4 w-4" />
-                          <span>DOCX</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </motion.div>
                 <motion.div
                   whileHover={{ scale: 1.05 }}
@@ -160,5 +141,6 @@ export default function Hero() {
       </div>
       <div className="absolute inset-0 bg-cool-gradient opacity-50"></div>
     </section>
+    </>
   )
 }

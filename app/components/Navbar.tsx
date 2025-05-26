@@ -38,6 +38,7 @@ export default function Navbar() {
     { name: "Skills", href: "/#skills" },
     { name: "Portfolio", href: "/#portfolio" },
     { name: "Contact", href: "/contact" },
+    { name: "Landing Page", href: "/landing-page" },
   ]
 
   return (

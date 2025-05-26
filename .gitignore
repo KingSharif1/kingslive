@@ -46,3 +46,4 @@ next-env.d.ts
 # Large media files
 *.pack
 *.pack.gz
+
