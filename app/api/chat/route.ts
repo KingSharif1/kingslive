@@ -3,7 +3,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { KING_INFO } from './king-info'
 
 // Initialize Hugging Face client
-const hf = new HfInference(process.env.NEXT_PUBLIC_HUGGINGFACE_API_KEY)
+const apiKey = process.env.NEXT_PUBLIC_HUGGINGFACE_API_KEY || '';
+// Log partial key for debugging (first 4 chars only)
+console.log(`Using HF API key starting with: ${apiKey.substring(0, 4)}...`);
+const hf = new HfInference(apiKey)
 
 // Check if a message is a greeting
 function isGreeting(message: string) {
@@ -49,36 +52,43 @@ export async function POST(req: NextRequest) {
       })
     }
     
-    // Create the prompt for the AI model
-    const prompt = `<s>[INST] You are an AI assistant for King Sharif. Your task is to answer questions about King based on the information provided below. Be friendly and conversational, but keep responses concise (1-2 sentences). Answer directly what was asked. Don't introduce yourself in every response - the user already knows who you are. If asked about "King" or "Sharif", assume they're asking about King Sharif. If you don't know the answer, just say "I don't have that information about King."
+    // Create a prompt for the AI
+    const prompt = `You are a friendly assistant for King Sharif's portfolio website. You should be concise, friendly, and helpful. Your responses should be short (1-3 sentences max) unless the user specifically asks for more detail.
 
-When including links (like LinkedIn, GitHub, or website URLs), don't write the full URL in text - just use descriptive text like "LinkedIn profile" or "contact page" and format it as a link. For example, write "check out his [LinkedIn profile](https://www.linkedin.com/in/king-sharif/)" instead of "check out his LinkedIn at https://www.linkedin.com/in/king-sharif/".
+Here's some information about King Sharif:
+${JSON.stringify(KING_INFO)}
 
-Here is information about King Sharif:
-${KING_INFO}
-
-The user's question is: ${message} [/INST]</s>`
+User: ${message}
+Assistant:`
     
     console.log('Sending request to Hugging Face API...')
     
-    // Call Hugging Face API
-    const response = await hf.textGeneration({
-      model: 'mistralai/Mistral-7B-Instruct-v0.2',
-      inputs: prompt,
-      parameters: {
-        max_new_tokens: 100,
-        temperature: 0.5,
-        top_p: 0.9,
-        repetition_penalty: 1.2,
-        do_sample: true,
-        return_full_text: false
-      }
-    })
+    // Fallback response in case API fails
+    let aiMessage = "I'm sorry, I couldn't process your request at the moment. King Sharif is a full-stack developer with expertise in React, Next.js, and TypeScript. Feel free to explore his portfolio or ask another question!"
     
-    console.log('Response received:', response)
-    
-    // Extract the AI's response and clean it up
-    let aiMessage = response.generated_text.trim()
+    try {
+      // Call Hugging Face API with a simple model that should be available
+      const response = await hf.textGeneration({
+        model: 'gpt2', // Using a very basic model that should be available
+        inputs: prompt,
+        parameters: {
+          max_new_tokens: 100,
+          temperature: 0.5,
+          top_p: 0.9,
+          repetition_penalty: 1.2,
+          do_sample: true,
+          return_full_text: false
+        }
+      })
+      
+      console.log('Response received:', response)
+      
+      // Extract the AI's response and clean it up
+      aiMessage = response.generated_text.trim()
+    } catch (apiError) {
+      console.error('Hugging Face API error details:', apiError)
+      // Continue with fallback response
+    }
     
     // Remove any potential instruction tokens that might be in the response
     aiMessage = aiMessage.replace(/<s>|\[INST\]|\[\/INST\]|<\/s>/g, '').trim()

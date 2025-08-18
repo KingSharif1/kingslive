@@ -22,6 +22,7 @@ export default function SnowAnimation() {
   const isDarkMode = theme === "dark";
   const animationRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
+  const [animationStyle, setAnimationStyle] = useState<"snow" | "particles">("snow");
 
   useEffect(() => {
     setMounted(true);
@@ -119,23 +120,44 @@ export default function SnowAnimation() {
 
   if (!isDarkMode) return null;
 
+  // Toggle animation style
+  const toggleAnimationStyle = () => {
+    setAnimationStyle(prev => prev === "snow" ? "particles" : "snow");
+  };
+
   return (
-    <div className="fixed inset-0 pointer-events-none z-10">
-      {snowflakes.map((flake) => (
-        <div
-          key={flake.id}
-          className="absolute rounded-full bg-white"
-          style={{
-            left: `${flake.x}%`,
-            top: `${flake.y}%`,
-            width: `${flake.size}px`,
-            height: `${flake.size}px`,
-            opacity: flake.opacity,
-            boxShadow: `0 0 ${flake.size * 2.5}px rgba(255, 255, 255, 0.4)`, // increased glow effect
-            transform: `scale(${1 + Math.sin(flake.y * 0.1) * 0.1})`, // subtle size pulsing
-          }}
-        />
-      ))}
-    </div>
+    <>
+      <div className="fixed inset-0 pointer-events-none z-10">
+        {snowflakes.map((flake) => (
+          <div
+            key={flake.id}
+            className={`absolute ${animationStyle === "particles" ? "rounded-sm" : "rounded-full"} ${animationStyle === "particles" ? "bg-blue-400" : "bg-white"}`}
+            style={{
+              left: `${flake.x}%`,
+              top: `${flake.y}%`,
+              width: `${flake.size * (animationStyle === "particles" ? 0.8 : 1)}px`,
+              height: `${flake.size * (animationStyle === "particles" ? 0.8 : 1)}px`,
+              opacity: flake.opacity,
+              boxShadow: animationStyle === "snow" 
+                ? `0 0 ${flake.size * 2.5}px rgba(255, 255, 255, 0.4)` 
+                : `0 0 ${flake.size * 2}px rgba(66, 153, 225, 0.5)`,
+              transform: animationStyle === "snow"
+                ? `scale(${1 + Math.sin(flake.y * 0.1) * 0.1})` 
+                : `rotate(${flake.y * 4}deg) scale(${1 + Math.sin(flake.y * 0.2) * 0.2})`,
+            }}
+          />
+        ))}
+      </div>
+      
+      {/* Animation style toggle button - only visible in dark mode */}
+      {isDarkMode && (
+        <button 
+          onClick={toggleAnimationStyle}
+          className="fixed bottom-4 right-4 bg-gray-800 text-white text-xs px-3 py-1 rounded-full opacity-50 hover:opacity-100 transition-opacity z-20 pointer-events-auto"
+        >
+          {animationStyle === "snow" ? "Switch to Particles" : "Switch to Snow"}
+        </button>
+      )}
+    </>
   );
 }

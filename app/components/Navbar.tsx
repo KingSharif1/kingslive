@@ -37,8 +37,9 @@ export default function Navbar() {
     { name: "About", href: "/#about" },
     { name: "Skills", href: "/#skills" },
     { name: "Portfolio", href: "/#portfolio" },
+    { name: "Blog", href: "/blog" },
     { name: "Contact", href: "/contact" },
-    { name: "Landing Page", href: "/landing-page" },
+    { name: "Control Room", href: "/ctroom" },
   ]
 
   return (

@@ -1,3 +1,7 @@
 {
-  "/template/page": "app/template/page.js"
+  "/blog/[slug]/page": "app/blog/[slug]/page.js",
+  "/page": "app/page.js",
+  "/blog/page": "app/blog/page.js",
+  "/admin-setup/page": "app/admin-setup/page.js",
+  "/ctroom/page": "app/ctroom/page.js"
 }
