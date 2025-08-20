@@ -44,7 +44,7 @@ export default function SnowAnimation() {
       x: Math.random() * 100, // percentage across screen
       y: Math.random() * 100, // percentage down screen
       size: Math.random() * 3 + 1.5, // increased sizes between 1.5-4.5px
-      speed: Math.random() * 0.5 + 0.2, // slower speeds between 0.2-0.7
+      speed: Math.random() * 0.3 + 0.1, // slower speeds between 0.2-0.7
       opacity: Math.random() * 0.5 + 0.3, // slightly increased opacity between 0.3-0.8
       swing: 0, // current swing position
       swingDirection: Math.random() > 0.5 ? 1 : -1, // direction of swing
@@ -135,11 +135,11 @@ export default function SnowAnimation() {
             style={{
               left: `${flake.x}%`,
               top: `${flake.y}%`,
-              width: `${flake.size * (animationStyle === "particles" ? 0.8 : 1)}px`,
-              height: `${flake.size * (animationStyle === "particles" ? 0.8 : 1)}px`,
+              width: `${flake.size * (animationStyle === "particles" ? 0.8 : .5)}px`,
+              height: `${flake.size * (animationStyle === "particles" ? 0.8 : .5)}px`,
               opacity: flake.opacity,
               boxShadow: animationStyle === "snow" 
-                ? `0 0 ${flake.size * 2.5}px rgba(255, 255, 255, 0.4)` 
+                ? `0 0 ${flake.size * 1.5}px rgba(255, 255, 255, 0.4)` 
                 : `0 0 ${flake.size * 2}px rgba(66, 153, 225, 0.5)`,
               transform: animationStyle === "snow"
                 ? `scale(${1 + Math.sin(flake.y * 0.1) * 0.1})` 

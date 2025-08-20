@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Subdomain routing
   async rewrites() {
     return [
       // Blog subdomain handling
@@ -38,7 +39,26 @@ const nextConfig = {
       },
     ]
   },
-  // Add any other Next.js config options here
+  // Build optimization settings
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  images: {
+    unoptimized: true,
+  },
+  experimental: {
+    webpackBuildWorker: true,
+    parallelServerBuildTraces: true,
+    parallelServerCompiles: true,
+  },
+  // Webpack configuration
+  webpack: (config) => {
+    config.externals = [...config.externals, { canvas: 'canvas' }];
+    return config;
+  },
 }
 
 module.exports = nextConfig

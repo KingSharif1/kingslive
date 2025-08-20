@@ -1,5 +1,8 @@
 import { supabase } from './supabase'
 
+// Simple cache for admin users to reduce database queries
+const adminUserCache = new Map<string, boolean>()
+
 export type AuthUser = {
   id: string
   email: string
@@ -43,14 +46,25 @@ export async function signOut() {
 }
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
+  // Get session first - quick check if user is logged in
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return null
   
   const { data: { user } } = await supabase.auth.getUser()
-  
   if (!user) return null
   
-  // Check if user is admin by querying the admin_users table
+  // Check cache first for admin status
+  if (adminUserCache.has(user.id)) {
+    const isAdmin = adminUserCache.get(user.id)
+    return {
+      id: user.id,
+      email: user.email || '',
+      username: user.user_metadata?.username,
+      isAdmin: !!isAdmin
+    }
+  }
+  
+  // If not in cache, check database
   const { data: adminData } = await supabase
     .from('admin_users')
     .select('id')
@@ -59,6 +73,9 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   
   // User is admin if they exist in the admin_users table
   const isAdmin = !!adminData
+  
+  // Cache the result
+  adminUserCache.set(user.id, isAdmin)
   
   return {
     id: user.id,
@@ -71,7 +88,19 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 export function subscribeToAuthChanges(callback: (user: AuthUser | null) => void) {
   return supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
-      // Check if user is admin by querying the admin_users table
+      // Check cache first for admin status
+      if (adminUserCache.has(session.user.id)) {
+        const isAdmin = adminUserCache.get(session.user.id)
+        callback({
+          id: session.user.id,
+          email: session.user.email || '',
+          username: session.user.user_metadata?.username,
+          isAdmin: !!isAdmin
+        })
+        return
+      }
+      
+      // If not in cache, check database
       const { data: adminData } = await supabase
         .from('admin_users')
         .select('id')
@@ -81,6 +110,9 @@ export function subscribeToAuthChanges(callback: (user: AuthUser | null) => void
       // User is admin if they exist in the admin_users table
       const isAdmin = !!adminData
       
+      // Cache the result
+      adminUserCache.set(session.user.id, isAdmin)
+      
       callback({
         id: session.user.id,
         email: session.user.email || '',
@@ -88,6 +120,10 @@ export function subscribeToAuthChanges(callback: (user: AuthUser | null) => void
         isAdmin
       })
     } else if (event === 'SIGNED_OUT') {
+      // Clear cache on sign out
+      if (session?.user?.id) {
+        adminUserCache.delete(session.user.id)
+      }
       callback(null)
     }
   })

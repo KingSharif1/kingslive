@@ -6,6 +6,7 @@ import Link from "next/link"
 import { ArrowLeft, Calendar, User, Tag } from "lucide-react"
 import CommentSection from "@/app/components/CommentSection"
 import { supabase } from "@/lib/supabase"
+import { DataService } from "@/app/ctroom/services/dataService"
 
 interface BlogPost {
   id: string
@@ -391,19 +392,22 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
       if (data) {
         setPost(data)
         
-        // Record view after a short delay
+        // Record view after a short delay to ensure it's a real view
         setTimeout(async () => {
           try {
-            // Record view in Supabase
-            await supabase
-              .from('blog_stats')
-              .upsert({
-                post_id: data.id,
-                views: (data.views || 0) + 1
-              })
+            // Use DataService to increment post views
+            await DataService.incrementPostViews(data.id)
             
-            // Update local post data with incremented view
-            setPost(prev => prev ? {...prev, views: (prev.views || 0) + 1} : null)
+            // Get updated analytics
+            const analytics = await DataService.getPostAnalytics(data.id)
+            
+            // Update local post data with view count from analytics
+            if (analytics) {
+              setPost(prev => prev ? {
+                ...prev, 
+                views: analytics.view_count || 0
+              } : null)
+            }
           } catch (err) {
             console.error('Error recording view:', err)
           }
