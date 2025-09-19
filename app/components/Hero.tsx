@@ -7,7 +7,6 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { useTypewriter, Cursor } from 'react-simple-typewriter'
 import { useState } from "react"
-import CVModal from "./CVModal"
 
 export default function Hero() {
   const [text] = useTypewriter({
@@ -44,7 +43,6 @@ export default function Hero() {
 
   return (
     <>
-      <CVModal open={showCVModal} onClose={() => setShowCVModal(false)} cvUrl="/assets/King_Sharif_CV.pdf" />
       <section className="bg-transparent min-h-screen pt-16 overflow-hidden relative rounded-3xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row items-center justify-between relative z-10">
         <motion.div

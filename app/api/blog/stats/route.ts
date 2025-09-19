@@ -29,20 +29,14 @@ export async function GET(request: NextRequest) {
     
     if (publishedError) throw publishedError
     
-    // Get total views
-    const { data: viewsData, error: viewsError } = await supabase
-      .from('blog_posts')
-      .select('views')
+    // Views functionality removed - column doesn't exist in database
+    const totalViews = 0
     
-    if (viewsError) throw viewsError
-    
-    const totalViews = viewsData.reduce((sum, post) => sum + (post.views || 0), 0)
-    
-    // Get most viewed posts
+    // Get recent posts instead of most viewed (views column removed)
     const { data: popularPosts, error: popularError } = await supabase
       .from('blog_posts')
-      .select('id, title, slug, views')
-      .order('views', { ascending: false })
+      .select('id, title, slug, created_at')
+      .order('created_at', { ascending: false })
       .limit(5)
     
     if (popularError) throw popularError
@@ -62,7 +56,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/blog/stats/view - Record a post view
+// POST /api/blog/stats/view - Record a post view (disabled - views column removed)
 export async function POST(request: NextRequest) {
   try {
     const { postId } = await request.json()
@@ -74,38 +68,12 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Get current views
-    const { data: post, error: fetchError } = await supabase
-      .from('blog_posts')
-      .select('views')
-      .eq('id', postId)
-      .single()
-    
-    if (fetchError) {
-      if (fetchError.code === 'PGRST116') {
-        return NextResponse.json(
-          { error: 'Blog post not found' },
-          { status: 404 }
-        )
-      }
-      throw fetchError
-    }
-    
-    // Increment views
-    const currentViews = post.views || 0
-    const { data, error: updateError } = await supabase
-      .from('blog_posts')
-      .update({ views: currentViews + 1 })
-      .eq('id', postId)
-      .select()
-    
-    if (updateError) throw updateError
-    
-    return NextResponse.json({ success: true, views: currentViews + 1 })
+    // Views functionality disabled - column doesn't exist in database
+    return NextResponse.json({ success: true, views: 0 })
   } catch (error: any) {
-    console.error('Error recording post view:', error)
+    console.error('Error in view endpoint:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to record post view' },
+      { error: error.message || 'Failed to process request' },
       { status: 500 }
     )
   }

@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Commented out to fix build errors - Next.js can't resolve SCSS from CSS files
+@import '../styles/_variables.scss';
+@import '../styles/_keyframe-animations.scss'; */
+
+
+
 :root {
   --primary-color: 59, 130, 246;
   --background-light: 248, 250, 252;
@@ -140,3 +146,234 @@ body::before {
   font-style: normal;
   font-display: swap;
 }
+
+.bn-editor {
+  overflow-y: auto;
+  height: 600px;
+  min-height: max-content;
+}
+
+/* Newspaper Theme Enhancements */
+
+/* Vintage Paper Texture */
+.newspaper-bg {
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(139, 69, 19, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(160, 82, 45, 0.03) 0%, transparent 50%),
+    linear-gradient(90deg, transparent 49%, rgba(139, 69, 19, 0.02) 50%, transparent 51%);
+  background-size: 100px 100px, 150px 150px, 20px 20px;
+}
+
+/* Ink Bleed Effect */
+.ink-bleed {
+  text-shadow: 0.5px 0.5px 1px rgba(139, 69, 19, 0.1);
+}
+
+/* Improved Typewriter Animation */
+@keyframes typewriter-reveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes letter-glow {
+  0%, 100% { text-shadow: 0.5px 0.5px 1px rgba(139, 69, 19, 0.1); }
+  50% { text-shadow: 1px 1px 3px rgba(139, 69, 19, 0.3); }
+}
+
+.typewriter-improved {
+  animation: typewriter-reveal 1.5s ease-out forwards, letter-glow 2s ease-in-out infinite;
+}
+
+/* News Coo Flying Animation */
+@keyframes fly-in {
+  0% {
+    transform: translateX(-100px) translateY(-20px) rotate(-10deg);
+    opacity: 0;
+  }
+  50% {
+    transform: translateX(50px) translateY(-10px) rotate(5deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.news-coo-fly {
+  animation: fly-in 2s ease-out forwards;
+}
+
+/* Bounty Poster Style */
+.bounty-poster {
+  background: linear-gradient(45deg, #f4e4bc 0%, #e8d5a3 100%);
+  border: 4px solid #8b4513;
+  box-shadow: 
+    inset 0 0 20px rgba(139, 69, 19, 0.2),
+    0 4px 8px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.bounty-poster::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: repeating-linear-gradient(
+    45deg,
+    #8b4513 0px,
+    #8b4513 2px,
+    transparent 2px,
+    transparent 8px
+  );
+  z-index: -1;
+}
+
+/* Pull Quote Styling */
+.pull-quote {
+  border-left: 4px solid #b8860b;
+  background: linear-gradient(90deg, rgba(184, 134, 11, 0.1) 0%, transparent 100%);
+  font-style: italic;
+  font-size: 1.2em;
+  margin: 2rem 0;
+  padding: 1rem 2rem;
+  position: relative;
+}
+
+.pull-quote::before {
+  content: '"';
+  font-size: 4rem;
+  color: #b8860b;
+  position: absolute;
+  left: -0.5rem;
+  top: -1rem;
+  font-family: serif;
+}
+
+/* Folding Animation */
+@keyframes unfold {
+  0% {
+    transform: rotateX(-90deg);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: rotateX(0deg);
+    opacity: 1;
+  }
+}
+
+.unfold-animation {
+  animation: unfold 0.6s ease-out forwards;
+  transform-origin: top;
+}
+
+/* Devil Fruit Tag Styling */
+.devil-fruit-tag {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  border-radius: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.devil-fruit-tag::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(255, 255, 255, 0.1) 2px,
+    rgba(255, 255, 255, 0.1) 4px
+  );
+}
+
+/* Subtle Text Enhancement */
+.enhanced-text {
+  transition: color 0.2s ease;
+}
+
+.enhanced-text:hover {
+  color: rgba(139, 69, 19, 0.8);
+}
+
+/* Scroll Progress Indicator */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, #b8860b 0%, #daa520 100%);
+  transform-origin: left;
+  z-index: 50;
+}
+
+/* Weather Widget */
+.weather-widget {
+  background: linear-gradient(135deg, #87ceeb 0%, #4682b4 100%);
+  border: 2px solid #4682b4;
+  border-radius: 8px;
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Vintage Stamp Effect */
+.vintage-stamp {
+  background: #dc143c;
+  color: white;
+  border: 2px dashed #fff;
+  border-radius: 0;
+  position: relative;
+  transform: rotate(-5deg);
+}
+
+.vintage-stamp::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border: 2px solid #dc143c;
+  border-radius: 4px;
+}
+
+/* Loading Animation */
+@keyframes newspaper-load {
+  0% {
+    transform: translateY(100px) rotate(10deg);
+    opacity: 0;
+  }
+  50% {
+    transform: translateY(-10px) rotate(-2deg);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.newspaper-load {
+  animation: newspaper-load 1s ease-out forwards;
+}
+

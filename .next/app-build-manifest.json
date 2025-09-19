@@ -11,6 +11,11 @@
       "static/chunks/main-app.js",
       "static/chunks/app/ctroom/page.js"
     ],
+    "/api/auth/verify-admin/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/auth/verify-admin/route.js"
+    ],
     "/blog/[slug]/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",

@@ -1,9 +1,11 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Edit, Trash2, Eye, BarChart } from "lucide-react"
+import { Edit, Trash2, Eye, MessageCircle } from "lucide-react"
 import Link from "next/link"
-import { BlogPost } from "../types"
+import { BlogPost, PostAnalytics } from "../types"
+import { useState, useEffect } from "react"
+import { DataService } from "../services/dataService"
 
 interface PostListProps {
   posts: BlogPost[]
@@ -11,7 +13,43 @@ interface PostListProps {
   handleDeletePost: (postId: string) => void
 }
 
+interface PostWithAnalytics extends BlogPost {
+  analytics?: PostAnalytics
+}
+
 export default function PostList({ posts, handleEditPost, handleDeletePost }: PostListProps) {
+  const [postsWithAnalytics, setPostsWithAnalytics] = useState<PostWithAnalytics[]>(posts)
+  const [loading, setLoading] = useState(false)
+
+  // Fetch analytics data for all posts
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      if (posts.length === 0) return
+      
+      setLoading(true)
+      try {
+        const analyticsPromises = posts.map(async (post) => {
+          try {
+            const analytics = await DataService.getPostAnalytics(post.id)
+            return { ...post, analytics: analytics || undefined }
+          } catch (error) {
+            // If no analytics found, return post without analytics
+            return { ...post, analytics: undefined }
+          }
+        })
+        
+        const results = await Promise.all(analyticsPromises)
+        setPostsWithAnalytics(results)
+      } catch (error) {
+        console.error('Error fetching analytics:', error)
+        setPostsWithAnalytics(posts)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchAnalytics()
+  }, [posts])
   return (
     <div className="bg-gray-300 dark:bg-gray-800 shadow rounded-xl overflow-hidden backdrop-blur-xl backdrop-contrast-150 backdrop-brightness-150">
       <div className="px-4 py-5 sm:px-6 border-b border-gray-200 dark:border-gray-700">
@@ -19,7 +57,7 @@ export default function PostList({ posts, handleEditPost, handleDeletePost }: Po
           Blog Posts
         </h3>
         <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
-          Manage your blog content
+          Manage the blog content
         </p>
       </div>
       
@@ -39,13 +77,16 @@ export default function PostList({ posts, handleEditPost, handleDeletePost }: Po
               <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Views
               </th>
+              <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                Comments
+              </th>
               <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
           <tbody className="bg-gray-300 dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {posts.map((post) => (
+            {postsWithAnalytics.map((post) => (
               <motion.tr 
                 key={post.id}
                 initial={{ opacity: 0 }}
@@ -71,7 +112,16 @@ export default function PostList({ posts, handleEditPost, handleDeletePost }: Po
                   </span>
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                  {post.views}
+                  <div className="flex items-center">
+                    <Eye className="w-4 h-4 mr-1" />
+                    {loading ? '...' : (post.analytics?.view_count || 0)}
+                  </div>
+                </td>
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center">
+                    <MessageCircle className="w-4 h-4 mr-1" />
+                    {loading ? '...' : (post.analytics?.comment || 0)}
+                  </div>
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex justify-end space-x-2">
@@ -82,9 +132,10 @@ export default function PostList({ posts, handleEditPost, handleDeletePost }: Po
                       <Edit className="w-5 h-5" />
                     </button>
                     <Link 
-                      href={`/blog/${post.slug}`}
+                      href={post.published ? `/blog/${post.slug}` : `/blog/${post.slug}?preview=true`}
                       target="_blank"
                       className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                      title={post.published ? "View Post" : "Preview Draft"}
                     >
                       <Eye className="w-5 h-5" />
                     </Link>

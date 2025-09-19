@@ -47,7 +47,7 @@ export default function AuthForm({ email, setEmail, authError, magicLinkSent, is
           </div>
           
           {magicLinkSent ? (
-            <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg mb-6">
+            <div className="text-center p-4 bg-green-300/70 dark:bg-green-900/40 rounded-xl mb-6">
               <p className="text-green-700 dark:text-green-400">
                 Magic link sent! Check your email to sign in.
               </p>
@@ -76,9 +76,16 @@ export default function AuthForm({ email, setEmail, authError, magicLinkSent, is
               </div>
               
               {authError && (
-                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-                  <p className="text-sm text-red-600 dark:text-red-400">{authError}</p>
+                <div className="flex justify-center">
+                  <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl w-fit flex items-center justify-center font-semibold text-xl">
+                    <p className="text-sm text-red-600 dark:text-red-400">{authError}</p>
+                  </motion.div>
                 </div>
+
               )}
               
               <div className="w-full flex justify-center">

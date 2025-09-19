@@ -41,47 +41,86 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signOut() {
+  // Clear any old localStorage sessions
+  if (typeof window !== 'undefined') {
+    localStorage.clear()
+  }
   const { error } = await supabase.auth.signOut()
   if (error) throw error
 }
 
+export async function forceReauth() {
+  // Force sign out and clear all sessions
+  await signOut()
+  // Clear admin cache
+  adminUserCache.clear()
+}
+
 export async function getCurrentUser(): Promise<AuthUser | null> {
-  // Get session first - quick check if user is logged in
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return null
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  
-  // Check cache first for admin status
-  if (adminUserCache.has(user.id)) {
-    const isAdmin = adminUserCache.get(user.id)
+  try {
+    // Get session first - quick check if user is logged in
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      // Check if there's an old localStorage session that needs migration
+      if (typeof window !== 'undefined') {
+        const oldSession = localStorage.getItem('sb-' + process.env.NEXT_PUBLIC_SUPABASE_URL?.split('//')[1]?.split('.')[0] + '-auth-token')
+        if (oldSession) {
+          console.log('Found old localStorage session, please sign in again to migrate to cookies')
+          localStorage.clear() // Clear old sessions
+        }
+      }
+      return null
+    }
+    
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+    
+    // Check cache first for admin status
+    if (adminUserCache.has(user.id)) {
+      const isAdmin = adminUserCache.get(user.id)
+      return {
+        id: user.id,
+        email: user.email || '',
+        username: user.user_metadata?.username,
+        isAdmin: !!isAdmin
+      }
+    }
+    
+    // If not in cache, check database
+    const { data: adminData, error: adminError } = await supabase
+      .from('admin_users')
+      .select('id')
+      .eq('id', user.id)
+      .maybeSingle()
+    
+    // Handle potential database errors gracefully
+    if (adminError) {
+      console.error('Error checking admin status:', adminError)
+      // Default to non-admin on error to be safe
+      adminUserCache.set(user.id, false)
+      return {
+        id: user.id,
+        email: user.email || '',
+        username: user.user_metadata?.username,
+        isAdmin: false
+      }
+    }
+    
+    // User is admin if they exist in the admin_users table
+    const isAdmin = !!adminData
+    
+    // Cache the result
+    adminUserCache.set(user.id, isAdmin)
+    
     return {
       id: user.id,
       email: user.email || '',
       username: user.user_metadata?.username,
-      isAdmin: !!isAdmin
+      isAdmin
     }
-  }
-  
-  // If not in cache, check database
-  const { data: adminData } = await supabase
-    .from('admin_users')
-    .select('id')
-    .eq('id', user.id)
-    .single()
-  
-  // User is admin if they exist in the admin_users table
-  const isAdmin = !!adminData
-  
-  // Cache the result
-  adminUserCache.set(user.id, isAdmin)
-  
-  return {
-    id: user.id,
-    email: user.email || '',
-    username: user.user_metadata?.username,
-    isAdmin
+  } catch (error) {
+    console.error('Error in getCurrentUser:', error)
+    return null
   }
 }
 
@@ -101,11 +140,25 @@ export function subscribeToAuthChanges(callback: (user: AuthUser | null) => void
       }
       
       // If not in cache, check database
-      const { data: adminData } = await supabase
+      const { data: adminData, error: adminError } = await supabase
         .from('admin_users')
         .select('id')
         .eq('id', session.user.id)
-        .single()
+        .maybeSingle()
+      
+      // Handle potential database errors gracefully
+      if (adminError) {
+        console.error('Error checking admin status:', adminError)
+        // Default to non-admin on error to be safe
+        adminUserCache.set(session.user.id, false)
+        callback({
+          id: session.user.id,
+          email: session.user.email || '',
+          username: session.user.user_metadata?.username,
+          isAdmin: false
+        })
+        return
+      }
       
       // User is admin if they exist in the admin_users table
       const isAdmin = !!adminData

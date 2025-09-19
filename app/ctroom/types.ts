@@ -16,11 +16,20 @@ export interface BlogPost {
   slug: string
   tags: string[]
   published: boolean
-  views: number
   category_id: string
   featured: boolean
   meta_description: string
   meta_keywords: string[]
+  citations?: Citation[]
+}
+
+export interface Citation {
+  id: string
+  title: string
+  url: string
+  author?: string
+  publishedDate?: string
+  description?: string
 }
 
 export interface Comment {
@@ -43,6 +52,7 @@ export interface PostAnalytics {
   unique_visitors: number
   avg_time_on_page: number
   bounce_rate: number
+  comment: number
   referrers?: Record<string, any>
   last_updated: string
 }

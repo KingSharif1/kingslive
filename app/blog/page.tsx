@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, ArrowLeft, Search } from "lucide-react"
+import GrandChronicLeLogo from "@/app/components/GrandChronicLeLogo"
+import ScrollProgress from "@/app/components/ScrollProgress"
 import { supabase } from "@/lib/supabase"
 
 interface BlogPost {
@@ -107,7 +109,16 @@ export default function BlogPage() {
   useEffect(() => {
     fetchPosts()
     
-    // Set up real-time subscription for new blog posts
+    // Optimized real-time subscription with debouncing
+    let updateTimeout: NodeJS.Timeout
+    
+    const debouncedFetchPosts = () => {
+      clearTimeout(updateTimeout)
+      updateTimeout = setTimeout(() => {
+        fetchPosts()
+      }, 500) // Debounce updates by 500ms
+    }
+    
     const subscription = supabase
       .channel('blog_posts_changes')
       .on(
@@ -119,8 +130,13 @@ export default function BlogPage() {
           filter: 'published=eq.true'
         },
         (payload) => {
-          // When a new post is published, refresh the posts
-          fetchPosts()
+          // Optimistically add new post to avoid full refetch
+          if (payload.new && typeof payload.new === 'object') {
+            const newPost = payload.new as BlogPost
+            setPosts(prevPosts => [newPost, ...prevPosts])
+          } else {
+            debouncedFetchPosts()
+          }
         }
       )
       .on(
@@ -131,13 +147,42 @@ export default function BlogPage() {
           table: 'blog_posts'
         },
         (payload) => {
-          // When a post is updated, refresh the posts
-          fetchPosts()
+          // Optimistically update existing post
+          if (payload.new && typeof payload.new === 'object') {
+            const updatedPost = payload.new as BlogPost
+            setPosts(prevPosts => 
+              prevPosts.map(post => 
+                post.id === updatedPost.id ? updatedPost : post
+              )
+            )
+          } else {
+            debouncedFetchPosts()
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'blog_posts'
+        },
+        (payload) => {
+          // Optimistically remove deleted post
+          if (payload.old && typeof payload.old === 'object') {
+            const deletedPost = payload.old as BlogPost
+            setPosts(prevPosts => 
+              prevPosts.filter(post => post.id !== deletedPost.id)
+            )
+          } else {
+            debouncedFetchPosts()
+          }
         }
       )
       .subscribe()
     
     return () => {
+      clearTimeout(updateTimeout)
       subscription.unsubscribe()
     }
   }, [searchQuery, activeTag])
@@ -159,81 +204,133 @@ export default function BlogPage() {
   const totalPages = Math.ceil(filteredPosts.length / postsPerPage)
 
   return (
-    <section className="py-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <>
+      <ScrollProgress />
+      <section className="py-20 newspaper-bg bg-amber-50 dark:bg-amber-950/10 min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* The Grand Chronicle Newspaper Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="relative mb-12"
+        >
+          {/* Back Button */}
+          <div className="mb-6">
+            <Link 
+              href="/"
+              className="inline-flex items-center gap-2 px-4 py-2 text-amber-800 dark:text-amber-200 hover:text-amber-900 dark:hover:text-amber-100 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="text-sm font-medium">← Back to Home</span>
+            </Link>
+          </div>
+          
+          {/* Main Newspaper Header */}
+          <div className="bg-amber-50 dark:bg-amber-950/20 border-4 border-double border-amber-800 dark:border-amber-200 p-8 shadow-2xl rounded-xl newspaper-load">
+            {/* Top Banner */}
+            <div className="text-center border-b-4 border-double border-amber-800 dark:border-amber-200 pb-6 mb-6">
+              <div className="flex items-center justify-center gap-6 mb-3">
+                {/* Decorative Elements */}
+                <div className="w-12 h-12 bg-amber-800 dark:bg-amber-200 rounded-full flex items-center justify-center news-coo-fly">
+                  <span className="text-amber-50 dark:text-amber-900 text-lg font-bold">📰</span>
+                </div>
+                <h1 className="text-4xl md:text-6xl font-black text-amber-900 dark:text-amber-100 tracking-wider ink-bleed" style={{fontFamily: 'serif'}}>
+                  THE GRAND CHRONICLE
+                </h1>
+                <div className="w-12 h-12 bg-amber-800 dark:bg-amber-200 rounded-full flex items-center justify-center news-coo-fly" style={{animationDelay: '0.5s'}}>
+                  <span className="text-amber-50 dark:text-amber-900 text-lg font-bold">⚓</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-8 text-sm text-amber-700 dark:text-amber-300 font-bold">
+                <span>EST. 1522</span>
+                <span>•</span>
+                <span>ROYAL EDITION</span>
+                <span>•</span>
+                <span>VOL. {Math.floor(filteredPosts.length / 10) + 1}</span>
+                <span>•</span>
+                <span>{new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+              </div>
+            </div>
+            
+            {/* Subtitle */}
+            <div className="text-center">
+              <p className="text-lg text-amber-800 dark:text-amber-200 font-semibold italic mb-4" style={{fontFamily: 'serif'}}>
+                "Chronicles of Code, Tales of Innovation"
+              </p>
+              <div className="flex items-center justify-center gap-4 text-sm text-amber-700 dark:text-amber-300">
+                <span className="px-3 py-1 bg-amber-200 dark:bg-amber-800 rounded font-bold">
+                  {filteredPosts.length} ARTICLES PUBLISHED
+                </span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+        
+        {/* Newspaper Search & Filters */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-center mb-12"
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="mb-12"
         >
-          <h1 className="text-4xl font-bold mb-4 light-mode-text dark:text-white">Blog</h1>
-          <p className="text-lg max-w-3xl mx-auto light-mode-text dark:text-gray-300">
-            Thoughts, tutorials, and insights on web development, design, and technology
-          </p>
-          
           {/* Search bar */}
-          <div className="max-w-md mx-auto mt-6 mb-4">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search articles..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-2 pl-10 pr-10 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <svg
-                className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          <div className="relative max-w-2xl mx-auto mb-8">
+            <div className="bg-amber-100 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-700 p-4 rounded-xl">
+              <h3 className="text-center text-amber-900 dark:text-amber-100 font-bold mb-3" style={{fontFamily: 'serif'}}>SEARCH THE ARCHIVES</h3>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search chronicles..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-4 rounded-xl py-3 pl-12 pr-12 border-2 border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all" style={{fontFamily: 'serif'}}
                 />
-              </svg>
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              )}
+                <Search className="absolute left-4 top-3.5 h-5 w-5 text-amber-600 dark:text-amber-400 rounded-xl" />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-4 top-3.5 text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200 rounded-xl"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           
           {/* Tag filters */}
-          <div className="flex flex-wrap justify-center gap-2 mt-6">
-            <button 
-              onClick={() => setActiveTag(null)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                activeTag === null 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              All Posts
-            </button>
-            {allTags.map(tag => (
-              <button
-                key={tag}
-                onClick={() => setActiveTag(tag)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                  activeTag === tag 
-                    ? 'bg-blue-500 text-white' 
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+          <div className="text-center">
+            <h4 className="text-amber-900 dark:text-amber-100 font-bold mb-4" style={{fontFamily: 'serif'}}>BROWSE BY CATEGORY</h4>
+            <div className="flex flex-wrap justify-center gap-2">
+              <button 
+                onClick={() => setActiveTag(null)}
+                className={`px-4 py-2 text-sm font-bold uppercase transition-all border-2 rounded-xl ${
+                  activeTag === null 
+                    ? 'bg-amber-800 dark:bg-amber-200 text-amber-50 dark:text-amber-900 border-amber-900 dark:border-amber-100' 
+                    : 'bg-amber-100 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 border-amber-400 dark:border-amber-600 hover:bg-amber-200 dark:hover:bg-amber-800/30'
                 }`}
+                style={{fontFamily: 'serif'}}
               >
-                {tag}
+                All Chronicles
               </button>
-            ))}
+              {allTags.map(tag => (
+                <button 
+                  key={tag}
+                  onClick={() => setActiveTag(tag)}
+                  className={`px-4 py-2 text-sm font-bold uppercase transition-all border-2 rounded-xl ${
+                    activeTag === tag 
+                      ? 'bg-amber-800 dark:bg-amber-200 text-amber-50 dark:text-amber-900 border-amber-900 dark:border-amber-100' 
+                      : 'bg-amber-100 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 border-amber-400 dark:border-amber-600 hover:bg-amber-200 dark:hover:bg-amber-800/30'
+                  }`}
+                  style={{fontFamily: 'serif'}}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
           </div>
         </motion.div>
 
@@ -255,50 +352,69 @@ export default function BlogPage() {
           </div>
         ) : (
           <>
-            {/* Blog posts grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* Newspaper Articles Grid */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 mb-12 "
+            >
               {currentPosts.map((post, index) => (
-                <motion.div
+                <motion.article
                   key={post.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
-                  className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                  className="group bg-amber-50 dark:bg-amber-950/20 border-2 rounded-xl border-amber-300 dark:border-amber-700 shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 unfold-animation"
                 >
-                  <Link href={`/blog/${post.slug}`}>
-                    <div className="p-6">
-                      <h2 className="text-xl font-bold mb-2 light-mode-text dark:text-white hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
-                        {post.title}
-                      </h2>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                  {/* Article Header */}
+                  <div className="bg-amber-800 dark:bg-amber-200 p-3 border-b-2 border-amber-900 dark:border-amber-100">
+                    <div className="flex items-center justify-between text-amber-50 dark:text-amber-900">
+                      <span className="text-xs font-bold uppercase tracking-wide">Breaking News</span>
+                      <time className="text-xs font-semibold">
                         {new Date(post.created_at).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
+                          month: 'short',
                           day: 'numeric'
-                        })} • {post.author} • {post.views} views
-                      </p>
-                      <p className="text-gray-600 dark:text-gray-300 mb-4">
+                        })}
+                      </time>
+                    </div>
+                  </div>
+                  
+                  <div className="p-6">
+                    <h2 className="text-lg font-black mb-3 text-amber-900 dark:text-amber-100 group-hover:text-amber-700 dark:group-hover:text-amber-200 transition-colors line-clamp-3 leading-tight uppercase ink-bleed" style={{fontFamily: 'serif'}}>
+                      {post.title}
+                    </h2>
+                    
+                    <div className="border-l-4 border-amber-600 dark:border-amber-400 pl-3 mb-4">
+                      <p className="text-amber-800 dark:text-amber-200 text-sm line-clamp-4 italic" style={{fontFamily: 'serif'}}>
                         {post.excerpt}
                       </p>
-                      <div className="flex flex-wrap gap-2">
-                        {post.tags.map(tag => (
-                          <span 
-                            key={tag} 
-                            className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs rounded-full"
-                            onClick={(e) => {
-                              e.preventDefault()
-                              setActiveTag(tag)
-                            }}
-                          >
-                            {tag}
+                    </div>
+                    
+                    <div className="border-t-2 border-amber-300 dark:border-amber-700 pt-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-l-xl text-xs px-2 py-1 bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 font-bold uppercase">
+                            By {post.author}
                           </span>
-                        ))}
+                        </div>
+                        
+                        <Link
+                          href={`/blog/${post.slug}`}
+                          className="inline-flex items-center text-amber-800 dark:text-amber-200 hover:text-amber-900 dark:hover:text-amber-100 font-bold text-sm uppercase transition-colors border-b-2 border-amber-600 dark:border-amber-400 hover:border-amber-800 dark:hover:border-amber-200"
+                          style={{fontFamily: 'serif'}}
+                        >
+                          Read Full Story
+                          <svg className="ml-1 w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </Link>
                       </div>
                     </div>
-                  </Link>
-                </motion.div>
+                  </div>
+                </motion.article>
               ))}
-            </div>
+            </motion.div>
 
             {/* Pagination */}
             {totalPages > 1 && (
@@ -336,7 +452,8 @@ export default function BlogPage() {
             )}
           </>
         )}
-      </div>
-    </section>
+        </div>
+      </section>
+    </>
   )
 }

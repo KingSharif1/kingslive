@@ -3,17 +3,54 @@ import { BlogPost, Comment, Category, PostAnalytics } from "../types"
 
 export class DataService {
   // Blog Posts
-  static async fetchPosts(): Promise<BlogPost[]> {
+  static async fetchPosts(page = 0, limit = 10): Promise<{data: BlogPost[], count: number}> {
     try {
-      const { data, error } = await supabase
+      const { data, error, count } = await supabase
+        .from('blog_posts')
+        .select('*', { count: 'exact' })
+        .range(page * limit, (page + 1) * limit - 1)
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      return { data: data || [], count: count || 0 }
+    } catch (error) {
+      console.error('Error in fetchPosts:', error)
+      throw error
+    }
+  }
+
+  // Keep the old method for backward compatibility
+  static async fetchAllPosts(): Promise<BlogPost[]> {
+    try {
+      // Use manual join approach since Supabase join is failing
+      const { data: postsData, error: postsError } = await supabase
         .from('blog_posts')
         .select('*')
         .order('created_at', { ascending: false })
       
-      if (error) throw error
-      return data || []
+      if (postsError) throw postsError
+      //console.log('Posts data:', postsData)
+      
+      const { data: analyticsData, error: analyticsError } = await supabase
+        .from('blog_post_analytics')
+        .select('post_id, view_count, comment')
+      
+      if (analyticsError) throw analyticsError
+      //console.log('Analytics data:', analyticsData)
+      
+      // Manual join - this is more reliable
+      const transformedData = postsData?.map(post => {
+        const analytics = analyticsData?.find(a => a.post_id === post.id)
+        return {
+          ...post,
+          views: analytics?.view_count || 0,
+          comment_count: analytics?.comment || 0
+        }
+      }) || []
+      //console.log('Transformed data:', transformedData)
+      return transformedData
     } catch (error) {
-      console.error('Error in fetchPosts:', error)
+      console.error('Error in fetchAllPosts:', error)
       throw error
     }
   }
@@ -29,8 +66,7 @@ export class DataService {
         ...post,
         slug,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        views: 0
+        updated_at: new Date().toISOString()
       }
 
       const { data, error } = await supabase
@@ -50,8 +86,15 @@ export class DataService {
 
   static async updatePost(id: string, post: Partial<BlogPost>): Promise<BlogPost> {
     try {
+      // Filter out any fields that don't exist in the database schema
+      const { views, comment_count, analytics, ...validPost } = post as any
+      
+      // Debug logging
+      console.log('Original post object keys:', Object.keys(post))
+      console.log('Filtered post object keys:', Object.keys(validPost))
+      
       const updatedPost = {
-        ...post,
+        ...validPost,
         updated_at: new Date().toISOString()
       }
 
@@ -116,6 +159,21 @@ export class DataService {
         *,
         blog_posts(title)
       `)
+      .eq('archived', false) // Only fetch non-archived comments
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  }
+
+  static async fetchArchivedComments(): Promise<Comment[]> {
+    const { data, error } = await supabase
+      .from('blog_comments')
+      .select(`
+        *,
+        blog_posts(title)
+      `)
+      .eq('archived', true) // Only fetch archived comments
       .order('created_at', { ascending: false })
     
     if (error) throw error
@@ -140,13 +198,50 @@ export class DataService {
     if (error) throw error
   }
 
-  static async deleteComment(id: string): Promise<void> {
+  static async unarchiveComment(id: string): Promise<void> {
     const { error } = await supabase
       .from('blog_comments')
-      .delete()
+      .update({ archived: false })
       .eq('id', id)
     
     if (error) throw error
+  }
+
+  static async deleteComment(id: string): Promise<void> {
+    try {
+      // First verify we have a session before making the API call
+      const { data: { session } } = await supabase.auth.getSession()
+      //console.log('Client session check:', { hasSession: !!session, userId: session?.user?.id })
+      
+      if (!session?.access_token) {
+        throw new Error('No active session found. Please sign in again.')
+      }
+      
+      // Use the server-side API endpoint with authorization header
+      const response = await fetch('/api/comments/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ id })
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Server error deleting comment:', errorData)
+        throw new Error(errorData.error || 'Failed to delete comment')
+      }
+      
+      const result = await response.json()
+      //console.log('Comment deletion result:', result)
+      
+      // If we got here, the deletion was successful
+      return
+    } catch (error) {
+      console.error('Error in deleteComment:', error)
+      throw error
+    }
   }
 
   // Categories
@@ -230,20 +325,20 @@ export class DataService {
   // Analytics
   static async getStats() {
     try {
-      const [posts, comments, analytics] = await Promise.all([
-        this.fetchPosts().catch(() => []),
-        this.fetchComments().catch(() => []),
-        this.fetchPostAnalytics().catch(() => [])
+      const [postsResult, comments, analytics] = await Promise.all([
+        DataService.fetchAllPosts().catch(() => []), // Use fetchAllPosts for stats calculation
+        DataService.fetchComments().catch(() => []),
+        DataService.fetchPostAnalytics().catch(() => [])
       ])
 
       // Calculate total views from analytics table
       const totalViews = analytics.reduce((sum, analytic) => sum + (analytic.view_count || 0), 0)
-      const featuredPosts = posts.filter(post => post.featured).length
-      const publishedPosts = posts.filter(post => post.published).length
+      const featuredPosts = postsResult.filter(post => post.featured).length
+      const publishedPosts = postsResult.filter(post => post.published).length
       const pendingComments = comments.filter(comment => !comment.approved).length
 
       return {
-        totalPosts: posts.length,
+        totalPosts: postsResult.length,
         publishedPosts,
         totalComments: comments.length,
         pendingComments,

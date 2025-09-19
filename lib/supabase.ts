@@ -1,10 +1,36 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
-// These values should be stored in environment variables in production
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'your-supabase-url'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'your-supabase-anon-key'
+export const supabase = createClientComponentClient()
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Image upload helper function
+export const uploadImage = async (file: File): Promise<string> => {
+  console.log('Starting image upload:', file.name, file.size, file.type)
+  
+  const fileExt = file.name.split('.').pop()
+  const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`
+  const filePath = `blog-images/${fileName}`
+
+  console.log('Upload path:', filePath)
+
+  const { data, error } = await supabase.storage
+    .from('images')
+    .upload(filePath, file)
+
+  console.log('Upload result:', { data, error })
+
+  if (error) {
+    console.error('Upload error details:', error)
+    throw new Error(`Failed to upload image: ${error.message}`)
+  }
+
+  // Get public URL
+  const { data: { publicUrl } } = supabase.storage
+    .from('images')
+    .getPublicUrl(filePath)
+
+  console.log('Generated public URL:', publicUrl)
+  return publicUrl
+}
 
 // Types for our database tables
 export type BlogPost = {
