@@ -1,18 +1,18 @@
 "use client"
 
-import { useToast, ToastContainer } from './components/Toast'
+import { Suspense } from 'react'
 import QueryProvider from './components/QueryProvider'
 import CtroomContent from './components/CtroomContent'
 import ErrorBoundary from './components/ErrorBoundary'
+import LoadingScreen from './components/LoadingScreen'
 
 export default function CtroomPage() {
-  const { toasts, addToast, removeToast } = useToast()
-  
   return (
     <ErrorBoundary>
       <QueryProvider>
-        <CtroomContent addToast={addToast} />
-        <ToastContainer toasts={toasts} removeToast={removeToast} />
+        <Suspense fallback={<LoadingScreen />}>
+          <CtroomContent />
+        </Suspense>
       </QueryProvider>
     </ErrorBoundary>
   )
