@@ -102,13 +102,16 @@ export default function PostList({ posts, handleEditPost, handleDeletePost }: Po
                     {new Date(post.created_at).toLocaleDateString()}
                   </div>
                 </td>
-                <td className="px-3 py-4 whitespace-nowrap">
+                <td className="px-3 py-4 whitespace-nowrap flex align-center justify-center m-2 ">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                     post.published 
                       ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                      : post.is_draft
+                      ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                       : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                   }`}>
-                    {post.published ? 'Published' : 'Draft'}
+                    {post.featured && '⭐ '}
+                    {post.published ? 'Published' : post.is_draft ? 'Auto-Draft' : 'Draft'}
                   </span>
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">

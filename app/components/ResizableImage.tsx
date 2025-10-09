@@ -324,6 +324,10 @@ export const ResizableImage = Node.create({
         getAttrs: (element: any) => ({
           src: element.getAttribute('src'),
           alt: element.getAttribute('alt'),
+          caption: element.getAttribute('caption'),
+          captionPosition: element.getAttribute('captionposition') || 'below',
+          alignment: element.getAttribute('alignment') || 'left',
+          fullScreen: element.getAttribute('fullscreen') === 'true',
           width: element.getAttribute('width') || 'auto',
           height: element.getAttribute('height') || 'auto',
         }),
@@ -331,8 +335,19 @@ export const ResizableImage = Node.create({
     ]
   },
   
-  renderHTML({ HTMLAttributes }) {
-    return ['img', mergeAttributes(HTMLAttributes)]
+  renderHTML({ HTMLAttributes, node }) {
+    const { src, alt, caption, captionPosition, alignment, fullScreen, width, height } = node.attrs
+    
+    return ['img', mergeAttributes(HTMLAttributes, {
+      src,
+      alt,
+      caption,
+      captionposition: captionPosition,
+      alignment,
+      fullscreen: fullScreen ? 'true' : 'false',
+      width: width === 'auto' ? undefined : width,
+      height: height === 'auto' ? undefined : height,
+    })]
   },
   
   addNodeView() {

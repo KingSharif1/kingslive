@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from 'next/navigation'
 import { signOut, getCurrentUser, signInWithMagicLink } from "@/lib/auth"
 import { useToast } from '../components/Toast'
 import Header from "./Header"
@@ -40,6 +41,9 @@ interface CtroomContentProps {
 }
 
 export default function CtroomContent({ addToast }: CtroomContentProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
   // Auth state
   const [authLoading, setAuthLoading] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -119,6 +123,32 @@ export default function CtroomContent({ addToast }: CtroomContentProps) {
     
     checkAuth()
   }, [])
+
+  // Handle URL parameters for edit state persistence
+  useEffect(() => {
+    const editPostId = searchParams.get('edit')
+    const createNew = searchParams.get('create')
+    
+    if (editPostId && posts.length > 0) {
+      const postToEdit = posts.find(p => p.id === editPostId)
+      if (postToEdit) {
+        setEditingPost(postToEdit)
+        setEditingPostTags(postToEdit.tags || [])
+        setEditingPostKeywords(postToEdit.meta_keywords || [])
+        setIsEditing(true)
+        setIsCreating(false)
+      }
+    } else if (createNew === 'true') {
+      setIsCreating(true)
+      setIsEditing(false)
+      setEditingPost(null)
+    } else {
+      // No URL params, reset to main view
+      setIsEditing(false)
+      setIsCreating(false)
+      setEditingPost(null)
+    }
+  }, [searchParams, posts])
 
   const handleLogin = async (emailToLogin: string) => {
     setIsAuthLoading(true)
@@ -297,7 +327,9 @@ export default function CtroomContent({ addToast }: CtroomContentProps) {
       setNewPostKeywords([])
       setNewTag('')
       setNewKeyword('')
-      // No need to set isCreatingPost as it's managed by React Query
+      
+      // Navigate back to main view
+      router.push('/ctroom')
       
       addToast({
         type: 'success',
@@ -314,11 +346,8 @@ export default function CtroomContent({ addToast }: CtroomContentProps) {
   }
   
   const handleEditPost = (post: BlogPost) => {
-    setEditingPost(post)
-    setEditingPostTags(post.tags || [])
-    setEditingPostKeywords(post.meta_keywords || [])
-    setIsEditing(true)
-    setActiveTab('content')
+    // Use URL navigation to persist edit state
+    router.push(`/ctroom?edit=${post.id}`)
   }
   
   const handleUpdatePost = async () => {
@@ -355,13 +384,8 @@ export default function CtroomContent({ addToast }: CtroomContentProps) {
       
       await updatePost({ id: editingPost.id, post: updatedPost })
       
-      // Reset form
-      setEditingPost(null)
-      setEditingPostTags([])
-      setEditingPostKeywords([])
-      setEditTag('')
-      setEditKeyword('')
-      setIsEditing(false)
+      // Navigate back to main view
+      router.push('/ctroom')
       
       addToast({
         type: 'success',
@@ -443,8 +467,8 @@ export default function CtroomContent({ addToast }: CtroomContentProps) {
               setIsCreating(false)
             }}
             onCreateNew={() => {
-              setIsCreating(true)
-              setIsEditing(false)
+              // Use URL navigation to persist create state
+              router.push('/ctroom?create=true')
             }}
           />
           
@@ -495,7 +519,7 @@ export default function CtroomContent({ addToast }: CtroomContentProps) {
                       handleSave={handleCreateNewPost}
                       activeTab={activeTab}
                       setActiveTab={setActiveTab}
-                      onCancel={() => !isSaving && setIsCreating(false)}
+                      onCancel={() => router.push('/ctroom')}
                     />
                   </div>
                 )}
@@ -521,7 +545,7 @@ export default function CtroomContent({ addToast }: CtroomContentProps) {
                       handleSave={handleUpdatePost}
                       activeTab={activeTab}
                       setActiveTab={setActiveTab}
-                      onCancel={() => !isSaving && setIsEditing(false)}
+                      onCancel={() => router.push('/ctroom')}
                     />
                   </div>
                 )}

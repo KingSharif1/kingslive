@@ -3,11 +3,11 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
-import Image from '@tiptap/extension-image'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { createLowlight } from 'lowlight'
 import { BannerNode, NewspaperQuote } from './NewspaperExtensions'
 import { URLEmbedNode } from './URLEmbedExtension'
+import { ResizableImage } from './ResizableImage'
 import { useEffect, useState } from 'react'
 
 interface TiptapRendererProps {
@@ -35,11 +35,7 @@ export default function TiptapRenderer({ content, className = "" }: TiptapRender
           rel: 'noopener noreferrer',
         },
       }),
-      Image.configure({
-        HTMLAttributes: {
-          class: 'max-w-full h-auto rounded-lg border border-amber-300 dark:border-amber-700 my-4',
-        },
-      }),
+      ResizableImage,
       CodeBlockLowlight.configure({
         lowlight: createLowlight(),
         HTMLAttributes: {
@@ -67,118 +63,10 @@ export default function TiptapRenderer({ content, className = "" }: TiptapRender
     }
   }, [editor, content, mounted])
 
-  // Render embed data after component mounts
-  useEffect(() => {
-    if (!mounted || !editor) return
-    
-    const renderEmbeds = () => {
-      // Look for the actual saved HTML elements, not React wrappers
-      const embedElements = document.querySelectorAll('[data-type="url-embed"]')
-      console.log('Found embed elements:', embedElements.length)
-      
-      embedElements.forEach((element: any) => {
-        const embedDataStr = element.getAttribute('data-embed-data')
-        const url = element.getAttribute('data-url')
-        
-        console.log('Processing embed:', { url, embedDataStr })
-        
-        if (embedDataStr && embedDataStr !== 'null' && embedDataStr !== 'undefined') {
-          try {
-            // Decode HTML entities first
-            const decodedStr = embedDataStr.replace(/&quot;/g, '"').replace(/&amp;/g, '&')
-            const embedData = JSON.parse(decodedStr)
-            console.log('Parsed embed data:', embedData)
-            
-            // Create embed HTML structure
-            const embedHTML = `
-              <a href="${url}" target="_blank" rel="noopener noreferrer" class="block hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded-lg p-3 transition-colors">
-                <div class="flex gap-4">
-                  ${embedData.image ? `
-                    <div class="flex-shrink-0">
-                      <img src="${embedData.image}" alt="${embedData.title}" class="w-24 h-24 object-cover rounded-lg border border-amber-300 dark:border-amber-700" />
-                    </div>
-                  ` : ''}
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-2">
-                      ${embedData.favicon ? `<img src="${embedData.favicon}" alt="" class="w-4 h-4" />` : ''}
-                      <span class="text-sm text-amber-600 dark:text-amber-400 font-medium">${embedData.domain}</span>
-                    </div>
-                    <h3 class="font-bold text-lg text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">${embedData.title}</h3>
-                    ${embedData.description ? `<p class="text-gray-600 dark:text-gray-400 text-sm line-clamp-3">${embedData.description}</p>` : ''}
-                  </div>
-                </div>
-              </a>
-            `
-            
-            element.innerHTML = embedHTML
-          } catch (e) {
-            console.error('Failed to parse embed data:', e, embedDataStr)
-            // Fallback to just showing URL
-            element.innerHTML = `<div class="flex items-center gap-3 text-amber-700 dark:text-amber-300"><span class="font-medium">🔗 ${url}</span></div>`
-          }
-        } else if (url) {
-          console.log('No embed data, showing URL fallback')
-          // Fallback to just showing URL
-          element.innerHTML = `<div class="flex items-center gap-3 text-amber-700 dark:text-amber-300"><span class="font-medium">🔗 ${url}</span></div>`
-        }
-      })
-    }
-    
-    // Render embeds after content is set
-    const timeoutId = setTimeout(renderEmbeds, 500)
-    return () => clearTimeout(timeoutId)
-  }, [editor, content, mounted])
+  // Note: URL embeds are handled by URLEmbedComponent React components
+  // No need for manual processing in TiptapRenderer
 
-  // Also run when DOM changes
-  useEffect(() => {
-    if (!mounted || !editor) return
-    
-    const observer = new MutationObserver(() => {
-      const embedElements = document.querySelectorAll('[data-type="url-embed"]')
-      if (embedElements.length > 0) {
-        setTimeout(() => {
-          embedElements.forEach((element: any) => {
-            const embedDataStr = element.getAttribute('data-embed-data')
-            const url = element.getAttribute('data-url')
-            
-            if (embedDataStr && embedDataStr !== 'null') {
-              try {
-                const decodedStr = embedDataStr.replace(/&quot;/g, '"').replace(/&amp;/g, '&')
-                const embedData = JSON.parse(decodedStr)
-                
-                const embedHTML = `
-                  <a href="${url}" target="_blank" rel="noopener noreferrer" class="block hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded-lg p-3 transition-colors">
-                    <div class="flex gap-4">
-                      ${embedData.image ? `
-                        <div class="flex-shrink-0">
-                          <img src="${embedData.image}" alt="${embedData.title}" class="w-24 h-24 object-cover rounded-lg border border-amber-300 dark:border-amber-700" />
-                        </div>
-                      ` : ''}
-                      <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2 mb-2">
-                          ${embedData.favicon ? `<img src="${embedData.favicon}" alt="" class="w-4 h-4" />` : ''}
-                          <span class="text-sm text-amber-600 dark:text-amber-400 font-medium">${embedData.domain}</span>
-                        </div>
-                        <h3 class="font-bold text-lg text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">${embedData.title}</h3>
-                        ${embedData.description ? `<p class="text-gray-600 dark:text-gray-400 text-sm line-clamp-3">${embedData.description}</p>` : ''}
-                      </div>
-                    </div>
-                  </a>
-                `
-                
-                element.innerHTML = embedHTML
-              } catch (e) {
-                console.error('Failed to parse:', e)
-              }
-            }
-          })
-        }, 100)
-      }
-    })
-    
-    observer.observe(document.body, { childList: true, subtree: true })
-    return () => observer.disconnect()
-  }, [mounted, editor])
+  // Remove duplicate render logic - the first useEffect handles everything
 
   if (!mounted || !editor) {
     return (
@@ -202,7 +90,7 @@ export default function TiptapRenderer({ content, className = "" }: TiptapRender
         
         /* URL Embed Styles */
         .url-embed {
-          margin: 1.5rem 0;
+          margin: 1.5rem auto;
         }
         
         .url-embed[data-type="url-embed"] {
@@ -316,19 +204,21 @@ export default function TiptapRenderer({ content, className = "" }: TiptapRender
         }
         
         .newspaper-content a {
-          text-decoration: underline;
-          text-decoration-thickness: 2px;
-          text-underline-offset: 2px;
+          text-decoration: none;
+          // text-decoration-thickness: 2px;
+          // text-underline-offset: 2px;
         }
         
-        // .newspaper-content img {
-        //   max-width: 100%;
-        //   height: auto;
-        //   margin: 1.5rem auto;
-        //   display: block;
-        //   border-radius: 0.5rem;
-        //   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        // }
+        /* Images are handled by React components for consistent styling */
+        .newspaper-content img {
+          max-width: 100%;
+          // height: auto;
+          // margin: 1.5rem auto;
+          display: block;
+          // border-radius: 0.5rem;
+          // border: 1px solid #d97706;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+        }
         
         /* Dark mode adjustments */
         @media (prefers-color-scheme: dark) {

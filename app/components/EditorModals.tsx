@@ -54,7 +54,6 @@ export function ImageModal({ isOpen, onClose, onInsertImage, editMode = false, i
     }
   }, [editMode, initialData, isOpen])
 
-  console.log('ImageModal render - isOpen:', isOpen)
 
   if (!isOpen) return null
 

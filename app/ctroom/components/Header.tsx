@@ -31,7 +31,7 @@ export default function Header({ user, onSignOut }: HeaderProps) {
           {/* Left side - Logo and title */}
           <div className="flex items-center gap-4">
             <Link 
-              href="/"
+              href="/ctroom"
               className="flex items-center gap-2 px-3 py-2 text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />

@@ -130,7 +130,7 @@ export default function BlogPostPage() {
   if (isLoading) {
     return (
       <div className="py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="animate-pulse">
             <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-6"></div>
             <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-8"></div>
@@ -148,7 +148,7 @@ export default function BlogPostPage() {
   if (!post) {
     return (
       <div className="py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="max-w-lg mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-3xl font-bold mb-6 light-mode-text dark:text-white">Post Not Found</h1>
           {/* Newspaper Article Body */}
           <div className="prose prose-lg max-w-none text-amber-900 dark:text-amber-100 dark:prose-invert" style={{fontFamily: 'serif'}}>
@@ -201,8 +201,8 @@ export default function BlogPostPage() {
   return (
     <>
       <ScrollProgress />
-      <section className="py-20 newspaper-bg bg-amber-50 dark:bg-amber-950/10 min-h-screen">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-16 newspaper-bg bg-amber-50 dark:bg-amber-950/10 min-h-screen">
+        <div className="max-w-full mx-auto px-4 sm:px-1/3 lg:px-28">
         {/* News Coo Newspaper Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -278,7 +278,7 @@ export default function BlogPostPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="bg-amber-50/90 dark:bg-amber-950/10 border-2 border-amber-200 dark:border-amber-800 shadow-lg p-8 mb-8 rounded-xl min-h-screen"
+          className="bg-amber-100/90 dark:bg-amber-950/10 border-2 border-amber-200 dark:border-amber-800 shadow-lg p-6 mb-8 rounded-xl min-h-screen backdrop-blur-2xl backdrop-saturate-200 backdrop-opacity-100 border-opacity-10"
           style={{backgroundImage: 'radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%)'}}
         >
           
@@ -324,7 +324,7 @@ export default function BlogPostPage() {
         </motion.div>
         
         {/* Comment Section */}
-        <div className="bg-amber-50/90 dark:bg-amber-950/20 border-2 border-amber-300 dark:border-amber-700 shadow-lg p-8 rounded-xl">
+        <div className="bg-amber-50/90 dark:bg-amber-950/20 border-2 border-amber-300 dark:border-amber-700 shadow-lg p-6 rounded-xl border-opacity-10 backdrop-blur-2xl backdrop-saturate-200 backdrop-opacity-100">
           <div className="border-b-2 border-amber-400 dark:border-amber-600 pb-4 mb-6">
             <h3 className="text-xl font-black text-amber-900 dark:text-amber-100 uppercase" style={{fontFamily: 'serif'}}>Reader's Letters</h3>
             <p className="text-sm text-amber-700 dark:text-amber-300 italic">Share your thoughts on this chronicle</p>

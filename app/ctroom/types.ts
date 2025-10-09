@@ -21,6 +21,7 @@ export interface BlogPost {
   meta_description: string
   meta_keywords: string[]
   citations?: Citation[]
+  is_draft?: boolean
 }
 
 export interface Citation {

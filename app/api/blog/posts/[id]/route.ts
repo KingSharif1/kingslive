@@ -42,17 +42,19 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Check authentication
-    const user = await getCurrentUser()
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-    
     const id = params.id
     const body = await request.json()
+    
+    // Check authentication (skip for draft auto-saves)
+    if (!body.is_draft || body.published) {
+      const user = await getCurrentUser()
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        )
+      }
+    }
     
     // Don't allow updating the ID
     if (body.id) {

@@ -82,20 +82,33 @@ export async function POST(request: NextRequest) {
     
     const body = await request.json()
     
-    // Validate required fields
-    if (!body.title || !body.content) {
+    // Validate required fields (relaxed for drafts)
+    if (!body.is_draft && (!body.title || !body.content)) {
       return NextResponse.json(
-        { error: 'Title and content are required' },
+        { error: 'Title and content are required for published posts' },
+        { status: 400 }
+      )
+    }
+    
+    // For drafts, allow saving with just title OR content
+    if (body.is_draft && !body.title && !body.content) {
+      return NextResponse.json(
+        { error: 'At least title or content is required for drafts' },
         { status: 400 }
       )
     }
     
     // Generate slug if not provided
     if (!body.slug) {
-      body.slug = body.title
-        .toLowerCase()
-        .replace(/[^\w\s]/gi, '')
-        .replace(/\s+/g, '-')
+      if (body.title) {
+        body.slug = body.title
+          .toLowerCase()
+          .replace(/[^\w\s]/gi, '')
+          .replace(/\s+/g, '-')
+      } else {
+        // For drafts without title, generate a unique slug
+        body.slug = `draft-${Date.now()}`
+      }
     }
     
     // Set defaults for new post

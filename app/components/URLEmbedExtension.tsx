@@ -7,12 +7,21 @@ import { NodeViewWrapper } from '@tiptap/react'
 
 // URL Embed Node Component
 const URLEmbedComponent = ({ node, updateAttributes, selected, editor }: any) => {
+  // Fix: Handle case where embedData might be a string "[object Object]"
+  let initialEmbedData = node.attrs.embedData
+  if (typeof initialEmbedData === 'string' && initialEmbedData === '[object Object]') {
+    initialEmbedData = null
+  }
+  
   const [isLoading, setIsLoading] = useState(false)
-  const [embedData, setEmbedData] = useState(node.attrs.embedData || null)
+  const [embedData, setEmbedData] = useState(initialEmbedData || null)
   const [isEditing, setIsEditing] = useState(false)
+  const [hasInitialized, setHasInitialized] = useState(false)
   const isEditable = editor?.isEditable ?? true
   
   const { url } = node.attrs
+  
+  // Component initialization complete
 
   const fetchEmbedData = async (url: string) => {
     setIsLoading(true)
@@ -36,13 +45,17 @@ const URLEmbedComponent = ({ node, updateAttributes, selected, editor }: any) =>
       console.error('Failed to fetch embed data:', error)
     }
     setIsLoading(false)
+    setHasInitialized(true)
   }
 
   React.useEffect(() => {
-    if (url && !embedData) {
+    if (url && !embedData && !hasInitialized) {
       fetchEmbedData(url)
+    } else if (!hasInitialized) {
+      // No valid embed data, mark as initialized to prevent infinite loops
+      setHasInitialized(true)
     }
-  }, [url, embedData])
+  }, [url, embedData, hasInitialized])
 
   // Sync local state with node attributes
   React.useEffect(() => {
@@ -52,8 +65,8 @@ const URLEmbedComponent = ({ node, updateAttributes, selected, editor }: any) =>
   }, [node.attrs.embedData])
 
   return (
-    <NodeViewWrapper className={`url-embed ${selected ? 'ProseMirror-selectednode' : ''}`}>
-      <div className="bg-amber-50 dark:bg-amber-950/20 border-2 border-amber-200 dark:border-amber-800 rounded-xl p-4 my-4 hover:shadow-lg transition-all duration-200">
+    <NodeViewWrapper className={`url-embed w-[80%] m-auto ${selected ? 'ProseMirror-selectednode' : ''}`}>
+      <div className="bg-amber-50 dark:bg-amber-950/20 border-2 border-amber-200 dark:border-amber-800 rounded-xl my-4 hover:shadow-lg transition-all duration-200 backdrop-blur-3xl backdrop-saturate-200 backdrop-opacity-100">
         {isLoading ? (
           <div className="flex items-center gap-3 text-amber-700 dark:text-amber-300">
             <div className="animate-spin w-5 h-5 border-2 border-amber-600 border-t-transparent rounded-full"></div>
@@ -73,7 +86,7 @@ const URLEmbedComponent = ({ node, updateAttributes, selected, editor }: any) =>
                       setEmbedData(newEmbedData)
                       updateAttributes({ embedData: newEmbedData })
                     }}
-                    className="w-full px-3 py-2 bg-white/80 dark:bg-gray-800/80 border border-amber-300 dark:border-amber-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className="w-full px-3 py-2 bg-white/80 dark:bg-gray-800/80 border border-amber-300 dark:border-amber-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
                     placeholder="Enter title"
                   />
                 </div>
@@ -86,7 +99,7 @@ const URLEmbedComponent = ({ node, updateAttributes, selected, editor }: any) =>
                       setEmbedData(newEmbedData)
                       updateAttributes({ embedData: newEmbedData })
                     }}
-                    className="w-full px-3 py-2 bg-white/80 dark:bg-gray-800/80 border border-amber-300 dark:border-amber-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+                    className="w-full px-3 py-2 bg-white/80 dark:bg-gray-800/80 border border-amber-300 dark:border-amber-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
                     rows={3}
                     placeholder="Enter description"
                   />
@@ -101,16 +114,16 @@ const URLEmbedComponent = ({ node, updateAttributes, selected, editor }: any) =>
                       setEmbedData(newEmbedData)
                       updateAttributes({ embedData: newEmbedData })
                     }}
-                    className="w-full px-3 py-2 bg-white/80 dark:bg-gray-800/80 border border-amber-300 dark:border-amber-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className="w-full px-3 py-2 bg-white/80 dark:bg-gray-800/80 border border-amber-300 dark:border-amber-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
                     placeholder="Enter image URL"
                   />
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setIsEditing(false)}
-                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors"
+                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl transition-colors"
                   >
-                    Done
+                    Done  
                   </button>
                   <button
                     onClick={() => {
@@ -118,7 +131,7 @@ const URLEmbedComponent = ({ node, updateAttributes, selected, editor }: any) =>
                         fetchEmbedData(url)
                       }
                     }}
-                    className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                    className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-xl transition-colors"
                   >
                     Refresh Data
                   </button>
@@ -133,40 +146,33 @@ const URLEmbedComponent = ({ node, updateAttributes, selected, editor }: any) =>
                       e.stopPropagation()
                       setIsEditing(true)
                     }}
-                    className="absolute top-2 right-2 z-10 px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white text-sm rounded-lg transition-colors shadow-lg"
+                    className="absolute top-2 right-2 z-10 px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white text-sm rounded-xl transition-colors shadow-lg"
                   >
                     ✏️ Edit
                   </button>
                 )}
-                <a href={url} target="_blank" rel="noopener noreferrer" className="block hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded-lg p-3 transition-colors">
+                <a href={url} target="_blank" rel="noopener noreferrer" className="block rounded-xl hover:bg-amber-50 dark:hover:bg-amber-900/20  p-2 transition-colors">
                   <div className="flex gap-4">
+
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
+                        {embedData?.title || (hasInitialized ? url : 'Loading...')}
+                      </h3>
+                      {embedData.description && (
+                        <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2">
+                          {embedData.description}
+                        </p>
+                      )}
+                    </div>
                     {embedData.image && (
                       <div className="flex-shrink-0">
                         <img 
                           src={embedData.image} 
                           alt={embedData.title}
-                          className="w-24 h-24 object-cover rounded-lg border border-amber-300 dark:border-amber-700"
+                          className="w-48 h-48 object-cover rounded-xl"
                         />
                       </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        {embedData.favicon && (
-                          <img src={embedData.favicon} alt="" className="w-4 h-4" />
-                        )}
-                        <span className="text-sm text-amber-600 dark:text-amber-400 font-medium">
-                          {embedData.domain}
-                        </span>
-                      </div>
-                      <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
-                        {embedData?.title || url || 'Untitled'}
-                      </h3>
-                      {embedData.description && (
-                        <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-3">
-                          {embedData.description}
-                        </p>
-                      )}
-                    </div>
+                    )}                    
                   </div>
                 </a>
               </div>
@@ -206,12 +212,16 @@ export const URLEmbedNode = Node.create({
       {
         tag: 'div[data-type="url-embed"]',
         getAttrs: (element: any) => {
-          const url = element.getAttribute('data-url')
+          const url = element.getAttribute('data-url') || element.getAttribute('url')
           const embedDataStr = element.getAttribute('data-embed-data')
           let embedData = null
           
           try {
-            embedData = embedDataStr ? JSON.parse(embedDataStr) : null
+            if (embedDataStr && embedDataStr !== '[object Object]' && embedDataStr !== '"[object Object]"') {
+              // Decode HTML entities
+              const decodedStr = embedDataStr.replace(/&quot;/g, '"').replace(/&amp;/g, '&')
+              embedData = JSON.parse(decodedStr)
+            }
           } catch (e) {
             console.warn('Failed to parse embed data:', e)
           }
@@ -224,12 +234,25 @@ export const URLEmbedNode = Node.create({
   
   renderHTML({ HTMLAttributes, node }) {
     const { url, embedData } = node.attrs
-    return ['div', mergeAttributes(HTMLAttributes, { 
+    
+    // Ensure embedData is properly serialized
+    let embedDataStr = null
+    if (embedData && typeof embedData === 'object' && embedData.title) {
+      embedDataStr = JSON.stringify(embedData)
+    }
+    
+    const attributes: any = { 
       'data-type': 'url-embed',
       'data-url': url,
-      'data-embed-data': JSON.stringify(embedData),
       class: 'url-embed'
-    })]
+    }
+    
+    // Only add data-embed-data if we have valid data
+    if (embedDataStr) {
+      attributes['data-embed-data'] = embedDataStr
+    }
+    
+    return ['div', mergeAttributes(HTMLAttributes, attributes)]
   },
   
   addNodeView() {

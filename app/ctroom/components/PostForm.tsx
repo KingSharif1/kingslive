@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
+import { useUpdatePost, useCreatePost } from '../hooks/useQueries'
 import { Save, X, Eye, EyeOff, ExternalLink, Palette, Move, Sparkles, Quote } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { BlogPost, Citation } from "../types"
@@ -55,6 +56,24 @@ export default function PostForm({
   const [isLoadingCitation, setIsLoadingCitation] = useState(false)
   const [selectedTheme, setSelectedTheme] = useState("default")
   const [showThemePanel, setShowThemePanel] = useState(false)
+  const [isAutoSaving, setIsAutoSaving] = useState(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [lastSavedContent, setLastSavedContent] = useState('')
+  const [autoSaveScheduled, setAutoSaveScheduled] = useState(false)
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
+  // Initialize saved content on mount to prevent false "unsaved" state
+  useEffect(() => {
+    if (post.id && post.title && post.content) {
+      setLastSavedContent(JSON.stringify(post))
+      setHasUnsavedChanges(false)
+    }
+  }, [post.id]) // Only run when post.id changes (component mount/post switch)
+  
+  // React Query mutations
+  const updatePostMutation = useUpdatePost()
+  const createPostMutation = useCreatePost()
+  
   
   // Citation form state
   const [citationForm, setCitationForm] = useState({
@@ -78,8 +97,122 @@ export default function PostForm({
     }
   }
 
+  // Auto-save function using React Query mutations
+  const autoSaveDraft = useCallback(async () => {
+    console.log('💾 autoSaveDraft called! Post data:', { title: post.title, content: post.content, id: post.id })
+    
+    if (!post.title && !post.content) {
+      console.log('⚠️ Skipping auto-save: No title and no content')
+      return // Don't save empty posts
+    }
+    
+    console.log('✅ Auto-save conditions met, starting save process...')
+    setIsAutoSaving(true)
+    setAutoSaveScheduled(false)
+    
+    try {
+      const draftData = {
+        ...post,
+        is_draft: true,
+        published: false
+      }
+      console.log('📝 Draft data prepared:', draftData)
+      
+      let savedDraft
+      if (post.id) {
+        console.log('🔄 Updating existing post with ID:', post.id)
+        // Update existing post as draft
+        savedDraft = await updatePostMutation.mutateAsync({ 
+          id: post.id, 
+          post: draftData 
+        })
+        console.log('✅ Update successful:', savedDraft)
+      } else {
+        console.log('➕ Creating new post as draft')
+        // Create new post as draft
+        savedDraft = await createPostMutation.mutateAsync(draftData)
+        console.log('✅ Creation successful:', savedDraft)
+        // Update post with new ID
+        if (savedDraft.id) {
+          console.log('🆔 Setting new post ID:', savedDraft.id)
+          setPost({ ...post, id: savedDraft.id })
+        }
+      }
+      
+      setLastSavedContent(JSON.stringify(post))
+      setHasUnsavedChanges(false)
+      console.log('✨ Draft auto-saved successfully!')
+    } catch (error) {
+      console.error('❌ Auto-save failed:', error)
+    } finally {
+      setIsAutoSaving(false)
+      console.log('🏁 Auto-save process completed')
+    }
+  }, [post, setPost, updatePostMutation, createPostMutation])
+
+  // Auto-save on page leave
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        // Save draft before leaving
+        autoSaveDraft()
+        
+        // Show warning dialog
+        e.preventDefault()
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?'
+        return e.returnValue
+      }
+    }
+    
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      // Clear timeout on unmount
+      if (autoSaveTimeoutRef.current) {
+        console.log('🚨 Component unmounting - cancelling timer:', autoSaveTimeoutRef.current)
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
+      // Reset scheduled state on unmount
+      setAutoSaveScheduled(false)
+    }
+  }, [hasUnsavedChanges, autoSaveDraft])
+
   const updatePost = (field: keyof BlogPost, value: any) => {
-    setPost({ ...post, [field]: value })
+    const updatedPost = { ...post, [field]: value }
+    setPost(updatedPost)
+    
+    // Clear existing timeout
+    if (autoSaveTimeoutRef.current) {
+      console.log('❌ Cancelling previous timer:', autoSaveTimeoutRef.current)
+      clearTimeout(autoSaveTimeoutRef.current)
+    }
+    
+    // Mark as having changes and schedule auto-save
+    setHasUnsavedChanges(true)
+    setAutoSaveScheduled(true)
+    
+    // Set new auto-save timeout (3 seconds after user stops typing)
+    console.log('🕐 Setting auto-save timer for 3 seconds...')
+    console.log('Timer remaining: ', autoSaveTimeoutRef.current)
+    
+    // Capture current post data in closure to avoid stale reference
+    const currentPost = updatedPost
+    console.log('💾 Capturing post data for timer:', { title: currentPost.title, content: currentPost.content, id: currentPost.id })
+    
+    const timerId = setTimeout(() => {
+      console.log('⏰ Timer expired! About to call autoSaveDraft...')
+      console.log('🔍 Captured post data:', { title: currentPost.title, content: currentPost.content, id: currentPost.id })
+      try {
+        autoSaveDraft()
+        console.log('✅ autoSaveDraft called successfully')
+      } catch (error) {
+        console.error('❌ Error calling autoSaveDraft:', error)
+      }
+    }, 300)
+    
+    autoSaveTimeoutRef.current = timerId
+    console.log('🆕 Timer created with ID:', timerId)
   }
 
   const extractMetadata = async (url: string): Promise<Partial<Citation>> => {
@@ -555,24 +688,56 @@ export default function PostForm({
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex justify-end space-x-3 pt-4 border-t border-border">
-        {onCancel && (
+      {/* Auto-save Status */}
+      <div className="flex items-center justify-between pt-4 border-t border-border">
+        <div className="flex items-center space-x-2 text-sm">
+          {/* Priority 1: Currently saving */}
+          {isAutoSaving ? (
+            <div className="flex items-center text-amber-600 dark:text-amber-400">
+              <div className="animate-spin w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full mr-2"></div>
+              Saving draft...
+            </div>
+          ) : /* Priority 2: Auto-save scheduled (timer active) */
+          autoSaveScheduled ? (
+            <div className="flex items-center text-blue-600 dark:text-blue-400">
+              <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse"></div>
+              Auto-save in 3s...
+            </div>
+          ) : /* Priority 3: Everything saved */
+          !hasUnsavedChanges && lastSavedContent ? (
+            <div className="flex items-center text-green-600 dark:text-green-400">
+              <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+              Draft saved
+            </div>
+          ) : /* Priority 4: Has unsaved changes */
+          hasUnsavedChanges ? (
+            <div className="flex items-center text-gray-500 dark:text-gray-400">
+              <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
+              Unsaved changes
+            </div>
+          ) : /* Default: No status */
+          null}
+        </div>
+        
+        {/* Action Buttons */}
+        <div className="flex space-x-3">
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              className="px-4 py-2 border rounded-xl bg-red-950/50 hover:bg-red-700 hover:text-white"
+            >
+              Cancel
+            </button>
+          )}
           <button
-            onClick={onCancel}
-            className="px-4 py-2 border rounded-xl bg-red-950/50 hover:bg-red-700 hover:text-white"
+            onClick={handleSaveClick}
+            disabled={isSaving || !post.title || !post.content}
+            className="px-4 py-2 text-white disabled:text-white bg-teal-700/80 hover:bg-teal-700 hover:text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed active:bg-teal-700 active:text-white flex items-center"
           >
-            Cancel
+            <Save className="w-4 h-4 mr-2 " />
+            {isSaving ? "Saving..." : post.id ? "Update Post" : "Create Post"}
           </button>
-        )}
-        <button
-          onClick={handleSaveClick}
-          disabled={isSaving || !post.title || !post.content}
-          className="px-4 py-2 text-white disabled:text-white bg-teal-700/80 hover:bg-teal-700 hover:text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed active:bg-teal-700 active:text-white flex items-center"
-        >
-          <Save className="w-4 h-4 mr-2 " />
-          {isSaving ? "Saving..." : post.id ? "Update Post" : "Create Post"}
-        </button>
+        </div>
       </div>
     </div>
   )
