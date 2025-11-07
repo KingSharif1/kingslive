@@ -1,14 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, MessageSquare, BarChart } from "lucide-react"
+import { Plus, MessageSquare, BarChart, Edit } from "lucide-react"
 import { motion } from "framer-motion"
 
 interface NavigationProps {
-  activeSection: 'posts' | 'comments' | 'analytics';
+  activeSection: 'posts' | 'comments' | 'analytics' | 'post-editor';
   pendingComments: number;
   isCreating: boolean;
-  onSectionChange: (section: 'posts' | 'comments' | 'analytics') => void;
+  onSectionChange: (section: 'posts' | 'comments' | 'analytics' | 'post-editor') => void;
   onCreateNew: () => void;
 }
 
@@ -59,7 +59,19 @@ export default function Navigation({
                 : 'text-muted-foreground hover:text-foreground hover:bg-slate-300 dark:hover:bg-slate-700'
             }`}
           >
+            <BarChart className="w-4 h-4" />
             <span>Analytics</span>
+          </button>
+          <button
+            onClick={() => onSectionChange('post-editor')}
+            className={`px-4 py-2 rounded-xl font-medium transition-all hover:bg-slate-300 dark:hover:bg-slate-700 hover:text-foreground flex items-center gap-2 ${
+              activeSection === 'post-editor' 
+                ? 'bg-slate-300 dark:bg-slate-700 text-primary-foreground shadow-sm' 
+                : 'text-muted-foreground hover:text-foreground hover:bg-slate-300 dark:hover:bg-slate-700'
+            }`}
+          >
+            <Edit className="w-4 h-4" />
+            <span>MDX Editor</span>
           </button>
           {activeSection === 'posts' && (
             <button
@@ -79,7 +91,7 @@ export default function Navigation({
 
       {/* Mobile Navigation */}
       <div className="md:hidden mb-6">
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-4 gap-2 mb-4">
           <button
             onClick={() => onSectionChange('posts')}
             className={`p-3 rounded-xl font-medium transition-all flex flex-col items-center justify-center ${
@@ -118,8 +130,19 @@ export default function Navigation({
                 : 'bg-slate-200/80 dark:bg-slate-800/80 text-muted-foreground'
             }`}
           >
-            <BarChart className="h-5 w-5" />
+            <BarChart className="w-5 h-5" />
             <span className="text-xs mt-1">Analytics</span>
+          </button>
+          <button
+            onClick={() => onSectionChange('post-editor')}
+            className={`p-3 rounded-xl font-medium transition-all flex flex-col items-center justify-center ${
+              activeSection === 'post-editor' 
+                ? 'bg-slate-300 dark:bg-slate-700 text-primary-foreground shadow-sm' 
+                : 'bg-slate-200/80 dark:bg-slate-800/80 text-muted-foreground'
+            }`}
+          >
+            <Edit className="w-5 h-5" />
+            <span className="text-xs mt-1">MDX</span>
           </button>
         </div>
 

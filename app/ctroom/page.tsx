@@ -2,8 +2,9 @@
 
 import { useToast, ToastContainer } from './components/Toast'
 import QueryProvider from './components/QueryProvider'
-import CtroomContent from './components/CtroomContent'
 import ErrorBoundary from './components/ErrorBoundary'
+import { DashboardLayout } from './components/dashboard/Layout'
+import { Dashboard } from './components/dashboard/Dashboard'
 
 export default function CtroomPage() {
   const { toasts, addToast, removeToast } = useToast()
@@ -11,7 +12,9 @@ export default function CtroomPage() {
   return (
     <ErrorBoundary>
       <QueryProvider>
-        <CtroomContent addToast={addToast} />
+        <DashboardLayout>
+          <Dashboard addToast={addToast} />
+        </DashboardLayout>
         <ToastContainer toasts={toasts} removeToast={removeToast} />
       </QueryProvider>
     </ErrorBoundary>
