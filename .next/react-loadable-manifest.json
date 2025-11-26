@@ -1,1 +1,776 @@
+<<<<<<< HEAD
 {}
+=======
+{
+  "app\\ctroom\\components\\CtroomContent.tsx -> ./AnalyticsPage": {
+    "id": "app\\ctroom\\components\\CtroomContent.tsx -> ./AnalyticsPage",
+    "files": [
+      "static/chunks/_app-pages-browser_app_ctroom_components_AnalyticsPage_tsx.js"
+    ]
+  },
+  "app\\ctroom\\components\\CtroomContent.tsx -> ./CommentsSection": {
+    "id": "app\\ctroom\\components\\CtroomContent.tsx -> ./CommentsSection",
+    "files": [
+      "static/chunks/_app-pages-browser_app_ctroom_components_CommentsSection_tsx.js"
+    ]
+  },
+  "components\\MDXEditor.tsx -> @mdxeditor/editor": {
+    "id": "components\\MDXEditor.tsx -> @mdxeditor/editor",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_mdxeditor_editor_dist_index_js.js"
+    ]
+  },
+  "components\\MDXEditor.tsx -> next-mdx-remote/rsc": {
+    "id": "components\\MDXEditor.tsx -> next-mdx-remote/rsc",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_next-mdx-remote_rsc_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-angular": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-angular",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_lang-angular_dist_index_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-cpp": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-cpp",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_lang-cpp_dist_index_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-css": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-css",
+    "files": []
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-go": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-go",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_lang-go_dist_index_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-html": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-html",
+    "files": []
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-java": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-java",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_lang-java_dist_index_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-javascript": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-javascript",
+    "files": []
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-jinja": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-jinja",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_lang-jinja_dist_index_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-json": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-json",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_lang-json_dist_index_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-less": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-less",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_lang-less_dist_index_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-liquid": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-liquid",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_lang-liquid_dist_index_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-markdown": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-markdown",
+    "files": []
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-php": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-php",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_lang-php_dist_index_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-python": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-python",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_lang-python_dist_index_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-rust": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-rust",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_lang-rust_dist_index_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-sass": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-sass",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_lang-sass_dist_index_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-sql": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-sql",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_lang-sql_dist_index_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-vue": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-vue",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_lang-vue_dist_index_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-wast": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-wast",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_lang-wast_dist_index_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-xml": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-xml",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_lang-xml_dist_index_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-yaml": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/lang-yaml",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_lang-yaml_dist_index_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/apl": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/apl",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_apl_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/asciiarmor": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/asciiarmor",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_asciiarmor_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/asn1": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/asn1",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_asn1_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/asterisk": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/asterisk",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_asterisk_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/brainfuck": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/brainfuck",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_brainfuck_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/clike": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/clike",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_clike_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/clojure": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/clojure",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_clojure_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/cmake": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/cmake",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_cmake_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/cobol": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/cobol",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_cobol_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/coffeescript": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/coffeescript",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_coffeescript_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/commonlisp": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/commonlisp",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_commonlisp_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/crystal": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/crystal",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_crystal_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/css": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/css",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_css_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/cypher": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/cypher",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_cypher_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/d": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/d",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_d_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/diff": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/diff",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_diff_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/dockerfile": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/dockerfile",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_dockerfile_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/dtd": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/dtd",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_dtd_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/dylan": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/dylan",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_dylan_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/ebnf": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/ebnf",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_ebnf_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/ecl": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/ecl",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_ecl_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/eiffel": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/eiffel",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_eiffel_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/elm": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/elm",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_elm_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/erlang": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/erlang",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_erlang_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/factor": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/factor",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_factor_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/fcl": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/fcl",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_fcl_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/forth": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/forth",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_forth_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/fortran": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/fortran",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_fortran_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/gas": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/gas",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_gas_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/gherkin": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/gherkin",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_gherkin_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/groovy": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/groovy",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_groovy_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/haskell": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/haskell",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_haskell_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/haxe": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/haxe",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_haxe_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/http": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/http",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_http_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/idl": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/idl",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_idl_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/javascript": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/javascript",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_javascript_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/julia": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/julia",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_julia_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/livescript": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/livescript",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_livescript_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/lua": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/lua",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_lua_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/mathematica": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/mathematica",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_mathematica_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/mbox": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/mbox",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_mbox_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/mirc": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/mirc",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_mirc_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/mllike": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/mllike",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_mllike_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/modelica": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/modelica",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_modelica_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/mscgen": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/mscgen",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_mscgen_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/mumps": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/mumps",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_mumps_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/nginx": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/nginx",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_nginx_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/nsis": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/nsis",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_nsis_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/ntriples": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/ntriples",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_ntriples_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/octave": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/octave",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_octave_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/oz": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/oz",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_oz_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/pascal": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/pascal",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_pascal_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/perl": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/perl",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_perl_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/pig": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/pig",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_pig_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/powershell": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/powershell",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_powershell_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/properties": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/properties",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_properties_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/protobuf": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/protobuf",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_protobuf_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/pug": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/pug",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_pug_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/puppet": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/puppet",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_puppet_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/python": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/python",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_python_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/q": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/q",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_q_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/r": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/r",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_r_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/rpm": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/rpm",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_rpm_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/ruby": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/ruby",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_ruby_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/sas": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/sas",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_sas_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/scheme": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/scheme",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_scheme_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/shell": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/shell",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_shell_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/sieve": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/sieve",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_sieve_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/smalltalk": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/smalltalk",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_smalltalk_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/solr": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/solr",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_solr_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/sparql": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/sparql",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_sparql_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/spreadsheet": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/spreadsheet",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_spreadsheet_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/sql": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/sql",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_sql_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/stex": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/stex",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_stex_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/stylus": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/stylus",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_stylus_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/swift": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/swift",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_swift_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/tcl": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/tcl",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_tcl_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/textile": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/textile",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_textile_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/tiddlywiki": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/tiddlywiki",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_tiddlywiki_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/tiki": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/tiki",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_tiki_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/toml": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/toml",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_toml_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/troff": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/troff",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_troff_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/ttcn": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/ttcn",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_ttcn_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/ttcn-cfg": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/ttcn-cfg",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_ttcn-cfg_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/turtle": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/turtle",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_turtle_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/vb": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/vb",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_vb_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/vbscript": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/vbscript",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_vbscript_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/velocity": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/velocity",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_velocity_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/verilog": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/verilog",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_verilog_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/vhdl": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/vhdl",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_vhdl_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/webidl": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/webidl",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_webidl_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/xquery": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/xquery",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_xquery_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/yacas": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/yacas",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_yacas_js.js"
+    ]
+  },
+  "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/z80": {
+    "id": "node_modules\\@codemirror\\language-data\\dist\\index.js -> @codemirror/legacy-modes/mode/z80",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codemirror_legacy-modes_mode_z80_js.js"
+    ]
+  },
+  "node_modules\\@codesandbox\\sandpack-client\\dist\\index.mjs -> ./clients/node/index.mjs": {
+    "id": "node_modules\\@codesandbox\\sandpack-client\\dist\\index.mjs -> ./clients/node/index.mjs",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codesandbox_sandpack-client_dist_clients_node_index_mjs.js"
+    ]
+  },
+  "node_modules\\@codesandbox\\sandpack-client\\dist\\index.mjs -> ./clients/runtime/index.mjs": {
+    "id": "node_modules\\@codesandbox\\sandpack-client\\dist\\index.mjs -> ./clients/runtime/index.mjs",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codesandbox_sandpack-client_dist_clients_runtime_index_mjs.js"
+    ]
+  },
+  "node_modules\\@codesandbox\\sandpack-client\\dist\\index.mjs -> ./index-599aeaf7.mjs": {
+    "id": "node_modules\\@codesandbox\\sandpack-client\\dist\\index.mjs -> ./index-599aeaf7.mjs",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_codesandbox_sandpack-client_dist_index-599aeaf7_mjs.js"
+    ]
+  },
+  "node_modules\\@supabase\\auth-js\\dist\\module\\lib\\helpers.js -> @supabase/node-fetch": {
+    "id": "node_modules\\@supabase\\auth-js\\dist\\module\\lib\\helpers.js -> @supabase/node-fetch",
+    "files": []
+  },
+  "node_modules\\@supabase\\functions-js\\dist\\module\\helper.js -> @supabase/node-fetch": {
+    "id": "node_modules\\@supabase\\functions-js\\dist\\module\\helper.js -> @supabase/node-fetch",
+    "files": []
+  },
+  "node_modules\\@supabase\\realtime-js\\dist\\module\\RealtimeClient.js -> @supabase/node-fetch": {
+    "id": "node_modules\\@supabase\\realtime-js\\dist\\module\\RealtimeClient.js -> @supabase/node-fetch",
+    "files": []
+  },
+  "node_modules\\@supabase\\storage-js\\dist\\module\\lib\\helpers.js -> @supabase/node-fetch": {
+    "id": "node_modules\\@supabase\\storage-js\\dist\\module\\lib\\helpers.js -> @supabase/node-fetch",
+    "files": []
+  },
+  "node_modules\\@tanstack\\query-devtools\\build\\dev.js -> ./DevtoolsComponent/EDEL3XIZ.js": {
+    "id": "node_modules\\@tanstack\\query-devtools\\build\\dev.js -> ./DevtoolsComponent/EDEL3XIZ.js",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_tanstack_query-devtools_build_DevtoolsComponent_EDEL3XIZ_js.js"
+    ]
+  },
+  "node_modules\\@tanstack\\query-devtools\\build\\dev.js -> ./DevtoolsPanelComponent/RN252AT2.js": {
+    "id": "node_modules\\@tanstack\\query-devtools\\build\\dev.js -> ./DevtoolsPanelComponent/RN252AT2.js",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_tanstack_query-devtools_build_DevtoolsPanelComponent_RN252AT2_js.js"
+    ]
+  },
+  "node_modules\\next\\dist\\client\\dev\\hot-reloader\\app\\use-websocket.js -> @vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts": {
+    "id": "node_modules\\next\\dist\\client\\dev\\hot-reloader\\app\\use-websocket.js -> @vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_next_dist_client_dev_noop-turbopack-hmr_js.js"
+    ]
+  },
+  "node_modules\\next\\dist\\client\\index.js -> ../pages/_app": {
+    "id": "node_modules\\next\\dist\\client\\index.js -> ../pages/_app",
+    "files": [
+      "static/chunks/_pages-dir-browser_node_modules_next_dist_pages__app_js.js"
+    ]
+  },
+  "node_modules\\next\\dist\\client\\index.js -> ../pages/_error": {
+    "id": "node_modules\\next\\dist\\client\\index.js -> ../pages/_error",
+    "files": [
+      "static/chunks/_pages-dir-browser_node_modules_next_dist_pages__error_js.js"
+    ]
+  }
+}
+>>>>>>> 690bc2255d2e435ff9e96c0ccbc6a058f8992be2

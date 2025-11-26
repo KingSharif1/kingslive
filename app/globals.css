@@ -1,6 +1,75 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
+@keyframes slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-up {
+  animation: slide-in-up 0.5s ease-out forwards;
+}
+
+.animate-slide-in-down {
+  animation: slide-in-down 0.5s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.5s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.5s ease-out forwards;
+}
+
+.perspective {
+  perspective: 2000px;
+}
 
 /* Commented out to fix build errors - Next.js can't resolve SCSS from CSS files
 @import '../styles/_variables.scss';
@@ -9,20 +78,50 @@
 
 
 :root {
-  --primary-color: 59, 130, 246;
-  --background-light: 248, 250, 252;
-  --background-dark: 17, 24, 39;
-  --text-light: 31, 41, 55; /* Darker shade for better contrast */
-  --text-dark: 243, 244, 246;
-  --destructive: 239, 68, 68;
+  --background: oklch(98.415% 0 248.585);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --radius: 0.625rem;
+}
+
+* {
+  border-color: var(--border);
+  outline-color: color-mix(in oklch, var(--ring) 50%, transparent);
 }
 
 body {
-  color: rgb(var(--text-light));
-  background-color: rgb(var(--background-light));
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
-/* Add a subtle grid mesh for light mode */
+/* Interactive dot background */
+@keyframes dot-pulse {
+  0% { opacity: 0.1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 0.1; }
+}
+
+body {
+  position: relative;
+  overflow-x: hidden;
+}
+
 body::before {
   content: "";
   position: fixed;
@@ -30,15 +129,54 @@ body::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: radial-gradient(rgba(0, 0, 0, 0.2) 1px, transparent 1px);
-  background-size: 50px 50px;
+  background-image: 
+    radial-gradient(
+      circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0) 45%,
+      rgba(0, 0, 0, 0.1) 50%,
+      rgba(0, 0, 0, 0) 55%
+    ),
+    radial-gradient(rgba(0, 0, 0, 0.15) 1px, transparent 1px);
+  background-size: 100% 100%, 50px 50px;
+  background-position: 0 0;
   pointer-events: none;
   z-index: 0;
+  transition: background-position 0.1s ease;
 }
 
-.dark body {
-  color: rgb(var(--text-dark));
-  background-color: #000; /* Pure black background like rasmic.xyz */
+.dark body::before {
+  background-image: 
+    radial-gradient(
+      circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0) 45%,
+      rgba(255, 255, 255, 0.03) 50%,
+      rgba(255, 255, 255, 0) 55%
+    ),
+    radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+}
+
+.dark {
+  --background: oklch(12% 0 265.146);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.145 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --border: oklch(0.269 0 0);
+  --input: oklch(0.269 0 0);
+  --ring: oklch(0.439 0 0);
 }
 
 /* Add a subtle star effect to the background in dark mode */
@@ -140,8 +278,8 @@ body::before {
 }
 
 @font-face {
-  font-family: 'JetBrains Mono';
-  src: url('/fonts/JetBrainsMono-Bold.woff2') format('woff2');
+  font-family: ambroise-std, serif;
+  src: url('/fonts/Ambroise-Std-Extra-Bold.otf') format('woff2');
   font-weight: bold;
   font-style: normal;
   font-display: swap;

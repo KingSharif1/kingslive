@@ -2,17 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from 'next/navigation'
-<<<<<<< HEAD
-import { signOut, getCurrentUser, signInWithMagicLink } from "@/lib/auth"
-import { useToast, ToastContainer } from '../components/Toast'
-=======
 import { lazy, Suspense } from 'react'
 
 // Import services
 import { AuthService } from "../services/authService"
 
 // Import components
->>>>>>> 690bc2255d2e435ff9e96c0ccbc6a058f8992be2
 import Header from "./Header"
 import Navigation from "./Navigation"
 import AuthForm from "./AuthForm"
@@ -48,8 +43,11 @@ import { BlogPost } from "../types"
 // Define section type
 type Section = 'posts' | 'comments' | 'analytics' | 'post-editor'
 
-export default function CtroomContent() {
-  const { toasts, addToast, removeToast } = useToast()
+interface CtroomContentProps {
+  addToast: (toast: { type: 'success' | 'error' | 'info'; title: string; message?: string }) => void
+}
+
+export default function CtroomContent({ addToast }: CtroomContentProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   
@@ -480,7 +478,6 @@ export default function CtroomContent() {
   
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
       <div className="flex flex-col min-h-screen">
         <Header user={user} onSignOut={handleSignOut} />
         
