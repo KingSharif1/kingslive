@@ -8,6 +8,8 @@ import { Analytics } from "@vercel/analytics/react"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
+import { ParticleBackground } from '@/components/ParticleBackground'
+import { CustomCursor } from '@/components/CustomCursor'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -28,11 +30,13 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <ParticleBackground />
+          <CustomCursor />
           <SnowAnimation />
           {children}
           <ChatBot />
-          <Toaster 
-            richColors 
+          <Toaster
+            richColors
             position="top-center"
             toastOptions={{
               style: {
@@ -52,3 +56,4 @@ export default function RootLayout({
     </html>
   )
 }
+

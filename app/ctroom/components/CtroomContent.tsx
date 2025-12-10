@@ -2,17 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from 'next/navigation'
-<<<<<<< HEAD
 import { signOut, getCurrentUser, signInWithMagicLink } from "@/lib/auth"
-import { useToast, ToastContainer } from '../components/Toast'
-=======
-import { lazy, Suspense } from 'react'
-
-// Import services
-import { AuthService } from "../services/authService"
-
-// Import components
->>>>>>> 690bc2255d2e435ff9e96c0ccbc6a058f8992be2
+import { useToast } from '../components/Toast'
 import Header from "./Header"
 import Navigation from "./Navigation"
 import AuthForm from "./AuthForm"
