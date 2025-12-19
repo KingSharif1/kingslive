@@ -2,152 +2,40 @@ import { supabase } from "@/lib/supabase"
 import { BlogPost, Comment, Category, PostAnalytics } from "../types"
 
 export class DataService {
-  // Blog Posts
-  static async fetchPosts(page = 0, limit = 10): Promise<{data: BlogPost[], count: number}> {
-    try {
-      const { data, error, count } = await supabase
-        .from('blog_posts')
-        .select('*', { count: 'exact' })
-        .range(page * limit, (page + 1) * limit - 1)
-        .order('created_at', { ascending: false })
-      
-      if (error) throw error
-      return { data: data || [], count: count || 0 }
-    } catch (error) {
-      console.error('Error in fetchPosts:', error)
-      throw error
-    }
-  }
-
-  // Keep the old method for backward compatibility
+  // Blog Posts - All posts come from Sanity, analytics from Supabase
   static async fetchAllPosts(): Promise<BlogPost[]> {
     try {
-      // Use manual join approach since Supabase join is failing
-      const { data: postsData, error: postsError } = await supabase
-        .from('blog_posts')
-        .select('*')
-        .order('created_at', { ascending: false })
+      // Import Sanity query function
+      const { getPublishedPosts } = await import('@/lib/sanity-queries')
       
-      if (postsError) throw postsError
-      //console.log('Posts data:', postsData)
+      // Fetch posts from Sanity
+      const sanityPosts = await getPublishedPosts()
+      console.log('Fetched posts from Sanity for control room:', sanityPosts.length)
       
+      // Get analytics data from Supabase (views, likes, etc.)
       const { data: analyticsData, error: analyticsError } = await supabase
         .from('blog_post_analytics')
         .select('post_id, view_count, comment')
       
-      if (analyticsError) throw analyticsError
-      //console.log('Analytics data:', analyticsData)
+      if (analyticsError) {
+        console.error('Analytics error:', analyticsError)
+      }
       
-      // Manual join - this is more reliable
-      const transformedData = postsData?.map(post => {
-        const analytics = analyticsData?.find(a => a.post_id === post.id)
+      // Merge Sanity content with Supabase analytics
+      const transformedData = sanityPosts.map(post => {
+        // Try to match by slug (Sanity slug vs Supabase post_id)
+        const analytics = analyticsData?.find(a => a.post_id === post.slug || a.post_id === post.id)
         return {
           ...post,
-          views: analytics?.view_count || 0,
+          views: analytics?.view_count || post.views || 0,
           comment_count: analytics?.comment || 0
         }
-      }) || []
-      //console.log('Transformed data:', transformedData)
-      return transformedData
+      })
+      
+      return transformedData as BlogPost[]
     } catch (error) {
       console.error('Error in fetchAllPosts:', error)
-      throw error
-    }
-  }
-
-  static async createPost(post: Partial<BlogPost>): Promise<BlogPost> {
-    try {
-      const slug = post.title
-        ?.toLowerCase()
-        .replace(/[^\w\s]/gi, '')
-        .replace(/\s+/g, '-') || ''
-
-      const postToCreate = {
-        ...post,
-        slug,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-
-      const { data, error } = await supabase
-        .from('blog_posts')
-        .insert([postToCreate])
-        .select()
-        .single()
-      
-      if (error) throw error
-      if (!data) throw new Error('Failed to create post: No data returned')
-      return data
-    } catch (error) {
-      console.error('Error in createPost:', error)
-      throw error
-    }
-  }
-
-  static async updatePost(id: string, post: Partial<BlogPost>): Promise<BlogPost> {
-    try {
-      // Filter out any fields that don't exist in the database schema
-      const { views, comment_count, analytics, ...validPost } = post as any
-      
-      // Debug logging
-      console.log('Original post object keys:', Object.keys(post))
-      console.log('Filtered post object keys:', Object.keys(validPost))
-      
-      const updatedPost = {
-        ...validPost,
-        updated_at: new Date().toISOString()
-      }
-
-      const { data, error } = await supabase
-        .from('blog_posts')
-        .update(updatedPost)
-        .eq('id', id)
-        .select()
-        .single()
-      
-      if (error) throw error
-      if (!data) throw new Error('Failed to update post: No data returned')
-      return data
-    } catch (error) {
-      console.error('Error in updatePost:', error)
-      throw error
-    }
-  }
-
-  static async deletePost(id: string): Promise<void> {
-    try {
-      // First delete related analytics records
-      const { error: analyticsError } = await supabase
-        .from('blog_post_analytics')
-        .delete()
-        .eq('post_id', id)
-      
-      if (analyticsError) {
-        console.error('Error deleting post analytics:', analyticsError)
-        // Continue with post deletion even if analytics deletion fails
-      }
-      
-      // Then delete comments related to this post
-      const { error: commentsError } = await supabase
-        .from('blog_comments')
-        .delete()
-        .eq('post_id', id)
-      
-      if (commentsError) {
-        console.error('Error deleting post comments:', commentsError)
-        // Continue with post deletion even if comments deletion fails
-      }
-      
-      // Finally delete the post itself
-      const { error } = await supabase
-        .from('blog_posts')
-        .delete()
-        .eq('id', id)
-      
-      if (error) throw error
-    } catch (error) {
-      console.error('Error in deletePost:', error)
-      throw error
+      return []
     }
   }
 
@@ -155,11 +43,8 @@ export class DataService {
   static async fetchComments(): Promise<Comment[]> {
     const { data, error } = await supabase
       .from('blog_comments')
-      .select(`
-        *,
-        blog_posts(title)
-      `)
-      .eq('archived', false) // Only fetch non-archived comments
+      .select('*')
+      .eq('archived', false)
       .order('created_at', { ascending: false })
     
     if (error) throw error
@@ -169,11 +54,8 @@ export class DataService {
   static async fetchArchivedComments(): Promise<Comment[]> {
     const { data, error } = await supabase
       .from('blog_comments')
-      .select(`
-        *,
-        blog_posts(title)
-      `)
-      .eq('archived', true) // Only fetch archived comments
+      .select('*')
+      .eq('archived', true)
       .order('created_at', { ascending: false })
     
     if (error) throw error

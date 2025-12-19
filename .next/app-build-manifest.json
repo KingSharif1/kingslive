@@ -2,13 +2,27 @@
   "pages": {
     "/layout": [
       "static/chunks/webpack.js",
+      "static/css/vendor.css",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
+    "/ctroom/page": [
+      "static/chunks/webpack.js",
+      "static/css/vendor.css",
+      "static/chunks/vendor.js",
+      "static/chunks/main-app.js",
+      "static/chunks/framer-motion.js",
+      "static/chunks/common.js",
+      "static/chunks/app/ctroom/page.js"
+    ],
     "/page": [
       "static/chunks/webpack.js",
+      "static/css/vendor.css",
+      "static/chunks/vendor.js",
       "static/chunks/main-app.js",
+      "static/chunks/framer-motion.js",
       "static/chunks/app/page.js"
     ]
   }

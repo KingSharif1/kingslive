@@ -38,7 +38,7 @@ export function TopNav() {
   const handleSignOut = async () => {
     try {
       await AuthService.signOut()
-      window.location.href = '/ctroom'
+      // No need to redirect here, the signOut method will handle it
     } catch (error) {
       console.error('Sign out error:', error)
     }

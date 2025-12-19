@@ -9,19 +9,22 @@ export interface BlogPost {
   id: string
   title: string
   excerpt: string
-  content: string
+  content?: any
   created_at: string
-  updated_at: string
+  updated_at?: string
   author: string
   slug: string
   tags: string[]
   published: boolean
-  category_id: string
-  featured: boolean
-  meta_description: string
-  meta_keywords: string[]
+  category_id?: string
+  featured?: boolean
+  meta_description?: string
+  meta_keywords?: string[]
+  cover_image?: string
   citations?: Citation[]
   is_draft?: boolean
+  views?: number
+  comment_count?: number
 }
 
 export interface Citation {

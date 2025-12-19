@@ -34,7 +34,7 @@ export function Header({ isDark, toggleTheme }: { isDark: boolean; toggleTheme: 
     >
       <div
         className={`transition-all duration-500 ${isScrolled
-          ? 'max-w-3xl mx-auto px-4 backdrop-blur-xl bg-background/70 border border-border/50 rounded-full shadow-lg'
+          ? 'max-w-3xl mx-auto px-4 backdrop-blur-xl bg-background/70 border border-border/50 rounded-xl shadow-lg'
           : 'max-w-4xl mx-auto px-6 sm:px-8 lg:px-12 bg-transparent border-b border-transparent'
           }`}
       >

@@ -47,3 +47,19 @@ next-env.d.ts
 *.pack
 *.pack.gz
 
+Trace-*.json
+
+.windsurfrules
+
+# Cleanup
+temp_reference_repo/
+.superdesign/
+*.bak
+fix-imports.js
+# IDE and system files
+.DS_Store
+.vscode/
+.idea/
+
+#supabase
+supabase/*

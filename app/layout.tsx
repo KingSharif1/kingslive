@@ -1,17 +1,66 @@
 import './globals.css'
-import { Inter } from 'next/font/google'
+import { Inter, Space_Grotesk, Playfair_Display, Crimson_Pro, Unbounded, Plus_Jakarta_Sans, Outfit, Roboto, Open_Sans, Fraunces } from 'next/font/google'
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
-import SnowAnimation from '@/components/SnowAnimation'
-import ChatBot from './components/ChatBot'
+
 import { Analytics } from "@vercel/analytics/react"
 import { SpeedInsights } from "@vercel/speed-insights/next"
-import Navbar from './components/Navbar'
-import Footer from './components/Footer'
 import { ParticleBackground } from '@/components/ParticleBackground'
-import { CustomCursor } from '@/components/CustomCursor'
 
-const inter = Inter({ subsets: ['latin'] })
+// Home page fonts
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter'
+})
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-space-grotesk'
+})
+
+// Bold & Creative fonts (Option 4)
+const unbounded = Unbounded({
+  subsets: ['latin'],
+  variable: '--font-unbounded'
+})
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-jakarta'
+})
+
+// Light & Clean fonts (User requested)
+const outfit = Outfit({
+  subsets: ['latin'],
+  variable: '--font-outfit'
+})
+
+const roboto = Roboto({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '700'],
+  variable: '--font-roboto'
+})
+
+const openSans = Open_Sans({
+  subsets: ['latin'],
+  variable: '--font-open-sans'
+})
+
+// Blog page fonts
+const playfairDisplay = Playfair_Display({
+  subsets: ['latin'],
+  variable: '--font-playfair'
+})
+
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  variable: '--font-fraunces'
+})
+
+const crimsonPro = Crimson_Pro({
+  subsets: ['latin'],
+  variable: '--font-crimson'
+})
 
 export const metadata = {
   title: 'King Sharif',
@@ -28,13 +77,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={`${inter.variable} ${spaceGrotesk.variable} ${playfairDisplay.variable} ${crimsonPro.variable} ${unbounded.variable} ${plusJakartaSans.variable} ${outfit.variable} ${roboto.variable} ${openSans.variable} ${fraunces.variable} font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <ParticleBackground />
-          <CustomCursor />
-          <SnowAnimation />
           {children}
-          <ChatBot />
           <Toaster
             richColors
             position="top-center"

@@ -2,6 +2,73 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
+/* @import '@mdxeditor/editor/style.css'; */
+
+/* Font Family Utilities */
+.font-display {
+  font-family: var(--font-space-grotesk), system-ui, sans-serif;
+}
+
+.font-body {
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+.font-serif-display {
+  font-family: var(--font-playfair), Georgia, serif;
+}
+
+.font-serif-body {
+  font-family: var(--font-crimson), Georgia, serif;
+}
+
+/* Bold & Creative fonts (Option 4) */
+.font-unbounded {
+  font-family: var(--font-unbounded), system-ui, sans-serif;
+}
+
+.font-jakarta {
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+}
+
+/* Light & Clean fonts (User requested) */
+.font-outfit {
+  font-family: var(--font-outfit), system-ui, sans-serif;
+}
+
+.font-roboto {
+  font-family: var(--font-roboto), system-ui, sans-serif;
+}
+
+.font-open-sans {
+  font-family: var(--font-open-sans), system-ui, sans-serif;
+}
+
+.font-fraunces {
+  font-family: var(--font-fraunces), Georgia, serif;
+}
+
+/* New World Post Color Palette (Mix of A+B) */
+:root {
+  /* Blog Theme Colors */
+  --nwp-cream: #FAF8F5;
+  --nwp-parchment: #F5F1EA;
+  --nwp-navy: #1A1A2E;
+  --nwp-gold: #C49B66;
+  --nwp-sepia: #8B4513;
+  --nwp-tan: #D4C4B0;
+  --nwp-paper-gray: #E8E4DE;
+}
+
+.dark {
+  --nwp-cream: #1A1A2E;
+  --nwp-parchment: #0F0F1A;
+  --nwp-navy: #FAF8F5;
+  --nwp-gold: #D4A574;
+  --nwp-sepia: #C49B66;
+  --nwp-tan: #3D3D5C;
+  --nwp-paper-gray: #2D2D4A;
+}
+
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 5rem;
@@ -12,6 +79,7 @@ html {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -23,6 +91,7 @@ html {
     opacity: 0;
     transform: translateY(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -34,6 +103,7 @@ html {
     opacity: 0;
     transform: translateX(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -45,9 +115,22 @@ html {
     opacity: 0;
     transform: translateX(20px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes gradient-shift {
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
   }
 }
 
@@ -67,6 +150,11 @@ html {
   animation: slide-in-right 0.5s ease-out forwards;
 }
 
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+
 .perspective {
   perspective: 2000px;
 }
@@ -78,18 +166,18 @@ html {
 
 
 :root {
-  --background: oklch(98.415% 0 248.585);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --background: oklch(.929 .013 255.508);
+  --foreground: oklch(.145 .005 56.366);
+  --card: oklch(.929 .013 255.508);
+  --card-foreground: oklch(.145 .005 56.366);
+  --popover: oklch(.929 .013 255.508);
+  --popover-foreground: oklch(.145 .005 56.366);
+  --primary: oklch(.205 .005 56.366);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  --muted-foreground: oklch(35.618% 0.00004 271.152 / 0.745);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
@@ -108,13 +196,23 @@ html {
 body {
   background-color: var(--background);
   color: var(--foreground);
+  cursor: crosshair;
+  /* Gaming/Aim cursor style - like 1942 reference */
 }
 
 /* Interactive dot background */
 @keyframes dot-pulse {
-  0% { opacity: 0.1; }
-  50% { opacity: 0.3; }
-  100% { opacity: 0.1; }
+  0% {
+    opacity: 0.1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+
+  100% {
+    opacity: 0.1;
+  }
 }
 
 body {
@@ -129,32 +227,14 @@ body::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: 
-    radial-gradient(
-      circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
-      rgba(0, 0, 0, 0) 0%,
-      rgba(0, 0, 0, 0) 45%,
-      rgba(0, 0, 0, 0.1) 50%,
-      rgba(0, 0, 0, 0) 55%
-    ),
-    radial-gradient(rgba(0, 0, 0, 0.15) 1px, transparent 1px);
-  background-size: 100% 100%, 50px 50px;
-  background-position: 0 0;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.15) 1px, transparent 1px);
+  background-size: 50px 50px;
   pointer-events: none;
   z-index: 0;
-  transition: background-position 0.1s ease;
 }
 
 .dark body::before {
-  background-image: 
-    radial-gradient(
-      circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
-      rgba(255, 255, 255, 0) 0%,
-      rgba(255, 255, 255, 0) 45%,
-      rgba(255, 255, 255, 0.03) 50%,
-      rgba(255, 255, 255, 0) 55%
-    ),
-    radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px);
 }
 
 .dark {
@@ -239,6 +319,7 @@ body::before {
   0% {
     transform: rotateX(0deg);
   }
+
   100% {
     transform: rotateX(-180deg);
   }
@@ -267,6 +348,7 @@ body::before {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -295,7 +377,7 @@ body::before {
 
 /* Vintage Paper Texture */
 .newspaper-bg {
-  background-image: 
+  background-image:
     radial-gradient(circle at 25% 25%, rgba(139, 69, 19, 0.03) 0%, transparent 50%),
     radial-gradient(circle at 75% 75%, rgba(160, 82, 45, 0.03) 0%, transparent 50%),
     linear-gradient(90deg, transparent 49%, rgba(139, 69, 19, 0.02) 50%, transparent 51%);
@@ -313,10 +395,12 @@ body::before {
     opacity: 0;
     transform: scale(0.8);
   }
+
   50% {
     opacity: 0.5;
     transform: scale(1.02);
   }
+
   100% {
     opacity: 1;
     transform: scale(1);
@@ -324,8 +408,15 @@ body::before {
 }
 
 @keyframes letter-glow {
-  0%, 100% { text-shadow: 0.5px 0.5px 1px rgba(139, 69, 19, 0.1); }
-  50% { text-shadow: 1px 1px 3px rgba(139, 69, 19, 0.3); }
+
+  0%,
+  100% {
+    text-shadow: 0.5px 0.5px 1px rgba(139, 69, 19, 0.1);
+  }
+
+  50% {
+    text-shadow: 1px 1px 3px rgba(139, 69, 19, 0.3);
+  }
 }
 
 .typewriter-improved {
@@ -338,10 +429,12 @@ body::before {
     transform: translateX(-100px) translateY(-20px) rotate(-10deg);
     opacity: 0;
   }
+
   50% {
     transform: translateX(50px) translateY(-10px) rotate(5deg);
     opacity: 1;
   }
+
   100% {
     transform: translateX(0) translateY(0) rotate(0deg);
     opacity: 1;
@@ -356,7 +449,7 @@ body::before {
 .bounty-poster {
   background: linear-gradient(45deg, #f4e4bc 0%, #e8d5a3 100%);
   border: 4px solid #8b4513;
-  box-shadow: 
+  box-shadow:
     inset 0 0 20px rgba(139, 69, 19, 0.2),
     0 4px 8px rgba(0, 0, 0, 0.3);
   position: relative;
@@ -369,13 +462,11 @@ body::before {
   left: -2px;
   right: -2px;
   bottom: -2px;
-  background: repeating-linear-gradient(
-    45deg,
-    #8b4513 0px,
-    #8b4513 2px,
-    transparent 2px,
-    transparent 8px
-  );
+  background: repeating-linear-gradient(45deg,
+      #8b4513 0px,
+      #8b4513 2px,
+      transparent 2px,
+      transparent 8px);
   z-index: -1;
 }
 
@@ -406,9 +497,11 @@ body::before {
     transform: rotateX(-90deg);
     opacity: 0;
   }
+
   50% {
     opacity: 0.5;
   }
+
   100% {
     transform: rotateX(0deg);
     opacity: 1;
@@ -435,13 +528,11 @@ body::before {
   left: 0;
   right: 0;
   bottom: 0;
-  background: repeating-linear-gradient(
-    45deg,
-    transparent 0px,
-    transparent 2px,
-    rgba(255, 255, 255, 0.1) 2px,
-    rgba(255, 255, 255, 0.1) 4px
-  );
+  background: repeating-linear-gradient(45deg,
+      transparent 0px,
+      transparent 2px,
+      rgba(255, 255, 255, 0.1) 2px,
+      rgba(255, 255, 255, 0.1) 4px);
 }
 
 /* Subtle Text Enhancement */
@@ -501,10 +592,12 @@ body::before {
     transform: translateY(100px) rotate(10deg);
     opacity: 0;
   }
+
   50% {
     transform: translateY(-10px) rotate(-2deg);
     opacity: 0.8;
   }
+
   100% {
     transform: translateY(0) rotate(0deg);
     opacity: 1;
@@ -515,3 +608,20 @@ body::before {
   animation: newspaper-load 1s ease-out forwards;
 }
 
+/* Scrolling Ticker Animation */
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-scroll {
+  animation: scroll 30s linear infinite;
+}
+
+.animate-scroll:hover {
+  animation-play-state: paused;
+}

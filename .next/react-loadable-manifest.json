@@ -1,8 +1,67 @@
 {
+  "app\\ctroom\\services\\dataService.ts -> @/lib/sanity-queries": {
+    "id": "app\\ctroom\\services\\dataService.ts -> @/lib/sanity-queries",
+    "files": []
+  },
+  "app\\page.tsx -> @/components/ContactForm": {
+    "id": "app\\page.tsx -> @/components/ContactForm",
+    "files": [
+      "static/chunks/framer-motion.js",
+      "static/css/vendor.css",
+      "static/chunks/vendor.js",
+      "static/chunks/common.js",
+      "static/chunks/_app-pages-browser_components_ContactForm_tsx.js"
+    ]
+  },
+  "node_modules\\@sanity\\client\\dist\\index.browser.js -> ./_chunks-es/stegaEncodeSourceMap.js": {
+    "id": "node_modules\\@sanity\\client\\dist\\index.browser.js -> ./_chunks-es/stegaEncodeSourceMap.js",
+    "files": [
+      "static/css/vendor.css",
+      "static/chunks/vendor.js"
+    ]
+  },
+  "node_modules\\@sanity\\client\\dist\\index.browser.js -> @sanity/eventsource": {
+    "id": "node_modules\\@sanity\\client\\dist\\index.browser.js -> @sanity/eventsource",
+    "files": [
+      "static/css/vendor.css",
+      "static/chunks/vendor.js"
+    ]
+  },
+  "node_modules\\@supabase\\auth-js\\dist\\module\\lib\\helpers.js -> @supabase/node-fetch": {
+    "id": "node_modules\\@supabase\\auth-js\\dist\\module\\lib\\helpers.js -> @supabase/node-fetch",
+    "files": []
+  },
+  "node_modules\\@supabase\\functions-js\\dist\\module\\helper.js -> @supabase/node-fetch": {
+    "id": "node_modules\\@supabase\\functions-js\\dist\\module\\helper.js -> @supabase/node-fetch",
+    "files": []
+  },
+  "node_modules\\@supabase\\realtime-js\\dist\\module\\RealtimeClient.js -> @supabase/node-fetch": {
+    "id": "node_modules\\@supabase\\realtime-js\\dist\\module\\RealtimeClient.js -> @supabase/node-fetch",
+    "files": []
+  },
+  "node_modules\\@supabase\\storage-js\\dist\\module\\lib\\helpers.js -> @supabase/node-fetch": {
+    "id": "node_modules\\@supabase\\storage-js\\dist\\module\\lib\\helpers.js -> @supabase/node-fetch",
+    "files": []
+  },
+  "node_modules\\@tanstack\\query-devtools\\build\\dev.js -> ./DevtoolsComponent/EDEL3XIZ.js": {
+    "id": "node_modules\\@tanstack\\query-devtools\\build\\dev.js -> ./DevtoolsComponent/EDEL3XIZ.js",
+    "files": [
+      "static/css/vendor.css",
+      "static/chunks/vendor.js"
+    ]
+  },
+  "node_modules\\@tanstack\\query-devtools\\build\\dev.js -> ./DevtoolsPanelComponent/RN252AT2.js": {
+    "id": "node_modules\\@tanstack\\query-devtools\\build\\dev.js -> ./DevtoolsPanelComponent/RN252AT2.js",
+    "files": [
+      "static/css/vendor.css",
+      "static/chunks/vendor.js"
+    ]
+  },
   "node_modules\\next\\dist\\client\\dev\\hot-reloader\\app\\use-websocket.js -> @vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts": {
     "id": "node_modules\\next\\dist\\client\\dev\\hot-reloader\\app\\use-websocket.js -> @vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts",
     "files": [
-      "static/chunks/_app-pages-browser_node_modules_next_dist_client_dev_noop-turbopack-hmr_js.js"
+      "static/css/vendor.css",
+      "static/chunks/vendor.js"
     ]
   }
 }

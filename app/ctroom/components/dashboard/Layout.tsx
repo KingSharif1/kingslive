@@ -20,16 +20,38 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isMounted, setIsMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
+  
+  // Store sidebar state in localStorage
+  const toggleSidebar = () => {
+    const newState = !isCollapsed
+    setIsCollapsed(newState)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebarCollapsed', String(newState))
+    }
+  }
 
-  // Check if mobile on mount
+  // Check if mobile on mount and load sidebar state
   useEffect(() => {
     setIsMounted(true)
+    
+    // Load sidebar state from localStorage
+    if (typeof window !== 'undefined') {
+      const savedState = localStorage.getItem('sidebarCollapsed')
+      if (savedState !== null) {
+        setIsCollapsed(savedState === 'true')
+      }
+    }
+    
     const checkIfMobile = () => {
-      setIsMobile(window.innerWidth < 768)
-      if (window.innerWidth < 1024) {
+      const isMobileView = window.innerWidth < 768
+      setIsMobile(isMobileView)
+      
+      // Only auto-collapse on small screens if no saved preference
+      if (window.innerWidth < 1024 && localStorage.getItem('sidebarCollapsed') === null) {
         setIsCollapsed(true)
       }
     }
+    
     checkIfMobile()
     window.addEventListener("resize", checkIfMobile)
     return () => window.removeEventListener("resize", checkIfMobile)
@@ -73,7 +95,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               variant="ghost"
               size="icon"
               className="ml-auto"
-              onClick={() => setIsCollapsed(!isCollapsed)}
+              onClick={toggleSidebar}
             >
               {isCollapsed ? (
                 <Menu className="h-4 w-4" />
@@ -85,9 +107,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </span>
             </Button>
           </div>
-          <ScrollArea className="flex-1">
+          <div className="flex-1 h-[calc(100vh-3.5rem)] overflow-hidden">
             <Sidebar isCollapsed={isCollapsed} />
-          </ScrollArea>
+          </div>
         </aside>
       )}
 

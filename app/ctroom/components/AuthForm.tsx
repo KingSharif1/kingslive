@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { memo } from "react"
 import { motion } from "framer-motion"
 import { Mail } from "lucide-react"
 import { signInWithMagicLink } from "@/lib/auth"
@@ -15,15 +15,15 @@ interface AuthFormProps {
   onLogin: (email: string) => Promise<void>
 }
 
-export default function AuthForm({ email, setEmail, authError, magicLinkSent, isLoading = false, onLogin }: AuthFormProps) {
+function AuthForm({ email, setEmail, authError, magicLinkSent, isLoading = false, onLogin }: AuthFormProps) {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     try {
       if (!email) {
         return
       }
-      
+
       await onLogin(email)
     } catch (error: any) {
       console.error('Login error:', error)
@@ -45,7 +45,7 @@ export default function AuthForm({ email, setEmail, authError, magicLinkSent, is
               Admin access only.
             </p>
           </div>
-          
+
           {magicLinkSent ? (
             <div className="text-center p-4 bg-green-300/70 dark:bg-green-900/40 rounded-xl mb-6">
               <p className="text-green-700 dark:text-green-400">
@@ -74,20 +74,20 @@ export default function AuthForm({ email, setEmail, authError, magicLinkSent, is
                   />
                 </div>
               </div>
-              
+
               {authError && (
                 <div className="flex justify-center">
                   <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                  className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl w-fit flex items-center justify-center font-semibold text-xl">
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl w-fit flex items-center justify-center font-semibold text-xl">
                     <p className="text-sm text-red-600 dark:text-red-400">{authError}</p>
                   </motion.div>
                 </div>
 
               )}
-              
+
               <div className="w-full flex justify-center">
                 <button
                   type="submit"
@@ -114,3 +114,6 @@ export default function AuthForm({ email, setEmail, authError, magicLinkSent, is
     </section>
   )
 }
+
+// Memoize to prevent unnecessary re-renders
+export default memo(AuthForm)

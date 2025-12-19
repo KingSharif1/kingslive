@@ -1,10 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { memo } from "react"
 import Link from "next/link"
-import { ArrowLeft, Menu, X } from "lucide-react"
+import { Home, Terminal, LogOut } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { motion, AnimatePresence } from "framer-motion"
 
 interface HeaderProps {
   user: {
@@ -16,95 +15,57 @@ interface HeaderProps {
   onSignOut: () => void;
 }
 
-export default function Header({ user, onSignOut }: HeaderProps) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
+function Header({ user, onSignOut }: HeaderProps) {
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto w-full">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6 mb-8"
-      >
-        <div className="flex justify-between items-center">
+    <div className="relative p-[1px] mx-4 sm:mx-6 lg:mx-8 mt-4 sm:mt-6 lg:mt-8 rounded-xl bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700">
+      <div className="bg-[var(--background)] rounded-xl p-4 sm:p-6">
+        <div className="flex justify-between items-center flex-wrap gap-4">
           {/* Left side - Logo and title */}
           <div className="flex items-center gap-4">
-            <Link 
-              href="/ctroom"
-              className="flex items-center gap-2 px-3 py-2 text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            <Link
+              href="/"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--secondary)] hover:bg-[var(--accent)] transition-colors group"
             >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="text-sm hidden sm:inline">Back to Home</span>
+              <Home className="h-4 w-4 text-[var(--muted-foreground)] group-hover:text-[var(--foreground)]" />
+              <span className="text-sm font-mono hidden sm:inline text-[var(--muted-foreground)] group-hover:text-[var(--foreground)]">home</span>
             </Link>
-            <div className="border-l border-gray-300 dark:border-gray-600 pl-4 hidden sm:block">
-              <h1 className="text-3xl font-bold light-mode-text dark:text-white">Control Room</h1>
-              <p className="text-gray-600 dark:text-gray-300 mt-1">Manage your blog posts, comments, and analytics</p>
-            </div>
-            <div className="sm:hidden">
-              <h1 className="text-xl font-bold light-mode-text dark:text-white">Control Room</h1>
+            <div className="border-l border-[var(--border)] pl-4">
+              <div className="flex items-center gap-2">
+                <Terminal className="h-5 w-5 text-slate-500" />
+                <h1 className="text-xl sm:text-2xl font-bold font-mono text-[var(--foreground)]">
+                  control_room
+                </h1>
+              </div>
+              <p className="text-xs font-mono text-[var(--muted-foreground)] mt-1 hidden sm:block">
+                <span className="text-slate-500">▸</span> analytics • dreamboard • content
+              </p>
             </div>
           </div>
 
-          {/* Right side - Desktop view */}
-          <div className="hidden md:flex items-center gap-4">
+          {/* Right side */}
+          <div className="flex items-center gap-3">
             <ThemeToggle />
-            <div className="text-right">
-              <p className="text-sm font-medium light-mode-text dark:text-white">
-                {user?.username || user?.email?.split('@')[0] || 'Admin'}
+            <div className="hidden sm:block text-right">
+              <p className="text-sm font-mono text-[var(--foreground)]">
+                {user?.username || user?.email?.split('@')[0] || 'admin'}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Administrator</p>
+              <p className="text-xs font-mono text-[var(--muted-foreground)]">
+                <span className="text-slate-500">●</span> root
+              </p>
             </div>
             <button
               onClick={onSignOut}
-              className="px-4 py-2 text-sm bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors shadow-md"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-mono bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all"
             >
-              Sign Out
-            </button>
-          </div>
-
-          {/* Mobile menu button */}
-          <div className="md:hidden flex items-center gap-2">
-            <ThemeToggle />
-            <button 
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">logout</span>
             </button>
           </div>
         </div>
-
-        {/* Mobile menu */}
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="md:hidden mt-4 border-t border-gray-200 dark:border-gray-600 pt-4"
-            >
-              <div className="flex flex-col space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium light-mode-text dark:text-white">
-                      {user?.username || user?.email?.split('@')[0] || 'Admin'}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Administrator</p>
-                  </div>
-                  <button
-                    onClick={onSignOut}
-                    className="px-4 py-2 text-sm bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors shadow-md"
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
+      </div>
     </div>
   )
 }
+
+// Memoize to prevent unnecessary re-renders
+export default memo(Header)

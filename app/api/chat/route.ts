@@ -2,6 +2,9 @@ import { HfInference } from '@huggingface/inference'
 import { NextRequest, NextResponse } from 'next/server'
 import { KING_INFO } from './king-info'
 
+// Force this route to be server-side only
+export const runtime = 'nodejs'
+
 // Initialize Hugging Face client
 const apiKey = process.env.NEXT_PUBLIC_HUGGINGFACE_API_KEY || '';
 // Log partial key for debugging (first 4 chars only)
