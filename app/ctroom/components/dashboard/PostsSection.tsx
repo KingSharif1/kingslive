@@ -52,7 +52,7 @@ export function PostsSection({ addToast }: PostsSectionProps) {
             <Button variant="ghost" size="sm" onClick={fetchPosts} disabled={isLoading}>
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
-            <Button size="sm" onClick={() => window.open('https://kingslive.sanity.studio/structure/post', '_blank')}>
+            <Button size="sm" onClick={() => window.open('/studio/structure/post', '_blank')}>
               <FileText className="h-4 w-4 mr-2" />
               New Post
               <ExternalLink className="h-3 w-3 ml-1 opacity-50" />

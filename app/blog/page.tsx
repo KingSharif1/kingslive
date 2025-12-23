@@ -1,10 +1,24 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight, Search, Heart, ArrowUpRight, Sparkles } from "lucide-react"
+import Image from "next/image"
+import { ChevronLeft, ChevronRight, Search, Heart, ArrowUpRight, Sparkles, Bird } from "lucide-react"
 import ScrollProgress from "@/app/components/ScrollProgress"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { getPublishedPosts, searchPosts, BlogPost } from "@/lib/sanity-queries"
+
+// Debounce hook for search
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+
+  return debouncedValue
+}
 
 // Session-based like storage
 const getLikeKey = (postId: string) => `blog_like_${postId}`
@@ -18,18 +32,35 @@ const setSessionLikes = (postId: string, count: number) => {
   }
 }
 
-// Like button component
-function LikeButton({ postId, initialLikes = 0 }: { postId: string; initialLikes?: number }) {
-  const [likes, setLikes] = useState(initialLikes)
+// Lazy-load Supabase functions to avoid bundling in main chunk
+async function fetchLikesFromDB(postId: string): Promise<number> {
+  const { fetchLikesFromDB: fetch } = await import('@/lib/supabase-lazy')
+  return fetch(postId)
+}
+
+async function incrementLikeInDB(postId: string): Promise<number> {
+  const { incrementLikeInDB: increment } = await import('@/lib/supabase-lazy')
+  return increment(postId)
+}
+
+// Like button component - fetches real likes from database
+function LikeButton({ postId }: { postId: string }) {
+  const [likes, setLikes] = useState(0)
   const [sessionLikes, setSessionLikesState] = useState(0)
   const [isAnimating, setIsAnimating] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const MAX_SESSION_LIKES = 5
 
   useEffect(() => {
     setSessionLikesState(getSessionLikes(postId))
+    // Fetch actual likes from database
+    fetchLikesFromDB(postId).then(dbLikes => {
+      setLikes(dbLikes)
+      setIsLoading(false)
+    })
   }, [postId])
 
-  const handleLike = useCallback(() => {
+  const handleLike = useCallback(async () => {
     if (sessionLikes >= MAX_SESSION_LIKES) return
 
     setIsAnimating(true)
@@ -37,6 +68,12 @@ function LikeButton({ postId, initialLikes = 0 }: { postId: string; initialLikes
     const newSessionLikes = sessionLikes + 1
     setSessionLikesState(newSessionLikes)
     setSessionLikes(postId, newSessionLikes)
+
+    // Update database
+    const newLikes = await incrementLikeInDB(postId)
+    if (newLikes > 0) {
+      setLikes(newLikes)
+    }
 
     setTimeout(() => setIsAnimating(false), 300)
   }, [sessionLikes, postId])
@@ -46,21 +83,21 @@ function LikeButton({ postId, initialLikes = 0 }: { postId: string; initialLikes
   return (
     <button
       onClick={handleLike}
-      disabled={!canLike}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${canLike
-          ? 'hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer active:scale-95'
-          : 'opacity-50 cursor-default'
+      disabled={!canLike || isLoading}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${canLike && !isLoading
+        ? 'hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer active:scale-95'
+        : 'opacity-50 cursor-default'
         }`}
     >
       <span className={`transition-transform ${isAnimating ? 'scale-125' : 'scale-100'}`}>
         <Heart
           className={`w-4 h-4 transition-colors ${sessionLikes > 0
-              ? 'fill-red-500 text-red-500'
-              : 'text-gray-400 dark:text-gray-500'
+            ? 'fill-red-500 text-red-500'
+            : 'text-gray-400 dark:text-gray-500'
             }`}
         />
       </span>
-      <span className="text-gray-600 dark:text-gray-400">{likes}</span>
+      <span className="text-gray-600 dark:text-gray-400">{isLoading ? '...' : likes}</span>
     </button>
   )
 }
@@ -74,14 +111,17 @@ export default function BlogPage() {
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const postsPerPage = 6
 
+  // Debounce search to prevent excessive API calls
+  const debouncedSearch = useDebounce(searchQuery, 300)
+
   useEffect(() => {
     const fetchPosts = async () => {
       setIsLoading(true)
       try {
         let fetchedPosts: BlogPost[]
 
-        if (searchQuery) {
-          fetchedPosts = await searchPosts(searchQuery)
+        if (debouncedSearch) {
+          fetchedPosts = await searchPosts(debouncedSearch)
         } else {
           fetchedPosts = await getPublishedPosts()
         }
@@ -102,7 +142,7 @@ export default function BlogPage() {
     }
 
     fetchPosts()
-  }, [searchQuery, activeTag])
+  }, [debouncedSearch, activeTag])
 
   const allTags = Array.from(new Set(posts.flatMap(post => post.tags)))
   const filteredPosts = activeTag
@@ -117,69 +157,57 @@ export default function BlogPage() {
     <>
       <ScrollProgress />
       <main className="min-h-screen bg-[var(--background)]">
-        {/* Premium Header */}
-        <header className="sticky top-0 z-40 backdrop-blur-xl bg-[var(--background)]/80 border-b border-[var(--border)]">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
-            <div className="flex items-center justify-between">
-              {/* Back Button */}
-              <Link
-                href="/"
-                className="group flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--secondary)] hover:bg-[var(--accent)] transition-all duration-300"
-              >
-                <ChevronLeft className="w-4 h-4 text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors" />
-                <span className="text-sm font-medium text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors">
-                  Home
-                </span>
-              </Link>
-
-              {/* Logo/Title */}
-              <div className="absolute left-1/2 -translate-x-1/2">
-                <h1 className="font-fraunces text-lg sm:text-xl font-bold text-[var(--foreground)] tracking-tight italic">
-                  The Chronicle
-                </h1>
+        {/* Minimal Sticky Header */}
+        <header className="sticky top-0 z-50 transition-all duration-300 bg-[var(--background)]/80 backdrop-blur-md border-b border-[var(--border)]">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            {/* Logo / Home */}
+            <Link
+              href="/"
+              className="flex items-center gap-2 group"
+              title="Return Home"
+            >
+              <div className="p-1.5 rounded-lg bg-[var(--foreground)] text-[var(--background)] group-hover:rotate-12 transition-transform">
+                <Bird className="w-5 h-5" />
               </div>
+              <span className="font-fraunces font-bold text-lg tracking-tight hidden sm:block">The Chronicle</span>
+            </Link>
 
-              {/* Search Toggle - Mobile */}
-              <div className="sm:hidden">
-                <button
-                  onClick={() => setIsSearchFocused(!isSearchFocused)}
-                  className="p-2 rounded-full bg-[var(--secondary)] hover:bg-[var(--accent)] transition-colors"
-                >
-                  <Search className="w-4 h-4 text-[var(--muted-foreground)]" />
-                </button>
-              </div>
-
-              {/* Search - Desktop */}
-              <div className="hidden sm:block">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted-foreground)]" />
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-48 pl-10 pr-4 py-2 text-sm rounded-full bg-[var(--secondary)] border border-transparent focus:border-[var(--ring)] focus:bg-[var(--background)] outline-none transition-all text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]"
-                  />
+            {/* Right Actions */}
+            <div className="flex items-center gap-2">
+              {/* Search */}
+              <div className={`relative flex items-center transition-all ${isSearchFocused ? 'w-full sm:w-64' : 'w-auto'}`}>
+                <div className={`flex items-center ${isSearchFocused ? 'absolute left-0 w-full' : ''}`}>
+                  {isSearchFocused ? (
+                    <div className="relative w-full">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted-foreground)]" />
+                      <input
+                        type="text"
+                        placeholder="Search..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onBlur={() => !searchQuery && setIsSearchFocused(false)}
+                        autoFocus
+                        className="w-full pl-9 pr-4 py-2 text-sm rounded-full bg-[var(--secondary)] border border-[var(--border)] focus:ring-2 focus:ring-[var(--ring)] outline-none"
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setIsSearchFocused(true)}
+                      className="p-2 rounded-full hover:bg-[var(--secondary)] transition-colors text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                    >
+                      <Search className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
               </div>
+
+              {!isSearchFocused && (
+                <>
+                  <div className="w-px h-6 bg-[var(--border)] mx-1" />
+                  <ThemeToggle />
+                </>
+              )}
             </div>
-
-            {/* Mobile Search Expanded */}
-            {isSearchFocused && (
-              <div className="sm:hidden mt-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted-foreground)]" />
-                  <input
-                    type="text"
-                    placeholder="Search articles..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    autoFocus
-                    className="w-full pl-10 pr-4 py-3 text-sm rounded-xl bg-[var(--secondary)] border border-transparent focus:border-[var(--ring)] outline-none transition-all text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]"
-                  />
-                </div>
-              </div>
-            )}
           </div>
         </header>
 
@@ -191,7 +219,7 @@ export default function BlogPage() {
               <span className="text-xs font-open-sans uppercase tracking-[0.3em] text-[var(--muted-foreground)]">Est. {new Date().getFullYear()} • Digital Edition</span>
             </div>
             <h1 className="font-fraunces text-4xl sm:text-5xl md:text-6xl font-bold text-[var(--foreground)] mb-2 leading-tight">
-              The New World Post
+              The Chronicle
             </h1>
             <div className="flex items-center justify-center gap-4 mb-4">
               <div className="h-px w-16 bg-[var(--border)]"></div>
@@ -208,8 +236,8 @@ export default function BlogPage() {
               <button
                 onClick={() => setActiveTag(null)}
                 className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-300 ${activeTag === null
-                    ? 'bg-[var(--foreground)] text-[var(--background)]'
-                    : 'bg-[var(--secondary)] text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]'
+                  ? 'bg-[var(--foreground)] text-[var(--background)]'
+                  : 'bg-[var(--secondary)] text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]'
                   }`}
               >
                 All
@@ -219,8 +247,8 @@ export default function BlogPage() {
                   key={tag}
                   onClick={() => setActiveTag(tag)}
                   className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-300 ${activeTag === tag
-                      ? 'bg-[var(--foreground)] text-[var(--background)]'
-                      : 'bg-[var(--secondary)] text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]'
+                    ? 'bg-[var(--foreground)] text-[var(--background)]'
+                    : 'bg-[var(--secondary)] text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]'
                     }`}
                 >
                   {tag}
@@ -251,7 +279,7 @@ export default function BlogPage() {
               <div className="text-center py-20">
                 <p className="text-[var(--muted-foreground)] text-lg">No posts found. Add content in Sanity Studio.</p>
                 <a
-                  href="https://sanity.io/manage"
+                  href="/studio"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-block mt-4 px-6 py-3 rounded-full bg-[var(--foreground)] text-[var(--background)] font-medium"
@@ -267,53 +295,69 @@ export default function BlogPage() {
                       key={post.id}
                       className="group relative rounded-xl bg-[var(--card)] border border-[var(--border)] overflow-hidden hover:border-[var(--ring)] transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
                     >
-                      <Link href={`/blog/${post.slug}`} className="block p-6">
-                        {/* Date */}
-                        <time className="text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">
-                          {new Date(post.created_at).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}
-                        </time>
+                      <Link href={`/blog/${post.slug}`} className="block h-full flex flex-col">
+                        {/* Image */}
+                        {post.cover_image && (
+                          <div className="relative w-full aspect-video overflow-hidden bg-[var(--muted)]">
+                            <Image
+                              src={post.cover_image}
+                              alt={post.title}
+                              fill
+                              className="object-cover transition-transform duration-500 group-hover:scale-105"
+                            />
+                            {/* Overlay gradient */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-[var(--background)]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                          </div>
+                        )}
 
-                        {/* Title */}
-                        <h2 className="font-fraunces text-xl font-bold text-[var(--foreground)] mt-3 mb-2 line-clamp-2 group-hover:text-[var(--primary)] transition-colors">
-                          {post.title}
-                        </h2>
+                        <div className="p-6 flex-1 flex flex-col">
+                          {/* Date */}
+                          <time className="text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">
+                            {new Date(post.created_at).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </time>
 
-                        {/* Excerpt */}
-                        <p className="text-sm text-[var(--muted-foreground)] line-clamp-3 mb-4 font-open-sans leading-relaxed">
-                          {post.excerpt}
-                        </p>
+                          {/* Title */}
+                          <h2 className="font-fraunces text-xl font-bold text-[var(--foreground)] mt-3 mb-2 line-clamp-2 group-hover:text-[var(--primary)] transition-colors">
+                            {post.title}
+                          </h2>
 
-                        {/* Tags */}
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {post.tags.slice(0, 2).map(tag => (
-                            <span
-                              key={tag}
-                              className="text-xs px-2 py-1 rounded-md bg-[var(--secondary)] text-[var(--muted-foreground)]"
-                            >
-                              {tag}
+                          {/* Excerpt */}
+                          <p className="text-sm text-[var(--muted-foreground)] line-clamp-3 mb-4 font-open-sans leading-relaxed flex-1">
+                            {post.excerpt}
+                          </p>
+
+                          {/* Tags */}
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            {post.tags.slice(0, 2).map(tag => (
+                              <span
+                                key={tag}
+                                className="text-xs px-2 py-1 rounded-md bg-[var(--secondary)] text-[var(--muted-foreground)]"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+
+                          {/* Footer */}
+                          <div className="flex items-center justify-between pt-4 border-t border-[var(--border)] mt-auto">
+                            <span className="text-xs text-[var(--muted-foreground)]">
+                              By {post.author}
                             </span>
-                          ))}
-                        </div>
-
-                        {/* Footer */}
-                        <div className="flex items-center justify-between pt-4 border-t border-[var(--border)]">
-                          <span className="text-xs text-[var(--muted-foreground)]">
-                            By {post.author}
-                          </span>
-                          <span className="flex items-center gap-1 text-xs font-medium text-[var(--foreground)] group-hover:gap-2 transition-all">
-                            Read
-                            <ArrowUpRight className="w-3 h-3" />
-                          </span>
+                            <span className="flex items-center gap-1 text-xs font-medium text-[var(--foreground)] group-hover:gap-2 transition-all">
+                              Read
+                              <ArrowUpRight className="w-3 h-3" />
+                            </span>
+                          </div>
                         </div>
                       </Link>
 
                       {/* Like Button */}
                       <div className="absolute top-4 right-4">
-                        <LikeButton postId={post.id} initialLikes={post.views || 0} />
+                        <LikeButton postId={post.id} />
                       </div>
                     </article>
                   ))}
@@ -336,8 +380,8 @@ export default function BlogPage() {
                           key={i}
                           onClick={() => setCurrentPage(i + 1)}
                           className={`w-10 h-10 rounded-full text-sm font-medium transition-all ${currentPage === i + 1
-                              ? 'bg-[var(--foreground)] text-[var(--background)]'
-                              : 'bg-[var(--secondary)] text-[var(--muted-foreground)] hover:bg-[var(--accent)]'
+                            ? 'bg-[var(--foreground)] text-[var(--background)]'
+                            : 'bg-[var(--secondary)] text-[var(--muted-foreground)] hover:bg-[var(--accent)]'
                             }`}
                         >
                           {i + 1}

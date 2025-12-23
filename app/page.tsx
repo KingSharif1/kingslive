@@ -4,14 +4,14 @@ import Link from "next/link"
 import Image from "next/image"
 import { useEffect, useRef, useState, useCallback } from "react"
 import dynamic from "next/dynamic"
-import { AnimatePresence } from "framer-motion"
 import { Header } from "@/components/Header"
 import { Footer } from "@/components/Footer"
+import { getPublishedPosts, BlogPost } from "@/lib/sanity-queries"
 
 // Lazy load heavy components
 const ContactForm = dynamic(() => import("@/components/ContactForm").then(mod => ({ default: mod.ContactForm })), {
   ssr: false,
-  loading: () => <div className="text-center py-8">Loading...</div>
+  loading: () => <div className="text-center py-8 text-muted-foreground">Loading form...</div>
 })
 
 export default function Home() {
@@ -19,6 +19,8 @@ export default function Home() {
   const [showContactForm, setShowContactForm] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [activeSection, setActiveSection] = useState("")
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
+  const [showAllProjects, setShowAllProjects] = useState(false)
   const sectionsRef = useRef<(HTMLElement | null)[]>([null, null, null, null])
 
   useEffect(() => {
@@ -28,6 +30,11 @@ export default function Home() {
     if (darkMode) {
       document.documentElement.classList.add('dark')
     }
+
+    // Fetch blog posts
+    getPublishedPosts().then(posts => {
+      setBlogPosts(posts.slice(0, 2)) // Get latest 2 posts
+    }).catch(console.error)
 
     // Throttled mouse move handler for dot effect
     let lastMove = 0
@@ -202,7 +209,7 @@ export default function Home() {
               {[
                 {
                   title: 'NEMT Billing',
-                  year: '2024',
+                  year: '2023',
                   status: 'Live',
                   description: 'A modern web application I built with Next.js and Strapi to streamline billing for non-emergency medical transportation, featuring secure payment integration, automated invoice generation, and user authentication.',
                   image: '/nemtbiling.png',
@@ -219,13 +226,13 @@ export default function Home() {
                   liveUrl: 'https://mysweetemporium.com'
                 },
                 {
-                  title: 'Come And Take It Collectibles',
-                  year: '2022',
+                  title: '1942: Truly Forgotten',
+                  year: '2025',
                   status: 'Live',
-                  description: 'A professional e-commerce platform specializing in rare coins, collectibles, and silver rounds. Features include secure payments, product categorization, and detailed numismatic descriptions.',
-                  image: '/coins-store.png',
-                  tech: ['WordPress', 'WooCommerce', 'E-commerce', 'SEO'],
-                  liveUrl: 'https://comeandtakeitcollectibles.com'
+                  description: 'A historical memorial website dedicated to preserving the untold stories and forgotten heroes of 1942. Built with a cinematic dark aesthetic, featuring immersive storytelling, archival imagery, and educational content honoring those lost to history.',
+                  image: '/1942-forgotten.png',
+                  tech: ['React', 'Vite', 'Tailwind CSS', 'JavaScript'],
+                  liveUrl: 'https://trulyforgtten.shop'
                 }
               ].map((project, index) => (
                 <div
@@ -267,7 +274,8 @@ export default function Home() {
                       fill
                       sizes="(max-width: 768px) 100vw, 33vw"
                       className="object-cover transition-transform duration-500 group-hover:scale-110"
-                      loading="lazy"
+                      loading={index === 0 ? "eager" : "lazy"}
+                      priority={index === 0}
                       quality={75}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-4">
@@ -304,35 +312,26 @@ export default function Home() {
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
-              {[
-                {
-                  title: 'Building Scalable Web Apps with Next.js',
-                  excerpt: 'Learn how to structure your Next.js projects for maximum scalability and maintainability.',
-                  category: 'Development',
-                  readTime: '5 min read'
-                },
-                {
-                  title: 'The Art of Clean Code',
-                  excerpt: 'Best practices and patterns for writing code that your future self will thank you for.',
-                  category: 'Best Practices',
-                  readTime: '4 min read'
-                }
-              ].map((post, index) => (
+              {blogPosts.length > 0 ? blogPosts.map((post) => (
                 <Link
-                  key={index}
-                  href="/blog"
-                  className="group p-6 rounded-2xl border border-border/50 hover:border-border hover:bg-accent/30 transition-all duration-300"
+                  key={post.id}
+                  href={`/blog/${post.slug}`}
+                  className="group p-6 rounded-2xl border border-border bg-card/50 shadow-sm hover:shadow-md hover:border-foreground/20 hover:bg-accent/30 transition-all duration-300"
                 >
                   <div className="flex items-center gap-3 mb-4">
-                    <span className="px-3 py-1 text-xs font-medium bg-primary/10 text-primary rounded-full">
-                      {post.category}
+                    {post.tags[0] && (
+                      <span className="px-3 py-1 text-xs font-medium bg-primary/10 text-primary rounded-full">
+                        {post.tags[0]}
+                      </span>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
-                    <span className="text-xs text-muted-foreground">{post.readTime}</span>
                   </div>
                   <h3 className="text-lg font-medium font-outfit mb-2 group-hover:text-primary transition-colors">
                     {post.title}
                   </h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed font-roboto">
+                  <p className="text-sm text-muted-foreground leading-relaxed font-roboto line-clamp-2">
                     {post.excerpt}
                   </p>
                   <div className="mt-4 flex items-center gap-2 text-sm text-primary opacity-0 group-hover:opacity-100 transition-opacity">
@@ -342,7 +341,11 @@ export default function Home() {
                     </svg>
                   </div>
                 </Link>
-              ))}
+              )) : (
+                <div className="col-span-2 text-center py-8 text-muted-foreground">
+                  <p>No blog posts yet. Check back soon!</p>
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -541,13 +544,11 @@ export default function Home() {
               </div>
             </div>
 
-            <AnimatePresence>
-              {showContactForm && (
-                <div id="contact-form" className="overflow-hidden">
-                  <ContactForm onClose={() => setShowContactForm(false)} />
-                </div>
-              )}
-            </AnimatePresence>
+            {showContactForm && (
+              <div id="contact-form" className="overflow-hidden">
+                <ContactForm onClose={() => setShowContactForm(false)} />
+              </div>
+            )}
           </div>
         </section>
 

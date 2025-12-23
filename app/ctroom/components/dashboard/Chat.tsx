@@ -768,15 +768,19 @@ export function Chat() {
   const groupedSessions = groupSessionsByDate(sessions)
 
   return (
-    <div className="flex h-[calc(100vh-3rem)] -m-4 md:-m-6">
+    <div className=" flex h-[calc(100vh-4rem)] -m-4 md:-m-6">
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0 bg-background">
         {/* Top Bar */}
-        <div className="h-14 border-b flex items-center justify-between px-4 shrink-0">
-          <div className="flex items-center gap-3">
+        <div className="h-14 border-b flex items-center px-4 shrink-0">
+          {/* Left spacer for balance */}
+          <div className="w-32" />
+          
+          {/* Centered title */}
+          <div className="flex-1 flex justify-center">
             {currentSession && (
               <div className="flex items-center gap-2">
-                <span className="font-medium text-sm truncate max-w-[200px]">{currentSession.title}</span>
+                <span className="font-medium text-sm truncate max-w-[300px]">{currentSession.title}</span>
                 <span className="text-xs text-muted-foreground">• {messages.length} messages</span>
               </div>
             )}
@@ -820,8 +824,12 @@ export function Chat() {
 
         {/* Messages Area */}
         <div className="flex-1 overflow-hidden">
-          <ScrollArea className="h-full" ref={scrollAreaRef}>
-            <div className="max-w-3xl mx-auto px-4 py-6">
+          <ScrollArea className="h-full relative overflow-hidden" ref={scrollAreaRef}>
+            {/* Simple gradient background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-chat via-chat to-muted/30 dark:to-muted/10" />
+            
+            {/* Content container */}
+            <div className="relative z-10 max-w-3xl mx-auto px-4 py-6">
               {messages.length === 0 && !isLoading ? (
                 <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
                   <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-6 shadow-lg shadow-purple-500/20">
@@ -1041,7 +1049,7 @@ export function Chat() {
 
         {/* Input Area - Fixed at bottom */}
         <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="max-w-3xl mx-auto p-4">
+          <div className="max-w-3xl mx-auto px-4 pt-2">
             {/* Attachments preview */}
             {attachments.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-3">
@@ -1198,19 +1206,21 @@ export function Chat() {
             </div>
 
             {/* Token usage */}
-            <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-2 px-1">
-              <span>Press Enter to send, Shift+Enter for new line</span>
-              {tokenUsage.input > 0 && (
-                <span>~{Math.round((tokenUsage.input + tokenUsage.output) / 1000)}k tokens used</span>
-              )}
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-2 px-1 pb-2">
+              <span>Enter to send • Shift+Enter for new line</span>
+              <span>
+                {tokenUsage.input > 0 
+                  ? `~${Math.round((tokenUsage.input + tokenUsage.output) / 1000)}k tokens` 
+                  : 'Ready'}
+              </span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Sidebar - Chat History - On right */}
-      <div className={`${showSidebar ? 'w-72' : 'w-0'} transition-all duration-300 overflow-hidden border-l bg-muted/30`}>
-        <div className="w-72 h-full flex flex-col">
+      <div className={`${showSidebar ? 'w-auto' : 'w-0'} transition-all duration-300 overflow-hidden border-l bg-muted/30`}>
+        <div className="w-auto h-full flex flex-col">
           {/* Sidebar Header */}
           <div className="p-3 border-b flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1280,22 +1290,17 @@ export function Chat() {
                             <p className="text-sm font-medium truncate">{session.title}</p>
                             <p className="text-[10px] text-muted-foreground">{formatTime(session.updated_at)}</p>
                           </div>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  deleteSession(session.id)
-                                }}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Delete chat</TooltipContent>
-                          </Tooltip>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 shrink-0 text-red-400 hover:text-red-500 hover:bg-red-500/10"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              deleteSession(session.id)
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       ))}
                     </div>

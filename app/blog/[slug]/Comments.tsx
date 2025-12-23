@@ -29,7 +29,7 @@ export default function Comments({ postId, autoApproveHours = 24 }: CommentsProp
   const [showForm, setShowForm] = useState(false)
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
-  
+
   // Form state
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -38,6 +38,16 @@ export default function Comments({ postId, autoApproveHours = 24 }: CommentsProp
   // Fetch comments
   useEffect(() => {
     fetchComments()
+
+    // Listen for custom event to open comment form
+    const handleOpenComments = () => {
+      setShowForm(true)
+    }
+    window.addEventListener('open-comments', handleOpenComments)
+
+    return () => {
+      window.removeEventListener('open-comments', handleOpenComments)
+    }
   }, [postId])
 
   const fetchComments = async () => {
@@ -94,7 +104,7 @@ export default function Comments({ postId, autoApproveHours = 24 }: CommentsProp
 
     // Content moderation (now async with OpenAI)
     const moderation = await moderateContent(content)
-    
+
     if (moderation.hasProfanity) {
       setErrorMessage('Your comment contains inappropriate language. Please revise and try again.')
       setIsSubmitting(false)
@@ -128,7 +138,7 @@ export default function Comments({ postId, autoApproveHours = 24 }: CommentsProp
       setEmail('')
       setContent('')
       setShowForm(false)
-      
+
       // Refresh comments if auto-approved
       if (moderation.shouldAutoApprove) {
         fetchComments()
@@ -152,7 +162,7 @@ export default function Comments({ postId, autoApproveHours = 24 }: CommentsProp
   }
 
   return (
-    <section className="mt-16 pt-12 border-t border-[var(--border)]">
+    <section id="comments" className="mt-16 pt-12 border-t border-[var(--border)]">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
@@ -161,7 +171,7 @@ export default function Comments({ postId, autoApproveHours = 24 }: CommentsProp
             Comments {comments.length > 0 && `(${comments.length})`}
           </h2>
         </div>
-        
+
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
@@ -232,7 +242,7 @@ export default function Comments({ postId, autoApproveHours = 24 }: CommentsProp
                 />
               </div>
             </div>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-medium text-[var(--muted-foreground)] mb-2">
                 Comment *
@@ -348,7 +358,7 @@ export default function Comments({ postId, autoApproveHours = 24 }: CommentsProp
                   </div>
                 </div>
               </div>
-              
+
               {/* Comment Content */}
               <p className="text-[var(--foreground)] font-open-sans leading-relaxed whitespace-pre-wrap">
                 {comment.content}

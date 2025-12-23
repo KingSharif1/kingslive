@@ -9,6 +9,33 @@ const nextConfig = {
   // Disable source maps in production for faster builds and smaller bundles
   productionBrowserSourceMaps: false,
 
+  // Enable gzip compression
+  compress: true,
+
+  // Add caching headers for static assets
+  async headers() {
+    return [
+      {
+        source: '/:all*(svg|jpg|jpeg|png|gif|ico|webp|avif)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ]
+  },
+
   // Subdomain routing
   async rewrites() {
     return [
@@ -72,10 +99,8 @@ const nextConfig = {
   },
 
   // Optimize imports for better tree-shaking
+  // Note: framer-motion removed from modularizeImports - use optimizePackageImports instead
   modularizeImports: {
-    'framer-motion': {
-      transform: 'framer-motion/dist/es/{{member}}',
-    },
     'lucide-react': {
       transform: 'lucide-react/dist/esm/icons/{{kebabCase member}}',
     },
@@ -85,8 +110,11 @@ const nextConfig = {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
-    optimizePackageImports: ['framer-motion', 'lucide-react', '@portabletext/react'],
+    optimizePackageImports: ['framer-motion', 'lucide-react', '@portabletext/react', 'sanity', '@sanity/ui', '@sanity/icons'],
   },
+
+  // Transpile Sanity packages for better optimization
+  transpilePackages: ['sanity', '@sanity/ui', '@sanity/icons', '@sanity/vision', 'next-sanity'],
 
   // Webpack configuration
   webpack: (config, { isServer }) => {
@@ -122,6 +150,29 @@ const nextConfig = {
               name: 'framer-motion',
               test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
               priority: 30,
+            },
+            // Separate chunk for Sanity Studio (large bundle)
+            sanity: {
+              name: 'sanity',
+              test: /[\\/]node_modules[\\/](@sanity|sanity)[\\/]/,
+              chunks: 'async',
+              priority: 40,
+              enforce: true,
+            },
+            // Separate chunk for Supabase (only needed for ctroom and likes)
+            supabase: {
+              name: 'supabase',
+              test: /[\\/]node_modules[\\/]@supabase[\\/]/,
+              chunks: 'async',
+              priority: 35,
+              enforce: true,
+            },
+            // Separate chunk for Radix UI components
+            radix: {
+              name: 'radix',
+              test: /[\\/]node_modules[\\/]@radix-ui[\\/]/,
+              chunks: 'async',
+              priority: 25,
             },
           },
         },

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bell, Search, User } from "lucide-react"
+import { Bell, Search, User, CheckSquare, Lightbulb, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -18,10 +18,98 @@ import { AuthService } from "../../services/authService"
 import { ModeToggle } from "@/components/ui/mode-toggle"
 import { MessageSquare } from "lucide-react"
 import { BarChart3 } from "lucide-react"
+import { supabase } from "@/lib/supabase"
+
+interface Notification {
+  id: string
+  type: 'comment' | 'task' | 'idea'
+  title: string
+  description: string
+  time: string
+  read: boolean
+  link?: string
+}
 
 export function TopNav() {
   const pathname = usePathname()
   const [user, setUser] = useState<{id: string, email: string, username?: string, isAdmin: boolean} | null>(null)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  // Fetch real notifications
+  const fetchNotifications = async () => {
+    try {
+      const notifs: Notification[] = []
+      
+      // Get pending comments
+      const { data: comments } = await supabase
+        .from('blog_comments')
+        .select('id, author_name, content, created_at, post_id')
+        .eq('approved', false)
+        .eq('archived', false)
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      if (comments) {
+        comments.forEach(comment => {
+          notifs.push({
+            id: `comment-${comment.id}`,
+            type: 'comment',
+            title: `New comment from ${comment.author_name}`,
+            description: comment.content.substring(0, 60) + (comment.content.length > 60 ? '...' : ''),
+            time: getRelativeTime(comment.created_at),
+            read: false,
+            link: '/ctroom?section=blog'
+          })
+        })
+      }
+
+      // Get tasks due today or overdue
+      const today = new Date().toISOString().split('T')[0]
+      const { data: tasks } = await supabase
+        .from('tasks')
+        .select('id, title, due_date, priority')
+        .eq('completed', false)
+        .lte('due_date', today)
+        .order('due_date', { ascending: true })
+        .limit(3)
+
+      if (tasks) {
+        tasks.forEach(task => {
+          const isOverdue = task.due_date < today
+          notifs.push({
+            id: `task-${task.id}`,
+            type: 'task',
+            title: isOverdue ? `Overdue: ${task.title}` : `Due today: ${task.title}`,
+            description: `Priority: ${task.priority}`,
+            time: isOverdue ? 'Overdue' : 'Today',
+            read: false,
+            link: '/ctroom?section=tasks'
+          })
+        })
+      }
+
+      setNotifications(notifs)
+      setUnreadCount(notifs.length)
+    } catch (err) {
+      console.error('Error fetching notifications:', err)
+    }
+  }
+
+  const getRelativeTime = (dateStr: string) => {
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    if (diffDays < 7) return `${diffDays}d ago`
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -33,6 +121,11 @@ export function TopNav() {
       }
     }
     fetchUser()
+    fetchNotifications()
+    
+    // Refresh notifications every 2 minutes
+    const interval = setInterval(fetchNotifications, 120000)
+    return () => clearInterval(interval)
   }, [])
 
   const handleSignOut = async () => {
@@ -58,61 +151,73 @@ export function TopNav() {
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="icon" className="relative">
               <Bell className="h-4 w-4" />
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-600" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-600 text-white text-[10px] flex items-center justify-center font-medium">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
               <span className="sr-only">Notifications</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+            <DropdownMenuLabel className="flex items-center justify-between">
+              <span>Notifications</span>
+              {unreadCount > 0 && (
+                <span className="text-xs text-muted-foreground">{unreadCount} new</span>
+              )}
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <div className="max-h-[300px] overflow-auto">
-              <div className="p-3 border-b hover:bg-muted/50 cursor-pointer">
-                <div className="flex items-start gap-3">
-                  <div className="relative mt-1">
-                    <span className="flex h-2 w-2 absolute -top-1 -right-1">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
-                    </span>
-                    <MessageSquare className="h-8 w-8 text-blue-500" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">New comment on "Getting Started with Next.js"</p>
-                    <p className="text-xs text-muted-foreground">John Doe: This is a great article! I've been looking...</p>
-                    <p className="text-xs text-muted-foreground">5 minutes ago</p>
-                  </div>
+              {notifications.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground">
+                  <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">No notifications</p>
+                  <p className="text-xs">You're all caught up!</p>
                 </div>
-              </div>
-              <div className="p-3 border-b hover:bg-muted/50 cursor-pointer">
-                <div className="flex items-start gap-3">
-                  <div className="mt-1">
-                    <BarChart3 className="h-8 w-8 text-green-500" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Traffic spike on "React Hooks Explained"</p>
-                    <p className="text-xs text-muted-foreground">Your post is getting 43% more views today</p>
-                    <p className="text-xs text-muted-foreground">2 hours ago</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-3 hover:bg-muted/50 cursor-pointer">
-                <div className="flex items-start gap-3">
-                  <div className="mt-1">
-                    <User className="h-8 w-8 text-purple-500" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">New subscriber</p>
-                    <p className="text-xs text-muted-foreground">Someone@example.com subscribed to your blog</p>
-                    <p className="text-xs text-muted-foreground">1 day ago</p>
-                  </div>
-                </div>
-              </div>
+              ) : (
+                notifications.map((notif, index) => (
+                  <Link 
+                    key={notif.id} 
+                    href={notif.link || '#'}
+                    className={`block p-3 hover:bg-muted/50 cursor-pointer ${index < notifications.length - 1 ? 'border-b' : ''}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="relative mt-1">
+                        {!notif.read && (
+                          <span className="flex h-2 w-2 absolute -top-1 -right-1">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
+                          </span>
+                        )}
+                        {notif.type === 'comment' && <MessageSquare className="h-8 w-8 text-blue-500" />}
+                        {notif.type === 'task' && <CheckSquare className="h-8 w-8 text-orange-500" />}
+                        {notif.type === 'idea' && <Lightbulb className="h-8 w-8 text-yellow-500" />}
+                      </div>
+                      <div className="space-y-1 flex-1 min-w-0">
+                        <p className="text-sm font-medium">{notif.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">{notif.description}</p>
+                        <p className="text-xs text-muted-foreground">{notif.time}</p>
+                      </div>
+                    </div>
+                  </Link>
+                ))
+              )}
             </div>
-            <DropdownMenuSeparator />
-            <div className="p-2 text-center">
-              <Button variant="ghost" size="sm" className="w-full text-muted-foreground">
-                View all notifications
-              </Button>
-            </div>
+            {notifications.length > 0 && (
+              <>
+                <DropdownMenuSeparator />
+                <div className="p-2 text-center">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="w-full text-muted-foreground"
+                    onClick={() => setUnreadCount(0)}
+                  >
+                    Mark all as read
+                  </Button>
+                </div>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
         <ModeToggle />

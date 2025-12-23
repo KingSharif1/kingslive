@@ -43,7 +43,8 @@ const config: Config = {
         },
         border: 'var(--border)',
         input: 'var(--input)',
-        ring: 'var(--ring)'
+        ring: 'var(--ring)',
+        chat: 'var(--chat)'
       },
       borderRadius: {
         lg: 'var(--radius)',

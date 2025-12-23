@@ -1,17 +1,20 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { ChevronLeft, Calendar, User, Tag, Heart, Share2, Clock, ArrowLeft, Copy, Check, X, Twitter, Facebook, Linkedin } from "lucide-react"
+import { ChevronLeft, Calendar, User, Tag, Heart, Share2, Clock, ArrowLeft, Copy, Check, X, Twitter, Facebook, Linkedin, MessageSquare } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import ScrollProgress from "@/app/components/ScrollProgress"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { getPostBySlug, BlogPost } from "@/lib/sanity-queries"
 import { PortableText, PortableTextComponents } from '@portabletext/react'
 import ReactMarkdown from 'react-markdown'
 import { supabase } from "@/lib/supabase"
-import Comments from "./Comments"
+
+// Lazy load Comments - not needed for initial render
+const Comments = lazy(() => import("./Comments"))
 
 // PortableText components for proper rendering
 const portableTextComponents: PortableTextComponents = {
@@ -24,7 +27,7 @@ const portableTextComponents: PortableTextComponents = {
     h6: ({ children }) => <h6 className="text-base font-semibold font-fraunces mt-4 mb-2 text-[var(--foreground)]">{children}</h6>,
     normal: ({ children }) => <p className="text-base leading-relaxed mb-6 text-[var(--foreground)] font-open-sans">{children}</p>,
     blockquote: ({ children }) => (
-      <blockquote className="border-l-4 border-[var(--ring)] pl-6 my-6 italic text-[var(--muted-foreground)]">
+      <blockquote className="border-l-4 border-[var(--accent)] pl-6 py-2 my-6 italic text-xl text-[var(--foreground)] bg-[var(--accent)]/5 rounded-r-lg">
         {children}
       </blockquote>
     ),
@@ -67,12 +70,22 @@ const portableTextComponents: PortableTextComponents = {
         console.log('Image value:', value)
         return null
       }
-      
-      // If it's a reference, we need to construct the URL
-      const src = imageUrl.startsWith('http') 
-        ? imageUrl 
-        : `https://cdn.sanity.io/images/${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'py58y528'}/${process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'}/${imageUrl.replace('image-', '').replace('-jpg', '.jpg').replace('-png', '.png').replace('-webp', '.webp').replace('-gif', '.gif')}`
-      
+
+      let src = imageUrl
+      if (!src.startsWith('http')) {
+        // Robust Sanity Image URL construction
+        // Ref format: image-hash-dimensions-extension
+        const refPattern = /^image-([a-f\d]+)-(\d+x\d+)-(\w+)$/
+        const match = imageUrl.match(refPattern)
+        if (match) {
+          const [, hash, dimensions, extension] = match
+          src = `https://cdn.sanity.io/images/${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'py58y528'}/${process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'}/${hash}-${dimensions}.${extension}`
+        } else {
+          // Fallback for simple replacements (older format or if regex fails)
+          src = `https://cdn.sanity.io/images/${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'py58y528'}/${process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'}/${imageUrl.replace('image-', '').replace('-jpg', '.jpg').replace('-png', '.png').replace('-webp', '.webp').replace('-gif', '.gif')}`
+        }
+      }
+
       return (
         <figure className="my-8">
           <div className="relative w-full rounded-lg overflow-hidden">
@@ -123,32 +136,59 @@ const portableTextComponents: PortableTextComponents = {
       </div>
     ),
     callout: ({ value }) => {
-      const styles: Record<string, { bg: string; border: string; icon: string }> = {
-        tip: { bg: 'bg-green-50 dark:bg-green-900/20', border: 'border-green-200 dark:border-green-800', icon: '💡' },
-        warning: { bg: 'bg-yellow-50 dark:bg-yellow-900/20', border: 'border-yellow-200 dark:border-yellow-800', icon: '⚠️' },
-        info: { bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800', icon: 'ℹ️' },
-        pro: { bg: 'bg-purple-50 dark:bg-purple-900/20', border: 'border-purple-200 dark:border-purple-800', icon: '🚀' },
+      const styles: Record<string, { bg: string; border: string; titleColor: string }> = {
+        info: {
+          headerBg: 'bg-blue-500 dark:bg-blue-600',
+          contentBg: 'bg-blue-50 dark:bg-blue-900/10',
+          borderColor: 'border-blue-500 dark:border-blue-600',
+          titleColor: 'text-white'
+        },
+        warning: {
+          headerBg: 'bg-yellow-500 dark:bg-yellow-600',
+          contentBg: 'bg-yellow-50 dark:bg-yellow-900/10',
+          borderColor: 'border-yellow-500 dark:border-yellow-600',
+          titleColor: 'text-black dark:text-white'
+        },
+        danger: {
+          headerBg: 'bg-red-500 dark:bg-red-600',
+          contentBg: 'bg-red-50 dark:bg-red-900/10',
+          borderColor: 'border-red-500 dark:border-red-600',
+          titleColor: 'text-white'
+        },
+        success: {
+          headerBg: 'bg-green-500 dark:bg-green-600',
+          contentBg: 'bg-green-50 dark:bg-green-900/10',
+          borderColor: 'border-green-500 dark:border-green-600',
+          titleColor: 'text-white'
+        },
+        accent: {
+          headerBg: 'bg-[var(--accent)]',
+          contentBg: 'bg-[var(--accent)]/5',
+          borderColor: 'border-[var(--accent)]',
+          titleColor: 'text-white'
+        },
+        minimal: {
+          headerBg: 'bg-[var(--secondary)]',
+          contentBg: 'bg-[var(--background)]',
+          borderColor: 'border-[var(--border)]',
+          titleColor: 'text-[var(--foreground)]'
+        },
       }
-      const style = styles[value?.type] || styles.info
-      
+
+      // Fallback for old data or default
+      const styleKey = value?.style || value?.type || 'info'
+      // Map old 'tip'/'pro' to new styles if needed, or just let them fallback to default/closest
+      const mappedKey = styleKey === 'tip' || styleKey === 'pro' ? 'accent' : styleKey
+
+      const style = styles[mappedKey] || styles.info
+
       // Nested components for callout content
       const calloutComponents: PortableTextComponents = {
         block: {
           normal: ({ children }) => <p className="text-[var(--foreground)] font-open-sans leading-relaxed mb-2 last:mb-0">{children}</p>,
-          h3: ({ children }) => <h3 className="text-lg font-semibold font-fraunces mb-2 text-[var(--foreground)]">{children}</h3>,
-          h4: ({ children }) => <h4 className="text-base font-semibold font-fraunces mb-2 text-[var(--foreground)]">{children}</h4>,
-        },
-        list: {
-          bullet: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
-          number: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
-        },
-        listItem: {
-          bullet: ({ children }) => <li className="text-[var(--foreground)] font-open-sans">{children}</li>,
-          number: ({ children }) => <li className="text-[var(--foreground)] font-open-sans">{children}</li>,
         },
         marks: {
           strong: ({ children }) => <strong className="font-bold">{children}</strong>,
-          em: ({ children }) => <em className="italic">{children}</em>,
           code: ({ children }) => <code className="bg-black/10 dark:bg-white/10 px-1.5 py-0.5 rounded text-sm font-mono">{children}</code>,
           link: ({ value: linkValue, children }) => (
             <a href={linkValue?.href} className="underline hover:opacity-80" target="_blank" rel="noopener noreferrer">{children}</a>
@@ -158,27 +198,53 @@ const portableTextComponents: PortableTextComponents = {
           image: ({ value: imgValue }) => {
             const imgUrl = imgValue?.asset?.url || imgValue?.asset?._ref
             if (!imgUrl) return null
-            const src = imgUrl.startsWith('http') 
-              ? imgUrl 
-              : `https://cdn.sanity.io/images/${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'py58y528'}/${process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'}/${imgUrl.replace('image-', '').replace('-jpg', '.jpg').replace('-png', '.png').replace('-webp', '.webp').replace('-gif', '.gif')}`
+            let src = imgUrl
+            if (!src.startsWith('http')) {
+              // Robust Sanity Image URL construction
+              // Ref format: image-hash-dimensions-extension
+              const refPattern = /^image-([a-f\d]+)-(\d+x\d+)-(\w+)$/
+              const match = imgUrl.match(refPattern)
+              if (match) {
+                const [, hash, dimensions, extension] = match
+                src = `https://cdn.sanity.io/images/${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'py58y528'}/${process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'}/${hash}-${dimensions}.${extension}`
+              } else {
+                // Fallback
+                src = `https://cdn.sanity.io/images/${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'py58y528'}/${process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'}/${imgUrl.replace('image-', '').replace('-jpg', '.jpg').replace('-png', '.png').replace('-webp', '.webp').replace('-gif', '.gif')}`
+              }
+            }
             return (
-              <div className="my-2 rounded overflow-hidden">
-                <Image src={src} alt={imgValue?.alt || ''} width={600} height={400} className="w-full h-auto" />
+              <div className="my-4 rounded-lg overflow-hidden border border-black/5 dark:border-white/5">
+                <Image
+                  src={src}
+                  alt={imgValue?.alt || 'Callout image'}
+                  width={600}
+                  height={400}
+                  className="w-full h-auto"
+                />
               </div>
             )
-          },
-        },
+          }
+        }
       }
-      
+
       return (
-        <div className={`my-6 p-4 rounded-lg border ${style.bg} ${style.border}`}>
-          <div className="flex gap-3">
-            <span className="text-xl flex-shrink-0">{style.icon}</span>
-            <div className="flex-1">
+        <div className={`my-8 rounded-xl overflow-hidden border-2 shadow-md ${style.borderColor}`}>
+          {/* Header Bar */}
+          {value?.title && (
+            <div className={`${style.headerBg} p-3 text-center border-b-2 ${style.borderColor}`}>
+              <h4 className={`text-xl font-black font-fraunces tracking-wide ${style.titleColor} drop-shadow-sm`}>
+                {value.title}
+              </h4>
+            </div>
+          )}
+
+          {/* Content Area */}
+          <div className={`p-6 ${style.contentBg}`}>
+            <div className="text-[var(--foreground)]/90">
               {Array.isArray(value?.content) ? (
                 <PortableText value={value.content} components={calloutComponents} />
               ) : (
-                <p className="text-[var(--foreground)] font-open-sans leading-relaxed">{value?.content}</p>
+                <p className="font-open-sans leading-relaxed">{value?.content}</p>
               )}
             </div>
           </div>
@@ -304,41 +370,45 @@ const setSessionLikesStorage = (postId: string, count: number) => {
 }
 
 // Database functions for views and likes (using blog_post_analytics table)
-async function incrementViewCount(postId: string): Promise<void> {
-  try {
-    // Check if we've already counted this view in this session
-    const viewKey = `viewed_${postId}`
-    if (typeof window !== 'undefined' && sessionStorage.getItem(viewKey)) {
-      return // Already counted this session
-    }
-
-    const { data: existing } = await supabase
-      .from('blog_post_analytics')
-      .select('view_count')
-      .eq('post_id', postId)
-      .single()
-
-    if (existing) {
-      await supabase
-        .from('blog_post_analytics')
-        .update({ 
-          view_count: (existing.view_count || 0) + 1,
-          last_updated: new Date().toISOString()
-        })
-        .eq('post_id', postId)
-    } else {
-      await supabase
-        .from('blog_post_analytics')
-        .insert({ post_id: postId, view_count: 1, likes: 0 })
-    }
-
-    // Mark as viewed in this session
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem(viewKey, 'true')
-    }
-  } catch (err) {
-    console.error('Error incrementing view count:', err)
+// Fire-and-forget view tracking - doesn't block render
+function trackViewCount(postId: string): void {
+  // Check if we've already counted this view in this session
+  const viewKey = `viewed_${postId}`
+  if (typeof window !== 'undefined' && sessionStorage.getItem(viewKey)) {
+    return // Already counted this session
   }
+
+  // Mark as viewed immediately to prevent duplicate calls
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem(viewKey, 'true')
+  }
+
+  // Fire and forget - use async IIFE
+  (async () => {
+    try {
+      const { data: existing } = await supabase
+        .from('blog_post_analytics')
+        .select('view_count')
+        .eq('post_id', postId)
+        .single()
+
+      if (existing) {
+        await supabase
+          .from('blog_post_analytics')
+          .update({
+            view_count: (existing.view_count || 0) + 1,
+            last_updated: new Date().toISOString()
+          })
+          .eq('post_id', postId)
+      } else {
+        await supabase
+          .from('blog_post_analytics')
+          .insert({ post_id: postId, view_count: 1, likes: 0 })
+      }
+    } catch (err) {
+      console.error('Error tracking view:', err)
+    }
+  })()
 }
 
 async function fetchLikesFromDB(postId: string): Promise<number> {
@@ -348,7 +418,7 @@ async function fetchLikesFromDB(postId: string): Promise<number> {
       .select('likes')
       .eq('post_id', postId)
       .single()
-    
+
     if (error && error.code !== 'PGRST116') {
       console.error('Error fetching likes:', error)
       return 0
@@ -377,7 +447,7 @@ async function incrementLikeInDB(postId: string): Promise<number> {
         .eq('post_id', postId)
         .select('likes')
         .single()
-      
+
       if (error) throw error
       return data?.likes || (existing.likes || 0) + 1
     } else {
@@ -387,7 +457,7 @@ async function incrementLikeInDB(postId: string): Promise<number> {
         .insert({ post_id: postId, likes: 1, view_count: 0 })
         .select('likes')
         .single()
-      
+
       if (error) throw error
       return data?.likes || 1
     }
@@ -418,7 +488,7 @@ function LikeButton({ postId, initialLikes = 0, size = 'default' }: { postId: st
     if (sessionLikes >= MAX_SESSION_LIKES) return
 
     setIsAnimating(true)
-    
+
     // Optimistic update
     setLikes(prev => prev + 1)
     const newSessionLikes = sessionLikes + 1
@@ -441,21 +511,25 @@ function LikeButton({ postId, initialLikes = 0, size = 'default' }: { postId: st
     <button
       onClick={handleLike}
       disabled={!canLike || isLoading}
-      className={`flex items-center gap-2 rounded-full font-medium transition-all ${isLarge ? 'px-6 py-3 text-base' : 'px-4 py-2 text-sm'
-        } ${sessionLikes > 0
-          ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-          : 'bg-[var(--secondary)] text-[var(--muted-foreground)] hover:bg-red-50 dark:hover:bg-red-900/20'
+      className={`flex flex-col items-center gap-1 rounded-full font-medium transition-all ${isLarge
+        ? 'px-6 py-3 text-base flex-row gap-2'
+        : 'p-3 hover:bg-[var(--secondary)]'
+        } ${sessionLikes > 0 && !isLarge
+          ? 'text-red-600 dark:text-red-400'
+          : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
         } ${(!canLike || isLoading) && 'opacity-60 cursor-default'}`}
+      title={isLarge ? '' : 'Like'}
     >
       <div className={isAnimating ? 'animate-pulse' : ''}>
         <Heart
-          className={`transition-colors ${isLarge ? 'w-5 h-5' : 'w-4 h-4'} ${sessionLikes > 0
+          className={`transition-colors ${isLarge ? 'w-5 h-5' : 'w-5 h-5'} ${sessionLikes > 0
             ? 'fill-red-500 text-red-500'
             : ''
             }`}
         />
       </div>
-      <span>{isLoading ? '...' : likes} {isLarge && !isLoading && (likes === 1 ? 'like' : 'likes')}</span>
+      <span className={isLarge ? 'inline' : 'hidden'}>{isLoading ? '...' : likes} {isLarge && !isLoading && (likes === 1 ? 'like' : 'likes')}</span>
+      {/* <span className="lg:hidden text-xs">{likes}</span> */}
       {!canLike && isLarge && (
         <span className="text-xs opacity-60">(max reached)</span>
       )}
@@ -506,7 +580,7 @@ function ShareModal({ isOpen, onClose, title, url }: { isOpen: boolean; onClose:
             onClick={onClose}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
           />
-          
+
           {/* Modal */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -554,11 +628,10 @@ function ShareModal({ isOpen, onClose, title, url }: { isOpen: boolean; onClose:
                   />
                   <button
                     onClick={handleCopy}
-                    className={`px-4 py-3 rounded-xl font-medium transition-all ${
-                      copied 
-                        ? 'bg-green-100 dark:bg-green-900/30 text-green-600' 
-                        : 'bg-[var(--foreground)] text-[var(--background)] hover:opacity-90'
-                    }`}
+                    className={`px-4 py-3 rounded-xl font-medium transition-all ${copied
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-600'
+                      : 'bg-[var(--foreground)] text-[var(--background)] hover:opacity-90'
+                      }`}
                   >
                     {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
                   </button>
@@ -593,10 +666,10 @@ export default function BlogPostPage() {
         const sanityPost = await getPostBySlug(slug)
         console.log('Fetched post from Sanity:', sanityPost?.title)
         setPost(sanityPost)
-        
-        // Track view count (uses slug as post_id)
+
+        // Track view count (fire-and-forget, uses slug as post_id)
         if (sanityPost) {
-          incrementViewCount(slug)
+          trackViewCount(slug)
         }
       } catch (error) {
         console.error('Error fetching post:', error)
@@ -654,44 +727,97 @@ export default function BlogPostPage() {
   return (
     <>
       <ScrollProgress />
-      <ShareModal 
-        isOpen={showShareModal} 
-        onClose={() => setShowShareModal(false)} 
-        title={post.title} 
-        url={typeof window !== 'undefined' ? window.location.href : ''} 
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        title={post.title}
+        url={typeof window !== 'undefined' ? window.location.href : ''}
       />
       <main className="min-h-screen bg-[var(--background)]">
-        {/* Sticky Header */}
-        <header className="sticky top-0 z-40 backdrop-blur-xl bg-[var(--background)]/80 border-b border-[var(--border)]">
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4">
-            <div className="flex items-center justify-between">
-              {/* Back Button */}
-              <Link
-                href="/blog"
-                className="group flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--secondary)] hover:bg-[var(--accent)] transition-all duration-300"
-              >
-                <ChevronLeft className="w-4 h-4 text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors" />
-                <span className="text-sm font-medium text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors">
-                  Blog
-                </span>
-              </Link>
 
-              {/* Actions */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleShare}
-                  className="p-2 rounded-full bg-[var(--secondary)] hover:bg-[var(--accent)] transition-colors"
-                >
-                  <Share2 className="w-4 h-4 text-[var(--muted-foreground)]" />
-                </button>
-                <LikeButton postId={post.id} initialLikes={post.views || 0} />
-              </div>
+        {/* Floating Dock (Desktop Left) */}
+        <aside className="hidden lg:flex fixed left-8 top-1/2 -translate-y-1/2 flex-col items-center gap-4 p-3 rounded-full bg-[var(--background)]/80 backdrop-blur-md border border-[var(--border)] shadow-lg z-50">
+          {/* Back Button */}
+          <Link
+            href="/blog"
+            className="p-3 rounded-full bg-[var(--secondary)] hover:bg-[var(--accent)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-all"
+            title="Back to Blog"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+
+          <div className="w-8 h-px bg-[var(--border)]" />
+
+          {/* Actions Group */}
+          <div className="flex flex-col gap-4 items-center">
+            <LikeButton postId={post.id} initialLikes={post.views || 0} size="default" />
+
+            <button
+              onClick={() => {
+                const commentsSection = document.getElementById('comments')
+                if (commentsSection) {
+                  commentsSection.scrollIntoView({ behavior: 'smooth' })
+                  // Dispatch event to open form
+                  window.dispatchEvent(new Event('open-comments'))
+                }
+              }}
+              className="p-3 rounded-full hover:bg-[var(--secondary)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors relative"
+              title="Comments"
+            >
+              <MessageSquare className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={handleShare}
+              className="p-3 rounded-full hover:bg-[var(--secondary)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
+              title="Share"
+            >
+              <Share2 className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="w-8 h-px bg-[var(--border)]" />
+
+          {/* Theme Toggle */}
+          <ThemeToggle />
+        </aside>
+
+        {/* Mobile Header (Sticky Top) - Simplified */}
+        <header className="lg:hidden sticky top-0 z-40 backdrop-blur-xl bg-[var(--background)]/80 border-b border-[var(--border)]">
+          <div className="px-4 py-3 flex items-center justify-between">
+            <Link
+              href="/blog"
+              className="p-2 -ml-2 rounded-full hover:bg-[var(--secondary)] transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5 text-[var(--foreground)]" />
+            </Link>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const commentsSection = document.getElementById('comments')
+                  if (commentsSection) {
+                    commentsSection.scrollIntoView({ behavior: 'smooth' })
+                    window.dispatchEvent(new Event('open-comments'))
+                  }
+                }}
+                className="p-2 rounded-full hover:bg-[var(--secondary)] transition-colors"
+              >
+                <MessageSquare className="w-5 h-5 text-[var(--foreground)]" />
+              </button>
+              <ThemeToggle />
+              <button
+                onClick={handleShare}
+                className="p-2 rounded-full hover:bg-[var(--secondary)] transition-colors"
+              >
+                <Share2 className="w-5 h-5 text-[var(--foreground)]" />
+              </button>
             </div>
           </div>
         </header>
 
-        {/* Article Content */}
-        <article className="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+        {/* Article Content - with left margin on desktop */}
+        <article className="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16 lg:py-20 lg:pl-20">
           {/* Meta */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -779,8 +905,17 @@ export default function BlogPostPage() {
             </div>
           </motion.div>
 
-          {/* Comments Section */}
-          <Comments postId={post.id} autoApproveHours={24} />
+          {/* Comments Section - Lazy loaded */}
+          <Suspense fallback={
+            <div className="mt-16 pt-12 border-t border-[var(--border)]">
+              <div className="animate-pulse space-y-4">
+                <div className="h-8 w-32 bg-[var(--muted)] rounded" />
+                <div className="h-24 bg-[var(--muted)] rounded-xl" />
+              </div>
+            </div>
+          }>
+            <Comments postId={post.id} autoApproveHours={24} />
+          </Suspense>
         </article>
       </main>
     </>

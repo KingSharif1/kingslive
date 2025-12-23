@@ -9,9 +9,10 @@ import { Users, FileText, MessageSquare, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 // Import section components
-import { PostsSection } from "./PostsSection"
-import { CommentsSection } from "./CommentsSection"
+import { BlogSection } from "./BlogSection"
+import { IdeasSection } from "./IdeasSection"
 import { SettingsSection } from "./SettingsSection"
+import { CalendarView } from "./CalendarView"
 
 // Import React Query hooks
 import { useStats } from "../../hooks/useQueries"
@@ -90,16 +91,16 @@ export function Dashboard({ addToast }: DashboardProps) {
               <CardTitle className="text-sm">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => window.open('https://kingslive.sanity.studio/structure/post', '_blank')}>
+              <Button size="sm" onClick={() => window.open('/studio/structure/post', '_blank')}>
                 <FileText className="h-4 w-4 mr-2" />
                 New Post
                 <ExternalLink className="h-3 w-3 ml-1 opacity-50" />
               </Button>
-              <Button size="sm" variant="outline" onClick={() => window.location.href = '/ctroom?section=comments'}>
+              <Button size="sm" variant="outline" onClick={() => window.location.href = '/ctroom?section=blog'}>
                 <MessageSquare className="h-4 w-4 mr-2" />
-                Review Comments
+                Manage Blog
               </Button>
-              <Button size="sm" variant="outline" onClick={() => window.open('https://kingslive.sanity.studio', '_blank')}>
+              <Button size="sm" variant="outline" onClick={() => window.open('/studio', '_blank')}>
                 Sanity Studio
                 <ExternalLink className="h-3 w-3 ml-1 opacity-50" />
               </Button>
@@ -111,16 +112,16 @@ export function Dashboard({ addToast }: DashboardProps) {
         </>
       )}
 
-      {activeSection === 'posts' && (
-        <PostsSection addToast={addToast} />
-      )}
-
-      {activeSection === 'comments' && (
-        <CommentsSection addToast={addToast} />
+      {activeSection === 'blog' && (
+        <BlogSection addToast={addToast} />
       )}
 
       {activeSection === 'tasks' && (
-        <TaskList />
+        <CalendarView />
+      )}
+
+      {activeSection === 'ideas' && (
+        <IdeasSection addToast={addToast} />
       )}
 
       {activeSection === 'chat' && (

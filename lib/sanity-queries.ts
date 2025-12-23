@@ -1,6 +1,10 @@
 import { client } from './sanity'
 import { PortableTextBlock } from '@portabletext/types'
 
+// Simple in-memory cache for client-side
+const cache = new Map<string, { data: any; timestamp: number }>()
+const CACHE_TTL = 60 * 1000 // 1 minute cache
+
 // Types matching our Sanity schema
 export interface SanityPost {
   _id: string
@@ -50,9 +54,16 @@ export function transformPost(post: SanityPost): BlogPost {
   }
 }
 
-// Fetch all published posts
+// Fetch all published posts with caching
 export async function getPublishedPosts(): Promise<BlogPost[]> {
-  // Updated query to fetch all posts - the 'published' field might not be set
+  const cacheKey = 'published_posts'
+  const cached = cache.get(cacheKey)
+  
+  // Return cached data if still valid
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data
+  }
+  
   const query = `*[_type == "post"] | order(publishedAt desc) {
     _id,
     title,
@@ -67,16 +78,28 @@ export async function getPublishedPosts(): Promise<BlogPost[]> {
   
   try {
     const posts = await client.fetch<SanityPost[]>(query)
-    console.log('Fetched posts from Sanity:', posts.length)
-    return posts.map(transformPost)
+    const transformed = posts.map(transformPost)
+    
+    // Cache the result
+    cache.set(cacheKey, { data: transformed, timestamp: Date.now() })
+    
+    return transformed
   } catch (error) {
     console.error('Error fetching posts from Sanity:', error)
-    return []
+    return cached?.data || []
   }
 }
 
-// Fetch a single post by slug
+// Fetch a single post by slug with caching
 export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
+  const cacheKey = `post_${slug}`
+  const cached = cache.get(cacheKey)
+  
+  // Return cached data if still valid
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data
+  }
+  
   const query = `*[_type == "post" && slug.current == $slug][0] {
     _id,
     title,
@@ -92,18 +115,31 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
       _type == "image" => {
         ...,
         "asset": asset->{ url, metadata }
+      },
+      _type == "callout" => {
+        ...,
+        content[] {
+          ...,
+          _type == "image" => {
+            ...,
+            "asset": asset->{ url, metadata }
+          }
+        }
       }
     }
   }`
   
   try {
-    console.log('Searching for post with slug:', slug)
     const post = await client.fetch<SanityPost | null>(query, { slug })
-    console.log('Found post:', post?.title, 'with slug:', post?.slug)
-    return post ? transformPost(post) : null
+    const transformed = post ? transformPost(post) : null
+    
+    // Cache the result
+    cache.set(cacheKey, { data: transformed, timestamp: Date.now() })
+    
+    return transformed
   } catch (error) {
     console.error('Error fetching post from Sanity:', error)
-    return null
+    return cached?.data || null
   }
 }
 
@@ -126,8 +162,16 @@ export async function getAllPosts(): Promise<SanityPost[]> {
   }
 }
 
-// Search posts
+// Search posts with caching
 export async function searchPosts(searchQuery: string): Promise<BlogPost[]> {
+  const cacheKey = `search_${searchQuery.toLowerCase()}`
+  const cached = cache.get(cacheKey)
+  
+  // Return cached data if still valid
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data
+  }
+  
   const query = `*[_type == "post" && (
     title match $search || 
     excerpt match $search
@@ -145,10 +189,14 @@ export async function searchPosts(searchQuery: string): Promise<BlogPost[]> {
   
   try {
     const posts = await client.fetch<SanityPost[]>(query, { search: `*${searchQuery}*` })
-    console.log('Search results from Sanity:', posts.length)
-    return posts.map(transformPost)
+    const transformed = posts.map(transformPost)
+    
+    // Cache the result
+    cache.set(cacheKey, { data: transformed, timestamp: Date.now() })
+    
+    return transformed
   } catch (error) {
     console.error('Error searching posts in Sanity:', error)
-    return []
+    return cached?.data || []
   }
 }

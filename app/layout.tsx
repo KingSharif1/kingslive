@@ -1,73 +1,41 @@
 import './globals.css'
-import { Inter, Space_Grotesk, Playfair_Display, Crimson_Pro, Unbounded, Plus_Jakarta_Sans, Outfit, Roboto, Open_Sans, Fraunces } from 'next/font/google'
+import { Inter, Plus_Jakarta_Sans } from 'next/font/google'
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
+import { ParticleBackgroundWrapper } from "@/components/ParticleBackgroundWrapper"
+import { AnalyticsWrapper } from "@/components/AnalyticsWrapper"
 
-import { Analytics } from "@vercel/analytics/react"
-import { SpeedInsights } from "@vercel/speed-insights/next"
-import { ParticleBackground } from '@/components/ParticleBackground'
-
-// Home page fonts
+// Only 2 essential fonts - massive reduction for performance
 const inter = Inter({
   subsets: ['latin'],
-  variable: '--font-inter'
-})
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  variable: '--font-space-grotesk'
-})
-
-// Bold & Creative fonts (Option 4)
-const unbounded = Unbounded({
-  subsets: ['latin'],
-  variable: '--font-unbounded'
+  variable: '--font-inter',
+  display: 'swap',
+  preload: true,
 })
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
-  variable: '--font-jakarta'
-})
-
-// Light & Clean fonts (User requested)
-const outfit = Outfit({
-  subsets: ['latin'],
-  variable: '--font-outfit'
-})
-
-const roboto = Roboto({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '700'],
-  variable: '--font-roboto'
-})
-
-const openSans = Open_Sans({
-  subsets: ['latin'],
-  variable: '--font-open-sans'
-})
-
-// Blog page fonts
-const playfairDisplay = Playfair_Display({
-  subsets: ['latin'],
-  variable: '--font-playfair'
-})
-
-const fraunces = Fraunces({
-  subsets: ['latin'],
-  variable: '--font-fraunces'
-})
-
-const crimsonPro = Crimson_Pro({
-  subsets: ['latin'],
-  variable: '--font-crimson'
+  variable: '--font-jakarta',
+  display: 'swap',
+  preload: false, // Secondary font, don't preload
 })
 
 export const metadata = {
   title: 'King Sharif',
-  description: 'Portfolio of King Sharif',
+  description: 'Portfolio of King Sharif - Full Stack Developer',
   icons: {
     icon: '/favicon.ico',
   },
+  metadataBase: new URL('https://kingsharif.com'),
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#000000' },
+  ],
 }
 
 export default function RootLayout({
@@ -77,9 +45,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${spaceGrotesk.variable} ${playfairDisplay.variable} ${crimsonPro.variable} ${unbounded.variable} ${plusJakartaSans.variable} ${outfit.variable} ${roboto.variable} ${openSans.variable} ${fraunces.variable} font-sans`}>
+      <head>
+        {/* Preconnect to critical origins */}
+        <link rel="preconnect" href="https://cdn.sanity.io" />
+        <link rel="dns-prefetch" href="https://cdn.sanity.io" />
+      </head>
+      <body className={`${inter.variable} ${plusJakartaSans.variable} font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <ParticleBackground />
+          <ParticleBackgroundWrapper />
           {children}
           <Toaster
             richColors
@@ -95,8 +68,7 @@ export default function RootLayout({
               className: 'celebration-toast'
             }}
           />
-          <Analytics />
-          <SpeedInsights />
+          <AnalyticsWrapper />
         </ThemeProvider>
       </body>
     </html>

@@ -6,13 +6,21 @@ export function ParticleBackground() {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const [isDark, setIsDark] = useState(false)
     const [size, setSize] = useState({ width: 0, height: 0 })
+    const [isMobile, setIsMobile] = useState(false)
+    const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
 
     useEffect(() => {
+        // Check for reduced motion preference and mobile
+        const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+        setPrefersReducedMotion(motionQuery.matches)
+        setIsMobile(window.innerWidth < 768)
+        
         let timeoutId: NodeJS.Timeout
         const updateSize = () => {
             clearTimeout(timeoutId)
             timeoutId = setTimeout(() => {
                 setSize({ width: window.innerWidth, height: window.innerHeight })
+                setIsMobile(window.innerWidth < 768)
             }, 150)
         }
         updateSize()
@@ -34,6 +42,9 @@ export function ParticleBackground() {
     }, [])
 
     useEffect(() => {
+        // Skip animation on mobile or if user prefers reduced motion
+        if (prefersReducedMotion || isMobile) return
+        
         const canvas = canvasRef.current
         if (!canvas || size.width === 0 || size.height === 0) return
 
@@ -159,7 +170,12 @@ export function ParticleBackground() {
         return () => {
             cancelAnimationFrame(animationId)
         }
-    }, [size, isDark])
+    }, [size, isDark, prefersReducedMotion, isMobile])
+
+    // Don't render canvas on mobile or reduced motion
+    if (prefersReducedMotion || isMobile) {
+        return null
+    }
 
     return (
         <div className="fixed inset-0 pointer-events-none print:hidden z-[-1]">

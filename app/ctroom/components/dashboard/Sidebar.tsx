@@ -8,13 +8,13 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   LayoutDashboard,
-  FileEdit,
+  Newspaper,
   MessageSquare,
   BarChart3,
   CalendarDays,
   CheckSquare,
   Settings,
-  User,
+  Lightbulb,
   LogOut,
 } from "lucide-react"
 import { AuthService } from "../../services/authService"
@@ -60,22 +60,22 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
       variant: isActive("overview") ? "default" : "ghost",
     },
     {
-      title: "Posts",
-      icon: <FileEdit className="h-5 w-5" />,
-      href: "/ctroom?section=posts",
-      variant: isActive("posts") ? "default" : "ghost",
-    },
-    {
-      title: "Comments",
-      icon: <MessageSquare className="h-5 w-5" />,
-      href: "/ctroom?section=comments",
-      variant: isActive("comments") ? "default" : "ghost",
+      title: "Blog",
+      icon: <Newspaper className="h-5 w-5" />,
+      href: "/ctroom?section=blog",
+      variant: isActive("blog") ? "default" : "ghost",
     },
     {
       title: "Tasks",
       icon: <CheckSquare className="h-5 w-5" />,
       href: "/ctroom?section=tasks",
       variant: isActive("tasks") ? "default" : "ghost",
+    },
+    {
+      title: "Ideas",
+      icon: <Lightbulb className="h-5 w-5" />,
+      href: "/ctroom?section=ideas",
+      variant: isActive("ideas") ? "default" : "ghost",
     },
     {
       title: "Assistant",

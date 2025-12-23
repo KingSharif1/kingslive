@@ -24,13 +24,18 @@ export const queryKeys = {
   post: (id: string) => ['posts', id] as const,
 }
 
-// Posts queries
+// Posts queries - now uses fetchAllPosts since posts come from Sanity
+// Pagination is handled client-side
 export const usePosts = (page: number = 0, limit: number = 5) => {
   return useQuery({
-    queryKey: [...queryKeys.posts, page, limit],
-    queryFn: () => DataService.fetchPosts(page, limit),
+    queryKey: [...queryKeys.posts, 'paginated', page, limit],
+    queryFn: async () => {
+      const allPosts = await DataService.fetchAllPosts()
+      const start = page * limit
+      return allPosts.slice(start, start + limit)
+    },
     placeholderData: (previousData) => previousData,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 2 * 60 * 1000, // 2 minutes
     ...defaultQueryOptions,
   })
 }
@@ -40,8 +45,8 @@ export function useAllPosts() {
   return useQuery({
     queryKey: ['posts', 'all'],
     queryFn: DataService.fetchAllPosts,
-    staleTime: 0, // Force fresh data
-    gcTime: 0, // Don't cache (replaces cacheTime in v5)
+    staleTime: 2 * 60 * 1000, // 2 minutes - posts don't change that often
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
     ...defaultQueryOptions,
   })
 }
@@ -77,49 +82,14 @@ export const useStats = () => {
   return useQuery({
     queryKey: queryKeys.stats,
     queryFn: DataService.getStats,
-    staleTime: 1 * 60 * 1000, // 1 minute
+    staleTime: 2 * 60 * 1000, // 2 minutes - stats don't need to be real-time
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
     ...defaultQueryOptions,
   })
 }
 
-// Post mutations
-export function useCreatePost() {
-  const queryClient = useQueryClient()
-  
-  return useMutation({
-    mutationFn: (post: Partial<BlogPost>) => DataService.createPost(post),
-    onSuccess: () => {
-      // Invalidate and refetch posts and stats
-      queryClient.invalidateQueries({ queryKey: queryKeys.posts })
-      queryClient.invalidateQueries({ queryKey: queryKeys.stats })
-    },
-  })
-}
-
-export function useUpdatePost() {
-  const queryClient = useQueryClient()
-  
-  return useMutation({
-    mutationFn: ({ id, post }: { id: string; post: Partial<BlogPost> }) => 
-      DataService.updatePost(id, post),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.posts })
-      queryClient.invalidateQueries({ queryKey: queryKeys.stats })
-    },
-  })
-}
-
-export function useDeletePost() {
-  const queryClient = useQueryClient()
-  
-  return useMutation({
-    mutationFn: (id: string) => DataService.deletePost(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.posts })
-      queryClient.invalidateQueries({ queryKey: queryKeys.stats })
-    },
-  })
-}
+// Note: Post mutations (create, update, delete) are not available here
+// Posts are managed through Sanity Studio at /studio
 
 // Comment mutations
 export function useApproveComment() {
