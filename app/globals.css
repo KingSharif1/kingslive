@@ -1,22 +1,212 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* @import '@mdxeditor/editor/style.css'; */
+
+/* Font Family Utilities - Consolidated to 2 fonts for performance */
+.font-display,
+.font-unbounded {
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-weight: 700;
+}
+
+.font-body {
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+.font-serif-display,
+.font-serif-body,
+.font-fraunces {
+  font-family: var(--font-jakarta), Georgia, serif;
+}
+
+.font-jakarta {
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+}
+
+/* Fallback aliases for removed fonts */
+.font-outfit,
+.font-roboto,
+.font-open-sans {
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+/* New World Post Color Palette (Mix of A+B) */
+:root {
+  /* Blog Theme Colors */
+  --nwp-cream: #FAF8F5;
+  --nwp-parchment: #F5F1EA;
+  --nwp-navy: #1A1A2E;
+  --nwp-gold: #C49B66;
+  --nwp-sepia: #8B4513;
+  --nwp-tan: #D4C4B0;
+  --nwp-paper-gray: #E8E4DE;
+}
+
+.dark {
+  --nwp-cream: #1A1A2E;
+  --nwp-parchment: #0F0F1A;
+  --nwp-navy: #FAF8F5;
+  --nwp-gold: #D4A574;
+  --nwp-sepia: #C49B66;
+  --nwp-tan: #3D3D5C;
+  --nwp-paper-gray: #2D2D4A;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
+@keyframes slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes gradient-shift {
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-slide-in-up {
+  animation: slide-in-up 0.5s ease-out forwards;
+}
+
+.animate-slide-in-down {
+  animation: slide-in-down 0.5s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.5s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.5s ease-out forwards;
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+
+.perspective {
+  perspective: 2000px;
+}
+
+/* Commented out to fix build errors - Next.js can't resolve SCSS from CSS files
+@import '../styles/_variables.scss';
+@import '../styles/_keyframe-animations.scss'; */
+
+
 
 :root {
-  --primary-color: 59, 130, 246;
-  --background-light: 248, 250, 252;
-  --background-dark: 17, 24, 39;
-  --text-light: 31, 41, 55; /* Darker shade for better contrast */
-  --text-dark: 243, 244, 246;
-  --destructive: 239, 68, 68;
+  --background: oklch(.929 .013 255.508);
+  --foreground: oklch(.145 .005 56.366);
+  --card: oklch(.929 .013 255.508);
+  --card-foreground: oklch(.145 .005 56.366);
+  --popover: oklch(.929 .013 255.508);
+  --popover-foreground: oklch(.145 .005 56.366);
+  --primary: oklch(.205 .005 56.366);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(35.618% 0.00004 271.152 / 0.745);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.577 0.245 27.325);
+  --border: oklch(0.82 0.01 260);
+  --input: oklch(0.85 0 0);
+  --ring: oklch(0.708 0 0);
+  --chat: oklch(86.9% 0.005 56.366);
+  --radius: 0.625rem;
+  
+}
+
+* {
+  border-color: var(--border);
+  outline-color: color-mix(in oklch, var(--ring) 50%, transparent);
 }
 
 body {
-  color: rgb(var(--text-light));
-  background-color: rgb(var(--background-light));
+  background-color: var(--background);
+  color: var(--foreground);
+  cursor: crosshair;
+  /* Gaming/Aim cursor style - like 1942 reference */
 }
 
-/* Add a subtle grid mesh for light mode */
+/* Interactive dot background */
+@keyframes dot-pulse {
+  0% {
+    opacity: 0.1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+
+  100% {
+    opacity: 0.1;
+  }
+}
+
+body {
+  position: relative;
+  overflow-x: hidden;
+}
+
 body::before {
   content: "";
   position: fixed;
@@ -24,15 +214,37 @@ body::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: radial-gradient(rgba(0, 0, 0, 0.2) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(0, 0, 0, 0.15) 1px, transparent 1px);
   background-size: 50px 50px;
   pointer-events: none;
   z-index: 0;
 }
 
-.dark body {
-  color: rgb(var(--text-dark));
-  background-color: #000; /* Pure black background like rasmic.xyz */
+.dark body::before {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+}
+
+.dark {
+  --background: oklch(12% 0 265.146);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.145 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --border: oklch(0.269 0 0);
+  --input: oklch(0.269 0 0);
+  --chat: oklch(26.8% 0.007 34.298);
+  --ring: oklch(0.439 0 0);
 }
 
 /* Add a subtle star effect to the background in dark mode */
@@ -95,6 +307,7 @@ body::before {
   0% {
     transform: rotateX(0deg);
   }
+
   100% {
     transform: rotateX(-180deg);
   }
@@ -123,6 +336,7 @@ body::before {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -134,9 +348,268 @@ body::before {
 }
 
 @font-face {
-  font-family: 'JetBrains Mono';
-  src: url('/fonts/JetBrainsMono-Bold.woff2') format('woff2');
+  font-family: ambroise-std, serif;
+  src: url('/fonts/Ambroise-Std-Extra-Bold.otf') format('woff2');
   font-weight: bold;
   font-style: normal;
   font-display: swap;
+}
+
+.bn-editor {
+  overflow-y: auto;
+  height: 600px;
+  min-height: max-content;
+}
+
+/* Newspaper Theme Enhancements */
+
+/* Vintage Paper Texture */
+.newspaper-bg {
+  background-image:
+    radial-gradient(circle at 25% 25%, rgba(139, 69, 19, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(160, 82, 45, 0.03) 0%, transparent 50%),
+    linear-gradient(90deg, transparent 49%, rgba(139, 69, 19, 0.02) 50%, transparent 51%);
+  background-size: 100px 100px, 150px 150px, 20px 20px;
+}
+
+/* Ink Bleed Effect */
+.ink-bleed {
+  text-shadow: 0.5px 0.5px 1px rgba(139, 69, 19, 0.1);
+}
+
+/* Improved Typewriter Animation */
+@keyframes typewriter-reveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.02);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes letter-glow {
+
+  0%,
+  100% {
+    text-shadow: 0.5px 0.5px 1px rgba(139, 69, 19, 0.1);
+  }
+
+  50% {
+    text-shadow: 1px 1px 3px rgba(139, 69, 19, 0.3);
+  }
+}
+
+.typewriter-improved {
+  animation: typewriter-reveal 1.5s ease-out forwards, letter-glow 2s ease-in-out infinite;
+}
+
+/* News Coo Flying Animation */
+@keyframes fly-in {
+  0% {
+    transform: translateX(-100px) translateY(-20px) rotate(-10deg);
+    opacity: 0;
+  }
+
+  50% {
+    transform: translateX(50px) translateY(-10px) rotate(5deg);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.news-coo-fly {
+  animation: fly-in 2s ease-out forwards;
+}
+
+/* Bounty Poster Style */
+.bounty-poster {
+  background: linear-gradient(45deg, #f4e4bc 0%, #e8d5a3 100%);
+  border: 4px solid #8b4513;
+  box-shadow:
+    inset 0 0 20px rgba(139, 69, 19, 0.2),
+    0 4px 8px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.bounty-poster::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: repeating-linear-gradient(45deg,
+      #8b4513 0px,
+      #8b4513 2px,
+      transparent 2px,
+      transparent 8px);
+  z-index: -1;
+}
+
+/* Pull Quote Styling */
+.pull-quote {
+  border-left: 4px solid #b8860b;
+  background: linear-gradient(90deg, rgba(184, 134, 11, 0.1) 0%, transparent 100%);
+  font-style: italic;
+  font-size: 1.2em;
+  margin: 2rem 0;
+  padding: 1rem 2rem;
+  position: relative;
+}
+
+.pull-quote::before {
+  content: '"';
+  font-size: 4rem;
+  color: #b8860b;
+  position: absolute;
+  left: -0.5rem;
+  top: -1rem;
+  font-family: serif;
+}
+
+/* Folding Animation */
+@keyframes unfold {
+  0% {
+    transform: rotateX(-90deg);
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+
+  100% {
+    transform: rotateX(0deg);
+    opacity: 1;
+  }
+}
+
+.unfold-animation {
+  animation: unfold 0.6s ease-out forwards;
+  transform-origin: top;
+}
+
+/* Devil Fruit Tag Styling */
+.devil-fruit-tag {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  border-radius: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.devil-fruit-tag::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(45deg,
+      transparent 0px,
+      transparent 2px,
+      rgba(255, 255, 255, 0.1) 2px,
+      rgba(255, 255, 255, 0.1) 4px);
+}
+
+/* Subtle Text Enhancement */
+.enhanced-text {
+  transition: color 0.2s ease;
+}
+
+.enhanced-text:hover {
+  color: rgba(139, 69, 19, 0.8);
+}
+
+/* Scroll Progress Indicator */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 6px;
+  background: linear-gradient(90deg, oklch(12.9% 0.042 264.695) 0%, oklch(43.7% 0.078 188.216) 100%);
+  transform-origin: left;
+  z-index: 50;
+}
+
+/* Weather Widget */
+.weather-widget {
+  background: linear-gradient(135deg, #87ceeb 0%, #4682b4 100%);
+  border: 2px solid #4682b4;
+  border-radius: 8px;
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Vintage Stamp Effect */
+.vintage-stamp {
+  background: #dc143c;
+  color: white;
+  border: 2px dashed #fff;
+  border-radius: 0;
+  position: relative;
+  transform: rotate(-5deg);
+}
+
+.vintage-stamp::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border: 2px solid #dc143c;
+  border-radius: 4px;
+}
+
+/* Loading Animation */
+@keyframes newspaper-load {
+  0% {
+    transform: translateY(100px) rotate(10deg);
+    opacity: 0;
+  }
+
+  50% {
+    transform: translateY(-10px) rotate(-2deg);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.newspaper-load {
+  animation: newspaper-load 1s ease-out forwards;
+}
+
+/* Scrolling Ticker Animation */
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-scroll {
+  animation: scroll 30s linear infinite;
+}
+
+.animate-scroll:hover {
+  animation-play-state: paused;
 }

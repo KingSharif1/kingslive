@@ -1,9 +1,10 @@
-import axios from 'axios';
+import axios from 'axios'
 
 export const emailApi = axios.create({
-  baseURL: 'https://api.sendinblue.com/v3',
+  baseURL: 'https://api.brevo.com/v3',
   headers: {
-    'api-key': process.env.BREVO_API_KEY,
-    'Content-Type': 'application/json'
+    'accept': 'application/json',
+    'api-key': process.env.BREVO_API_KEY || '',
+    'content-type': 'application/json'
   }
-});
+})
