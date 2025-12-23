@@ -10,6 +10,11 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        unbounded: ['var(--font-unbounded)', 'sans-serif'],
+        sora: ['var(--font-sora)', 'sans-serif'],
+        sans: ['var(--font-sora)', 'sans-serif'],
+      },
       colors: {
         background: 'var(--background)',
         foreground: 'var(--foreground)',

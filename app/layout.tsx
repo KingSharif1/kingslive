@@ -1,23 +1,24 @@
 import './globals.css'
-import { Inter, Plus_Jakarta_Sans } from 'next/font/google'
+import { Unbounded, Sora } from 'next/font/google'
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ParticleBackgroundWrapper } from "@/components/ParticleBackgroundWrapper"
 import { AnalyticsWrapper } from "@/components/AnalyticsWrapper"
 
-// Only 2 essential fonts - massive reduction for performance
-const inter = Inter({
+// Unbounded for headers - bold geometric display font
+const unbounded = Unbounded({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-unbounded',
   display: 'swap',
   preload: true,
 })
 
-const plusJakartaSans = Plus_Jakarta_Sans({
+// Sora for body - smooth, modern sans-serif
+const sora = Sora({
   subsets: ['latin'],
-  variable: '--font-jakarta',
+  variable: '--font-sora',
   display: 'swap',
-  preload: false, // Secondary font, don't preload
+  preload: true,
 })
 
 export const metadata = {
@@ -50,7 +51,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://cdn.sanity.io" />
         <link rel="dns-prefetch" href="https://cdn.sanity.io" />
       </head>
-      <body className={`${inter.variable} ${plusJakartaSans.variable} font-sans`}>
+      <body className={`${unbounded.variable} ${sora.variable} font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <ParticleBackgroundWrapper />
           {children}
