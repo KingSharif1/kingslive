@@ -6,6 +6,12 @@ export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone()
   const { pathname, hostname } = url
   
+  // Handle Supabase magic link code on root URL - redirect to auth callback
+  if (pathname === '/' && url.searchParams.has('code')) {
+    const code = url.searchParams.get('code')
+    return NextResponse.redirect(new URL(`/auth/callback?code=${code}`, request.url))
+  }
+  
   // ONLY run Supabase auth for protected routes like /ctroom or /admin
   const isProtectedRoute = pathname.startsWith('/ctroom') || pathname.startsWith('/admin')
   
@@ -18,14 +24,24 @@ export async function middleware(request: NextRequest) {
     // Only dynamically import and use Supabase if there's an auth cookie
     if (hasAuthCookie) {
       try {
-        const { createMiddlewareClient } = await import('@supabase/auth-helpers-nextjs')
-        const supabase = createMiddlewareClient({ req: request, res })
-        // Use a timeout to prevent hanging
-        const sessionPromise = supabase.auth.getSession()
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session timeout')), 2000)
+        const { createServerClient } = await import('@supabase/ssr')
+        const supabase = createServerClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          {
+            cookies: {
+              getAll() {
+                return request.cookies.getAll()
+              },
+              setAll(cookiesToSet) {
+                cookiesToSet.forEach(({ name, value, options }) => {
+                  res.cookies.set(name, value, options)
+                })
+              },
+            },
+          }
         )
-        await Promise.race([sessionPromise, timeoutPromise])
+        await supabase.auth.getSession()
       } catch {
         // Silently fail - don't block the request
       }

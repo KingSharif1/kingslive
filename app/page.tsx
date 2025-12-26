@@ -25,6 +25,7 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true)
+    
     const darkMode = localStorage.getItem('darkMode') === 'true'
     setIsDark(darkMode)
     if (darkMode) {

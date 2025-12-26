@@ -46,7 +46,6 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
   const handleSignOut = async () => {
     try {
       await AuthService.signOut()
-      // No need to redirect here, the signOut method will handle it
     } catch (error) {
       console.error('Sign out error:', error)
     }

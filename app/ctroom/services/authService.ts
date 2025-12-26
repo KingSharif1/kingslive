@@ -121,35 +121,30 @@ export class AuthService {
    */
   static async getCurrentUser() {
     try {
-      // First check if we have a session
-      const { data: { session } } = await supabase.auth.getSession()
+      // Use getUser() which validates the JWT with the server
+      // This is more reliable than getSession() which only reads local storage
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
       
-      if (!session) {
-        console.log('No active session found')
+      if (userError) {
+        // Don't log auth session missing as error - it's expected when not logged in
+        if (!userError.message?.includes('Auth session missing')) {
+          console.error('User error:', userError)
+        }
         return { user: null, error: null }
       }
-      
-      // Get the user data if we have a session
-      const { data: { user } } = await supabase.auth.getUser()
       
       if (!user || !user.email) {
-        console.log('No user found in session')
         return { user: null, error: null }
       }
       
-      // Check if user is admin by looking up their email in the admin_users table
-      const { data: adminData, error: adminError } = await supabase
+      // Check if user is admin
+      const { data: adminData } = await supabase
         .from('admin_users')
-        .select('*')
+        .select('email')
         .eq('email', user.email.toLowerCase())
         .maybeSingle()
       
-      if (adminError) {
-        console.error('Error checking admin status:', adminError)
-      }
-      
       const isAdmin = !!adminData
-      console.log('User admin status:', isAdmin)
       
       return { 
         user: {

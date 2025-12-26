@@ -88,7 +88,7 @@ function AuthForm({ email, setEmail, authError, magicLinkSent, isLoading = false
 
               )}
 
-              <div className="w-full flex justify-center">
+              <div className="w-full flex flex-col items-center gap-3">
                 <button
                   type="submit"
                   disabled={isLoading}
@@ -105,6 +105,28 @@ function AuthForm({ email, setEmail, authError, magicLinkSent, isLoading = false
                   ) : (
                     'Send The Pigeon'
                   )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Clear all Supabase cookies
+                    document.cookie.split(';').forEach(cookie => {
+                      const name = cookie.split('=')[0].trim()
+                      if (name.startsWith('sb-')) {
+                        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
+                      }
+                    })
+                    // Clear localStorage
+                    Object.keys(localStorage).forEach(key => {
+                      if (key.startsWith('sb-') || key.includes('supabase')) {
+                        localStorage.removeItem(key)
+                      }
+                    })
+                    window.location.reload()
+                  }}
+                  className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 underline"
+                >
+                  Having trouble? Clear session
                 </button>
               </div>
             </form>

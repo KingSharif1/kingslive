@@ -87,6 +87,80 @@ interface Message {
   content: MessageContent
 }
 
+// Helper function to perform web search
+async function performWebSearch(query: string): Promise<string> {
+  try {
+    const googleApiKey = process.env.GOOGLE_SEARCH_API_KEY
+    const googleCx = process.env.GOOGLE_SEARCH_CX
+
+    if (googleApiKey && googleCx) {
+      const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleCx}&q=${encodeURIComponent(query)}&num=5`
+      const response = await fetch(searchUrl)
+      
+      if (response.ok) {
+        const data = await response.json()
+        const results = (data.items || []).slice(0, 5).map((item: any, i: number) => 
+          `${i + 1}. **${item.title}**\n   ${item.snippet}\n   Source: ${item.link}`
+        ).join('\n\n')
+        
+        return results || 'No results found.'
+      }
+    }
+
+    // Fallback to SerpAPI
+    const serpApiKey = process.env.SERPAPI_KEY
+    if (serpApiKey) {
+      const serpUrl = `https://serpapi.com/search.json?q=${encodeURIComponent(query)}&api_key=${serpApiKey}&num=5`
+      const response = await fetch(serpUrl)
+      
+      if (response.ok) {
+        const data = await response.json()
+        const results = (data.organic_results || []).slice(0, 5).map((item: any, i: number) => 
+          `${i + 1}. **${item.title}**\n   ${item.snippet}\n   Source: ${item.link}`
+        ).join('\n\n')
+        
+        return results || 'No results found.'
+      }
+    }
+
+    return 'Web search is not configured. Add GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_CX to .env.local'
+  } catch (error) {
+    console.error('Web search error:', error)
+    return 'Web search failed. Please try again.'
+  }
+}
+
+// Helper function to search GitHub
+async function searchGitHub(query: string): Promise<string> {
+  try {
+    const githubToken = process.env.GITHUB_TOKEN
+    const headers: Record<string, string> = {
+      'Accept': 'application/vnd.github.v3+json',
+      'User-Agent': 'Milo-Assistant'
+    }
+    if (githubToken) {
+      headers['Authorization'] = `Bearer ${githubToken}`
+    }
+
+    const url = `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&per_page=5`
+    const response = await fetch(url, { headers })
+    
+    if (response.ok) {
+      const data = await response.json()
+      const results = (data.items || []).slice(0, 5).map((repo: any, i: number) => 
+        `${i + 1}. **${repo.full_name}** ⭐ ${repo.stargazers_count}\n   ${repo.description || 'No description'}\n   Language: ${repo.language || 'N/A'} | URL: ${repo.html_url}`
+      ).join('\n\n')
+      
+      return results || 'No repositories found.'
+    }
+    
+    return 'GitHub search failed.'
+  } catch (error) {
+    console.error('GitHub search error:', error)
+    return 'GitHub search failed. Please try again.'
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { message, history = [], model = 'gpt-4o-mini', images, thinkingMode = 'balanced', selectedTool } = await req.json()
@@ -100,6 +174,89 @@ export async function POST(req: NextRequest) {
 
     const openaiKey = process.env.OPENAI_API_KEY
     const geminiKey = process.env.GOOGLE_GEMINI_API_KEY
+
+    // Handle web search tool
+    if (selectedTool === 'web') {
+      const searchResults = await performWebSearch(message)
+      const enhancedMessage = `User asked: "${message}"\n\nHere are the web search results:\n\n${searchResults}\n\nPlease analyze these results and provide a helpful response based on the search findings.`
+      
+      // Continue with the enhanced message to the AI
+      const messagesWithSearch: Message[] = [
+        { role: 'system', content: getSystemPrompt() + '\n\nYou have access to web search. The user\'s query has been searched and results are provided. Synthesize the information and cite sources when relevant.' },
+        ...history.slice(-10).map((msg: { role: string; content: string }) => ({
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content
+        })),
+        { role: 'user', content: enhancedMessage }
+      ]
+
+      if (openaiKey) {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openaiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: model.startsWith('gemini') ? 'gpt-4o-mini' : model,
+            messages: messagesWithSearch,
+            max_tokens: 1500,
+            temperature: 0.7,
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          return NextResponse.json({ 
+            message: data.choices?.[0]?.message?.content || searchResults,
+            searchResults 
+          })
+        }
+      }
+      
+      return NextResponse.json({ message: `Here's what I found:\n\n${searchResults}` })
+    }
+
+    // Handle GitHub tool
+    if (selectedTool === 'github') {
+      const githubResults = await searchGitHub(message)
+      const enhancedMessage = `User asked about GitHub: "${message}"\n\nHere are the GitHub search results:\n\n${githubResults}\n\nPlease analyze these repositories and provide helpful insights.`
+      
+      const messagesWithGitHub: Message[] = [
+        { role: 'system', content: getSystemPrompt() + '\n\nYou have access to GitHub search. The user\'s query has been searched and results are provided. Provide insights about the repositories found.' },
+        ...history.slice(-10).map((msg: { role: string; content: string }) => ({
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content
+        })),
+        { role: 'user', content: enhancedMessage }
+      ]
+
+      if (openaiKey) {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openaiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: model.startsWith('gemini') ? 'gpt-4o-mini' : model,
+            messages: messagesWithGitHub,
+            max_tokens: 1500,
+            temperature: 0.7,
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          return NextResponse.json({ 
+            message: data.choices?.[0]?.message?.content || githubResults,
+            githubResults 
+          })
+        }
+      }
+      
+      return NextResponse.json({ message: `Here's what I found on GitHub:\n\n${githubResults}` })
+    }
 
     // Handle image generation with DALL-E
     if (selectedTool === 'images' && openaiKey) {
@@ -196,7 +353,17 @@ export async function POST(req: NextRequest) {
       const geminiData = await geminiResponse.json()
       const geminiText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't process that."
       
-      return NextResponse.json({ message: geminiText })
+      // Extract token usage from Gemini response
+      const geminiUsage = geminiData.usageMetadata || {}
+      
+      return NextResponse.json({ 
+        message: geminiText,
+        usage: {
+          prompt_tokens: geminiUsage.promptTokenCount || 0,
+          completion_tokens: geminiUsage.candidatesTokenCount || 0,
+          total_tokens: geminiUsage.totalTokenCount || 0
+        }
+      })
     }
 
     // OpenAI models
@@ -271,8 +438,18 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json()
     const aiMessage = data.choices?.[0]?.message?.content || "I couldn't generate a response. Please try again."
+    
+    // Extract token usage from OpenAI response
+    const usage = data.usage || {}
 
-    return NextResponse.json({ message: aiMessage })
+    return NextResponse.json({ 
+      message: aiMessage,
+      usage: {
+        prompt_tokens: usage.prompt_tokens || 0,
+        completion_tokens: usage.completion_tokens || 0,
+        total_tokens: usage.total_tokens || 0
+      }
+    })
 
   } catch (error) {
     console.error('Error in assistant API:', error)

@@ -1,47 +1,98 @@
 {
-  "app\\page.tsx -> @/components/ContactForm": {
-    "id": "app\\page.tsx -> @/components/ContactForm",
+  "app\\blog\\[slug]\\page.tsx -> ./Comments": {
+    "id": 34066,
     "files": [
-      "static/chunks/framer-motion.js",
-      "static/chunks/vendor.js",
-      "static/chunks/_app-pages-browser_components_ContactForm_tsx.js"
+      "static/chunks/vendor-2d22b09126d900dd.js",
+      "static/chunks/66.f6408619a7b7a91b.js"
+    ]
+  },
+  "app\\blog\\page.tsx -> @/lib/supabase-lazy": {
+    "id": 63362,
+    "files": [
+      "static/chunks/supabase.4b3cbd4e3b062250.js",
+      "static/chunks/vendor-2d22b09126d900dd.js",
+      "static/chunks/common-e66d59b83d9c7d7e.js",
+      "static/chunks/362.6cc519802d864b1e.js"
+    ]
+  },
+  "app\\ctroom\\services\\dataService.ts -> @/lib/sanity-queries": {
+    "id": 23454,
+    "files": []
+  },
+  "app\\page.tsx -> @/components/ContactForm": {
+    "id": 76128,
+    "files": [
+      "static/chunks/framer-motion-26f6bc556a72abee.js",
+      "static/chunks/vendor-2d22b09126d900dd.js",
+      "static/chunks/common-e66d59b83d9c7d7e.js",
+      "static/chunks/128.3aa3d84bac5ccf19.js"
     ]
   },
   "components\\AnalyticsWrapper.tsx -> @vercel/analytics/react": {
-    "id": "components\\AnalyticsWrapper.tsx -> @vercel/analytics/react",
+    "id": 37025,
     "files": [
-      "static/chunks/vendor.js"
+      "static/chunks/vendor-2d22b09126d900dd.js"
     ]
   },
   "components\\AnalyticsWrapper.tsx -> @vercel/speed-insights/next": {
-    "id": "components\\AnalyticsWrapper.tsx -> @vercel/speed-insights/next",
+    "id": 48854,
     "files": [
-      "static/chunks/vendor.js"
+      "static/chunks/vendor-2d22b09126d900dd.js"
     ]
   },
   "components\\ParticleBackgroundWrapper.tsx -> @/components/ParticleBackground": {
-    "id": "components\\ParticleBackgroundWrapper.tsx -> @/components/ParticleBackground",
+    "id": 67864,
     "files": [
-      "static/chunks/_app-pages-browser_components_ParticleBackground_tsx.js"
+      "static/chunks/864.0fa7cdd882c330ed.js"
     ]
   },
   "node_modules\\@sanity\\client\\dist\\index.browser.js -> ./_chunks-es/stegaEncodeSourceMap.js": {
-    "id": "node_modules\\@sanity\\client\\dist\\index.browser.js -> ./_chunks-es/stegaEncodeSourceMap.js",
+    "id": 71214,
     "files": [
-      "static/chunks/sanity.js"
+      "static/chunks/sanity.b9a16c680b7434f4.js"
     ]
   },
   "node_modules\\@sanity\\client\\dist\\index.browser.js -> @sanity/eventsource": {
-    "id": "node_modules\\@sanity\\client\\dist\\index.browser.js -> @sanity/eventsource",
+    "id": 88679,
     "files": [
-      "static/chunks/sanity.js",
-      "static/chunks/vendor.js"
+      "static/chunks/sanity.b9a16c680b7434f4.js",
+      "static/chunks/vendor-2d22b09126d900dd.js"
     ]
   },
-  "node_modules\\next\\dist\\client\\dev\\hot-reloader\\app\\use-websocket.js -> @vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts": {
-    "id": "node_modules\\next\\dist\\client\\dev\\hot-reloader\\app\\use-websocket.js -> @vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts",
+  "node_modules\\@supabase\\auth-js\\dist\\module\\lib\\helpers.js -> @supabase/node-fetch": {
+    "id": 93537,
+    "files": []
+  },
+  "node_modules\\@supabase\\functions-js\\dist\\module\\helper.js -> @supabase/node-fetch": {
+    "id": 93537,
+    "files": []
+  },
+  "node_modules\\@supabase\\realtime-js\\dist\\module\\RealtimeClient.js -> @supabase/node-fetch": {
+    "id": 93537,
+    "files": []
+  },
+  "node_modules\\@supabase\\storage-js\\dist\\module\\lib\\helpers.js -> @supabase/node-fetch": {
+    "id": 93537,
+    "files": []
+  },
+  "node_modules\\@tanstack\\query-devtools\\build\\index.js -> ./DevtoolsComponent/LNWAZHJI.js": {
+    "id": null,
+    "files": []
+  },
+  "node_modules\\@tanstack\\query-devtools\\build\\index.js -> ./DevtoolsPanelComponent/MWZ6AO7Z.js": {
+    "id": null,
+    "files": []
+  },
+  "node_modules\\next\\dist\\client\\index.js -> ../pages/_app": {
+    "id": 45139,
     "files": [
-      "static/chunks/vendor.js"
+      "static/chunks/vendor-2d22b09126d900dd.js"
+    ]
+  },
+  "node_modules\\next\\dist\\client\\index.js -> ../pages/_error": {
+    "id": 31646,
+    "files": [
+      "static/chunks/vendor-2d22b09126d900dd.js"
     ]
   }
 }

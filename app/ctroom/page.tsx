@@ -1,69 +1,85 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import { useToast, ToastContainer } from './components/Toast'
 import QueryProvider from './components/QueryProvider'
 import ErrorBoundary from './components/ErrorBoundary'
 import { DashboardLayout } from './components/dashboard/Layout'
 import { Dashboard } from './components/dashboard/Dashboard'
+import { Chat } from './components/dashboard/Chat'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import AuthForm from './components/AuthForm'
 import { AuthService } from './services/authService'
 
-export default function CtroomPage() {
+function CtroomContent() {
+  const searchParams = useSearchParams()
+  const section = searchParams.get('section')
   const { toasts, addToast, removeToast } = useToast()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState<any>(null)
   const [email, setEmail] = useState('')
   const [authError, setAuthError] = useState('')
   const [magicLinkSent, setMagicLinkSent] = useState(false)
 
   // Handle authentication state
   useEffect(() => {
-    // Set loading state
     setIsAuthLoading(true)
 
-    // Function to update auth state
     const updateAuthState = (user: any) => {
       setUser(user)
       setIsAuthenticated(!!user)
       setIsAuthLoading(false)
     }
 
-    // Initial auth check
     const checkInitialAuth = async () => {
       try {
         const { user } = await AuthService.getCurrentUser()
         updateAuthState(user)
       } catch (error) {
         console.error('Initial auth check error:', error)
+        // Clear potentially corrupted cookies on error
+        document.cookie.split(';').forEach(cookie => {
+          const name = cookie.split('=')[0].trim()
+          if (name.startsWith('sb-')) {
+            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
+          }
+        })
         updateAuthState(null)
       }
     }
 
     checkInitialAuth()
 
-    // Subscribe to real-time auth changes
     const subscription = AuthService.subscribeToAuthChanges(updateAuthState)
 
-    // Cleanup subscription on unmount
+    // Refresh session every 10 minutes
+    const refreshInterval = setInterval(async () => {
+      try {
+        const { user } = await AuthService.getCurrentUser()
+        if (!user) {
+          updateAuthState(null)
+        }
+      } catch (error) {
+        console.error('Session refresh error:', error)
+      }
+    }, 10 * 60 * 1000)
+
     return () => {
       subscription?.unsubscribe()
+      clearInterval(refreshInterval)
     }
   }, [])
 
   // Login handler
   const handleLogin = async (emailToLogin: string) => {
-    // Reset state and show loading
     setIsAuthLoading(true)
     setAuthError('')
 
     try {
-      // Use the AuthService to handle login
       const { success, error, magicLinkSent: linkSent } = await AuthService.handleLogin(emailToLogin)
 
-      // Handle successful login
       if (success) {
         setEmail(emailToLogin)
         setMagicLinkSent(linkSent)
@@ -75,7 +91,6 @@ export default function CtroomPage() {
         return
       }
 
-      // Handle login error
       if (error) {
         setAuthError(error)
         addToast({
@@ -85,7 +100,6 @@ export default function CtroomPage() {
         })
       }
     } catch (error: any) {
-      // Handle unexpected errors
       const errorMsg = error.message || 'An error occurred during login'
       console.error('Login error:', errorMsg)
       setAuthError(errorMsg)
@@ -123,6 +137,20 @@ export default function CtroomPage() {
   }
 
   // Show dashboard if authenticated
+  // Chat section renders full-screen without dashboard layout
+  if (section === 'chat') {
+    return (
+      <ErrorBoundary>
+        <TooltipProvider>
+          <QueryProvider>
+            <Chat />
+            <ToastContainer toasts={toasts} removeToast={removeToast} />
+          </QueryProvider>
+        </TooltipProvider>
+      </ErrorBoundary>
+    )
+  }
+
   return (
     <ErrorBoundary>
       <TooltipProvider>
@@ -134,5 +162,17 @@ export default function CtroomPage() {
         </QueryProvider>
       </TooltipProvider>
     </ErrorBoundary>
+  )
+}
+
+export default function CtroomPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    }>
+      <CtroomContent />
+    </Suspense>
   )
 }

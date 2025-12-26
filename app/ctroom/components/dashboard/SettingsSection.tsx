@@ -14,7 +14,7 @@ import { supabase } from "@/lib/supabase"
 import { 
   Settings, Bell, Palette, Shield, Database, Mail, 
   Smartphone, Clock, Save, RefreshCw, Trash2, Download,
-  Moon, Sun, Monitor, User, Key, AlertCircle
+  Moon, Sun, Monitor, User, Key, AlertCircle, Sparkles, Zap, Brain
 } from "lucide-react"
 
 interface SettingsSectionProps {
@@ -176,25 +176,163 @@ export function SettingsSection({ addToast }: SettingsSectionProps) {
         </div>
       </div>
 
-      <Tabs defaultValue="notifications" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="ai-usage" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="ai-usage" className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            <span className="hidden sm:inline">AI Usage</span>
+          </TabsTrigger>
           <TabsTrigger value="notifications" className="flex items-center gap-2">
             <Bell className="h-4 w-4" />
-            Notifications
+            <span className="hidden sm:inline">Notifications</span>
           </TabsTrigger>
           <TabsTrigger value="appearance" className="flex items-center gap-2">
             <Palette className="h-4 w-4" />
-            Appearance
+            <span className="hidden sm:inline">Appearance</span>
           </TabsTrigger>
           <TabsTrigger value="preferences" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
-            Preferences
+            <span className="hidden sm:inline">Preferences</span>
           </TabsTrigger>
           <TabsTrigger value="data" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
-            Data
+            <span className="hidden sm:inline">Data</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* AI Usage Tab */}
+        <TabsContent value="ai-usage">
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5" />
+                  AI Token Usage
+                </CardTitle>
+                <CardDescription>Monitor your AI assistant token consumption</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* OpenAI Usage */}
+                <div className="p-4 rounded-lg border space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+                      <Zap className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium">OpenAI (GPT-4o)</p>
+                      <p className="text-sm text-muted-foreground">GPT-4o Mini & GPT-4o models</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <p className="text-xs text-muted-foreground">This Session</p>
+                      <p className="text-2xl font-bold">0</p>
+                      <p className="text-xs text-muted-foreground">tokens</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <p className="text-xs text-muted-foreground">Estimated Cost</p>
+                      <p className="text-2xl font-bold">$0.00</p>
+                      <p className="text-xs text-muted-foreground">USD</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    💡 GPT-4o Mini: ~$0.15/1M input, ~$0.60/1M output • GPT-4o: ~$2.50/1M input, ~$10/1M output
+                  </p>
+                </div>
+
+                {/* Gemini Usage */}
+                <div className="p-4 rounded-lg border space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                      <Brain className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Google Gemini</p>
+                      <p className="text-sm text-muted-foreground">Gemini Flash & Lite models</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <p className="text-xs text-muted-foreground">This Session</p>
+                      <p className="text-2xl font-bold">0</p>
+                      <p className="text-xs text-muted-foreground">tokens</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <p className="text-xs text-muted-foreground">Estimated Cost</p>
+                      <p className="text-2xl font-bold">$0.00</p>
+                      <p className="text-xs text-muted-foreground">USD</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    💡 Gemini Flash: Free tier available • Gemini Pro: ~$0.125/1M input, ~$0.375/1M output
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-lg bg-muted/50 border border-dashed">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium">Token Tracking</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Token usage is tracked per chat session. Historical usage data and detailed analytics 
+                        will be available in a future update. For now, you can see real-time usage in the chat sidebar.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* API Keys Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Key className="h-5 w-5" />
+                  API Configuration
+                </CardTitle>
+                <CardDescription>Your AI API keys are configured in environment variables</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-4 rounded-lg border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">OpenAI API</span>
+                    <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                      Configured
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">OPENAI_API_KEY in .env.local</p>
+                </div>
+                <div className="p-4 rounded-lg border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Google Gemini API</span>
+                    <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                      Configured
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">GEMINI_API_KEY in .env.local</p>
+                </div>
+                <div className="p-4 rounded-lg border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Google Search</span>
+                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+                      Optional
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">GOOGLE_SEARCH_CX in .env.local (uses GEMINI_API_KEY)</p>
+                </div>
+                <div className="p-4 rounded-lg border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">GitHub API</span>
+                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+                      Optional
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">GITHUB_TOKEN in .env.local</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
         {/* Notifications Tab */}
         <TabsContent value="notifications">
