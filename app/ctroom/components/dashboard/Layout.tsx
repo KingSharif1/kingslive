@@ -62,7 +62,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
+    <div className="flex min-h-screen w-full bg-background overflow-x-hidden">
       {/* Mobile sidebar */}
       {isMobile ? (
         <Sheet>
@@ -116,12 +116,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main content */}
       <main
         className={cn(
-          "flex-1 flex flex-col transition-all duration-300",
+          "flex-1 flex flex-col transition-all duration-300 min-w-0 w-full overflow-x-hidden",
           isMobile ? "ml-0" : isCollapsed ? "md:ml-16" : "md:ml-64"
         )}
       >
         <TopNav />
-        <div className="flex-1 p-4 md:p-6">{children}</div>
+        <div className="flex-1 p-3 sm:p-4 md:p-6 w-full max-w-full overflow-x-hidden">{children}</div>
       </main>
     </div>
   )

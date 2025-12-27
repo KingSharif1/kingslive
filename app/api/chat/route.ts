@@ -1,116 +1,164 @@
+import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+import { google } from 'googleapis'
 import { HfInference } from '@huggingface/inference'
-import { NextRequest, NextResponse } from 'next/server'
-import { KING_INFO } from './king-info'
 
-// Force this route to be server-side only
-export const runtime = 'nodejs'
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-// Initialize Hugging Face client
-const apiKey = process.env.NEXT_PUBLIC_HUGGINGFACE_API_KEY || '';
-// Log partial key for debugging (first 4 chars only)
-console.log(`Using HF API key starting with: ${apiKey.substring(0, 4)}...`);
-const hf = new HfInference(apiKey)
+const customSearch = google.customsearch('v1')
 
-// Check if a message is a greeting
-function isGreeting(message: string) {
-  const greetings = ['hi', 'hello', 'hey', 'greetings', 'howdy', 'hola', 'sup', 'yo', 'good morning', 'good afternoon', 'good evening', 'what\'s up', 'whats up']
-  const lowercaseMessage = message.toLowerCase().trim()
-  return greetings.some(greeting => lowercaseMessage === greeting || lowercaseMessage.startsWith(greeting + ' '))
+// KING_INFO for context
+const KING_INFO = {
+  name: 'King Sharif',
+  profession: 'Creative Developer & UX Engineer',
+  skills: ['Next.js', 'React', 'TailwindCSS', 'Three.js', 'AI Integration', 'Supabase'],
+  location: 'Chicago, IL',
+  portfolio: 'https://kingsharif.com',
+  interests: ['AI Agents', 'Minimalist Design', 'Creative Coding']
 }
 
-// Format links to be clickable by removing angle brackets and markdown formatting
-function formatLinks(text: string): string {
-  // Replace <https://...> with https://...
-  let formattedText = text.replace(/<(https?:\/\/[^>]+)>/g, '$1');
-  
-  // Replace markdown links [text](url) with just the url
-  formattedText = formattedText.replace(/\[(?:https?:\/\/[^\]]+)\]\(([^)]+)\)/g, '$1');
-  
-  // Fix duplicate URLs (e.g., "https://example.com https://example.com" or "https://example.com/https://example.com")
-  formattedText = formattedText.replace(/(https?:\/\/[^\s]+)\s*\1/g, '$1');
-  formattedText = formattedText.replace(/(https?:\/\/[^\s]+)\/(https?:\/\/[^\s]+)/g, '$1');
-  
-  // Remove periods at the end of URLs
-  formattedText = formattedText.replace(/(https?:\/\/[^\s]+)\.(\s|$)/g, '$1$2');
-  
-  return formattedText;
-}
-
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const { message } = await req.json()
-    
-    // Check if the message is valid
-    if (!message || typeof message !== 'string') {
-      return NextResponse.json(
-        { error: 'Invalid message format' },
-        { status: 400 }
-      )
-    }
+    const { messages, model, thinkingMode, tools } = await req.json()
+    const lastMessage = messages[messages.length - 1]
+    const query = lastMessage.content
 
-    // Handle greetings differently
-    if (isGreeting(message)) {
-      return NextResponse.json({ 
-        message: "Hi there! 👋 What would you like to know about King Sharif? I can tell you about his skills, projects, education, or interests."
-      })
-    }
+    // Initialize thinking steps
+    const thinkingSteps = []
     
-    // Create a prompt for the AI
-    const prompt = `You are a friendly assistant for King Sharif's portfolio website. You should be concise, friendly, and helpful. Your responses should be short (1-3 sentences max) unless the user specifically asks for more detail.
+    // 1. Analyze Intent
+    thinkingSteps.push({ title: 'Analyzing Request', status: 'completed', description: `Model: ${model}, Mode: ${thinkingMode}` })
 
-Here's some information about King Sharif:
-${JSON.stringify(KING_INFO)}
+    let context = `You are Malo, King Sharif's advanced AI assistant (Jarvis-like).
+You are smart, precise, and have access to tools.
+Current User Context: ${JSON.stringify(KING_INFO)}
+`
 
-User: ${message}
-Assistant:`
-    
-    console.log('Sending request to Hugging Face API...')
-    
-    // Fallback response in case API fails
-    let aiMessage = "I'm sorry, I couldn't process your request at the moment. King Sharif is a full-stack developer with expertise in React, Next.js, and TypeScript. Feel free to explore his portfolio or ask another question!"
-    
-    try {
-      // Call Hugging Face API with a simple model that should be available
-      const response = await hf.textGeneration({
-        model: 'gpt2', // Using a very basic model that should be available
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: 100,
-          temperature: 0.5,
-          top_p: 0.9,
-          repetition_penalty: 1.2,
-          do_sample: true,
-          return_full_text: false
+    // 2. Web Search
+    const needsSearch = tools?.includes('web') && 
+      (query.toLowerCase().includes('search') || 
+       query.toLowerCase().includes('google') || 
+       query.toLowerCase().includes('find') || 
+       query.toLowerCase().includes('current') ||
+       query.toLowerCase().includes('news') ||
+       (query.length > 20 && query.includes('?')))
+
+    let searchResults = ''
+    if (needsSearch) {
+      thinkingSteps.push({ title: 'Searching Web', status: 'pending', description: `Query: ${query}` })
+      try {
+        const apiKey = process.env.GOOGLE_SEARCH_API_KEY || process.env.GOOGLE_API_KEY
+        const cx = process.env.GOOGLE_SEARCH_CX || process.env.GOOGLE_CX
+        
+        if (!apiKey || !cx) throw new Error('Keys missing')
+
+        const res = await customSearch.cse.list({ cx, q: query, auth: apiKey, num: 5 })
+
+        if (res.data.items) {
+            searchResults = res.data.items.map((item: any) => `- [${item.title}](${item.link}): ${item.snippet}`).join('\n')
+            context += `\n\nWeb Search Results:\n${searchResults}\n\n`
+            thinkingSteps[thinkingSteps.length - 1].status = 'completed'
+            thinkingSteps[thinkingSteps.length - 1].description = `Found ${res.data.items.length} results`
+        } else {
+             thinkingSteps[thinkingSteps.length - 1].status = 'failed'
+             thinkingSteps[thinkingSteps.length - 1].description = 'No results'
         }
-      })
-      
-      console.log('Response received:', response)
-      
-      // Extract the AI's response and clean it up
-      aiMessage = response.generated_text.trim()
-    } catch (apiError) {
-      console.error('Hugging Face API error details:', apiError)
-      // Continue with fallback response
+      } catch (error) {
+        console.error('Search error:', error)
+        thinkingSteps[thinkingSteps.length - 1].status = 'failed'
+        thinkingSteps[thinkingSteps.length - 1].description = 'Search unavailable'
+      }
     }
+
+    // 3. Notes Access
+    if (query.toLowerCase().includes('idea') || query.toLowerCase().includes('note')) {
+        thinkingSteps.push({ title: 'Checking Notes', status: 'pending', description: 'Querying Supabase...' })
+        const { data: notes } = await supabase.from('ideas').select('*').order('created_at', { ascending: false }).limit(5)
+        if (notes) {
+            context += `\n\nRecent Notes:\n${JSON.stringify(notes)}\n\n`
+            thinkingSteps[thinkingSteps.length - 1].status = 'completed'
+            thinkingSteps[thinkingSteps.length - 1].description = `Retrieved ${notes.length} notes`
+        }
+    }
+
+    // 4. Generate Response (Multi-Provider)
+    thinkingSteps.push({ title: 'Formulating Answer', status: 'pending', description: `Using ${model}` })
     
-    // Remove any potential instruction tokens that might be in the response
-    aiMessage = aiMessage.replace(/<s>|\[INST\]|\[\/INST\]|<\/s>/g, '').trim()
-    
-    // Remove phrases like "I am an AI assistant for King Sharif" or similar introductions
-    aiMessage = aiMessage.replace(/^(I am|I'm) an AI assistant for King Sharif\.?\s*/i, '')
-    aiMessage = aiMessage.replace(/^As an AI assistant for King Sharif,?\s*/i, '')
-    
-    // Format links to be clickable
-    aiMessage = formatLinks(aiMessage)
-    
-    console.log('Cleaned message:', aiMessage)
-    
-    return NextResponse.json({ message: aiMessage || "I don't have that information about King." })
-    
+    const sysPrompt = `${context}\n\nUser: ${query}`
+    let generatedText = ""
+
+    // Provider Logic
+    if (model.startsWith('gpt') && process.env.OPENAI_API_KEY) {
+        // OpenAI
+        try {
+            const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+                body: JSON.stringify({
+                    model: model, // e.g. gpt-4o
+                    messages: [
+                        { role: 'system', content: context },
+                        ...messages.map((m: any) => ({ role: m.role, content: m.content }))
+                    ],
+                    max_tokens: 1000
+                })
+            })
+            const data = await resp.json()
+            generatedText = data.choices?.[0]?.message?.content || "OpenAI Response Error"
+        } catch (e) {
+            console.error(e)
+            generatedText = "Error communicating with OpenAI."
+        }
+    } else if (model.includes('gemini') && process.env.GOOGLE_GEMINI_API_KEY) {
+        // Google Gemini
+        try {
+            // Map model ID to Gemini equivalent if needed, or use direct
+            // gemini-2.0-flash is valid if available, otherwise gemini-1.5-flash
+            const geminiModel = model.includes('flash') ? 'gemini-1.5-flash' : 'gemini-pro' 
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${process.env.GOOGLE_GEMINI_API_KEY}`
+            
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: sysPrompt }] }]
+                })
+            })
+            const data = await resp.json()
+            generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Gemini Response Error"
+        } catch (e) {
+            console.error(e)
+            generatedText = "Error communicating with Gemini."
+        }
+    } else {
+        // Fallback to Hugging Face
+        try {
+            const hf = new HfInference(process.env.HUGGINGFACE_API_KEY)
+            const response = await hf.textGeneration({
+                model: 'mistralai/Mistral-7B-Instruct-v0.3', 
+                inputs: sysPrompt,
+                parameters: { max_new_tokens: 500, return_full_text: false }
+            })
+            generatedText = response.generated_text
+        } catch (e) {
+            generatedText = "I'm having trouble connecting to my brain. (Check API Keys)"
+        }
+    }
+
+    thinkingSteps[thinkingSteps.length - 1].status = 'completed'
+
+    return NextResponse.json({
+      role: 'assistant',
+      content: generatedText,
+      thinking: thinkingSteps
+    })
+
   } catch (error) {
-    console.error('Error in chat API:', error)
+    console.error('Chat API Error:', error)
     return NextResponse.json(
-      { error: 'Failed to process your request' },
+      { error: 'Internal Server Error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

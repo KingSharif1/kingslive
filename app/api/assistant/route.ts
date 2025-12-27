@@ -130,7 +130,7 @@ async function performWebSearch(query: string): Promise<string> {
   }
 }
 
-// Helper function to search GitHub
+// Helper function to search GitHub - includes user's own repos
 async function searchGitHub(query: string): Promise<string> {
   try {
     const githubToken = process.env.GITHUB_TOKEN
@@ -142,19 +142,63 @@ async function searchGitHub(query: string): Promise<string> {
       headers['Authorization'] = `Bearer ${githubToken}`
     }
 
+    let results: string[] = []
+
+    // First, get user's own repositories (private + public)
+    if (githubToken) {
+      const userReposUrl = `https://api.github.com/user/repos?per_page=100&sort=updated`
+      const userReposResponse = await fetch(userReposUrl, { headers })
+      
+      if (userReposResponse.ok) {
+        const userRepos = await userReposResponse.json()
+        const queryLower = query.toLowerCase()
+        
+        // Check if query is asking for "my" repos generically
+        const isGenericMyQuery = queryLower.includes('my') || queryLower.includes('recent') || queryLower.includes('list') || queryLower.includes('show me')
+
+        // Filter user repos by query
+        let matchingRepos = userRepos.filter((repo: any) => 
+          repo.name.toLowerCase().includes(queryLower) ||
+          repo.full_name.toLowerCase().includes(queryLower) ||
+          (repo.description && repo.description.toLowerCase().includes(queryLower)) ||
+          (repo.language && repo.language.toLowerCase().includes(queryLower))
+        )
+
+        // If no matches found but it's a "my repos" query, or if the filter was too strict on a long phrase, just return the most recently updated ones.
+        if (matchingRepos.length === 0 && (isGenericMyQuery || query.split(' ').length > 2)) {
+          matchingRepos = userRepos
+        }
+
+        // Limit to top 5
+        matchingRepos = matchingRepos.slice(0, 5)
+
+        if (matchingRepos.length > 0) {
+          results.push('**📁 Your Repositories:**')
+          matchingRepos.forEach((repo: any, i: number) => {
+            const visibility = repo.private ? '🔒 Private' : '🌐 Public'
+            results.push(`${i + 1}. **${repo.name}** ${visibility}\n   ${repo.description || 'No description'}\n   Language: ${repo.language || 'N/A'} | Updated: ${new Date(repo.updated_at).toLocaleDateString()}\n   URL: ${repo.html_url}`)
+          })
+        }
+      }
+    }
+
+    // Then search public repos
     const url = `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&per_page=5`
     const response = await fetch(url, { headers })
     
     if (response.ok) {
       const data = await response.json()
-      const results = (data.items || []).slice(0, 5).map((repo: any, i: number) => 
-        `${i + 1}. **${repo.full_name}** ⭐ ${repo.stargazers_count}\n   ${repo.description || 'No description'}\n   Language: ${repo.language || 'N/A'} | URL: ${repo.html_url}`
-      ).join('\n\n')
-      
-      return results || 'No repositories found.'
+      if (data.items && data.items.length > 0) {
+        if (results.length > 0) results.push('\n**🌍 Public Repositories:**')
+        else results.push('**🌍 Public Repositories:**')
+        
+        data.items.slice(0, 5).forEach((repo: any, i: number) => {
+          results.push(`${i + 1}. **${repo.full_name}** ⭐ ${repo.stargazers_count}\n   ${repo.description || 'No description'}\n   Language: ${repo.language || 'N/A'} | URL: ${repo.html_url}`)
+        })
+      }
     }
     
-    return 'GitHub search failed.'
+    return results.length > 0 ? results.join('\n\n') : 'No repositories found matching your query.'
   } catch (error) {
     console.error('GitHub search error:', error)
     return 'GitHub search failed. Please try again.'
@@ -175,88 +219,40 @@ export async function POST(req: NextRequest) {
     const openaiKey = process.env.OPENAI_API_KEY
     const geminiKey = process.env.GOOGLE_GEMINI_API_KEY
 
-    // Handle web search tool
+    // --- TOOL HANDLING LOGIC (Integrated Tool Calling) ---
+    let activeMessage = message
+    let toolResults: any = {}
+
     if (selectedTool === 'web') {
       const searchResults = await performWebSearch(message)
-      const enhancedMessage = `User asked: "${message}"\n\nHere are the web search results:\n\n${searchResults}\n\nPlease analyze these results and provide a helpful response based on the search findings.`
-      
-      // Continue with the enhanced message to the AI
-      const messagesWithSearch: Message[] = [
-        { role: 'system', content: getSystemPrompt() + '\n\nYou have access to web search. The user\'s query has been searched and results are provided. Synthesize the information and cite sources when relevant.' },
-        ...history.slice(-10).map((msg: { role: string; content: string }) => ({
-          role: msg.role as 'user' | 'assistant',
-          content: msg.content
-        })),
-        { role: 'user', content: enhancedMessage }
-      ]
-
-      if (openaiKey) {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${openaiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: model.startsWith('gemini') ? 'gpt-4o-mini' : model,
-            messages: messagesWithSearch,
-            max_tokens: 1500,
-            temperature: 0.7,
-          }),
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          return NextResponse.json({ 
-            message: data.choices?.[0]?.message?.content || searchResults,
-            searchResults 
-          })
-        }
-      }
-      
-      return NextResponse.json({ message: `Here's what I found:\n\n${searchResults}` })
-    }
-
-    // Handle GitHub tool
-    if (selectedTool === 'github') {
+      toolResults.searchResults = searchResults
+      activeMessage = `[TOOL_RESULT: web_search]\n${searchResults}\n\nUser query: ${message}`
+    } else if (selectedTool === 'github') {
       const githubResults = await searchGitHub(message)
-      const enhancedMessage = `User asked about GitHub: "${message}"\n\nHere are the GitHub search results:\n\n${githubResults}\n\nPlease analyze these repositories and provide helpful insights.`
-      
-      const messagesWithGitHub: Message[] = [
-        { role: 'system', content: getSystemPrompt() + '\n\nYou have access to GitHub search. The user\'s query has been searched and results are provided. Provide insights about the repositories found.' },
-        ...history.slice(-10).map((msg: { role: string; content: string }) => ({
-          role: msg.role as 'user' | 'assistant',
-          content: msg.content
-        })),
-        { role: 'user', content: enhancedMessage }
-      ]
-
-      if (openaiKey) {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${openaiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: model.startsWith('gemini') ? 'gpt-4o-mini' : model,
-            messages: messagesWithGitHub,
-            max_tokens: 1500,
-            temperature: 0.7,
-          }),
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          return NextResponse.json({ 
-            message: data.choices?.[0]?.message?.content || githubResults,
-            githubResults 
-          })
-        }
-      }
-      
-      return NextResponse.json({ message: `Here's what I found on GitHub:\n\n${githubResults}` })
+      toolResults.githubResults = githubResults
+      activeMessage = `[TOOL_RESULT: github_search]\n${githubResults}\n\nUser query: ${message}`
+    } else if (selectedTool === 'code') {
+      // Placeholder for code execution - in future we'll use a real sandbox
+      const sandboxResult = `Code execution output: (Sandbox initialized... Python 3.10)\nResult: 42\nNote: Code execution is currently restricted to local simulation.`
+      toolResults.sandboxResult = sandboxResult
+      activeMessage = `[TOOL_RESULT: code_interpreter]\n${sandboxResult}\n\nCode to run: ${message}`
     }
+
+    // Common system instructions for tools
+    const toolSystemBonus = selectedTool ? `\n\nYou are answering based on data from your ${selectedTool} tool. Synthesize the findings and cite sources.` : ''
+
+    const messagesArray: Message[] = [
+      { role: 'system', content: getSystemPrompt() + toolSystemBonus },
+      ...history.slice(-15).map((msg: any) => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content
+      })),
+      { role: 'user', content: activeMessage }
+    ]
+
+    // --- INTEGRATED TOOL FLOW ---
+    // If a tool was used, the activeMessage already contains the context.
+    // We proceed to generate the final response with that context.
 
     // Handle image generation with DALL-E
     if (selectedTool === 'images' && openaiKey) {
@@ -313,7 +309,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Build Gemini messages format
-      const geminiHistory = history.slice(-20).map((msg: { role: string; content: string }) => ({
+      const geminiHistory = messagesArray.slice(1, -1).map((msg: any) => ({
         role: msg.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: msg.content }]
       }))
@@ -321,7 +317,7 @@ export async function POST(req: NextRequest) {
       // Add system instruction and current message
       const geminiMessages = [
         ...geminiHistory,
-        { role: 'user', parts: [{ text: message }] }
+        { role: 'user', parts: [{ text: messagesArray[messagesArray.length - 1].content }] }
       ]
 
       // Adjust temperature based on thinking mode
@@ -374,20 +370,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Build messages array with history - use more context for better memory
-    const messages: Message[] = [
-      { role: 'system', content: getSystemPrompt() },
-      ...history.slice(-20).map((msg: { role: string; content: string }) => ({
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content
-      }))
-    ]
+    const messages = [...messagesArray]
 
     // Build user message content (with images if provided)
     if (images && images.length > 0) {
       const content: (TextContent | ImageContent)[] = []
       
-      if (message) {
-        content.push({ type: 'text', text: message })
+      if (messagesArray[messagesArray.length - 1].content) {
+        content.push({ type: 'text', text: messagesArray[messagesArray.length - 1].content as string })
       }
       
       // Add images
@@ -400,9 +390,7 @@ export async function POST(req: NextRequest) {
         }
       }
       
-      messages.push({ role: 'user', content })
-    } else {
-      messages.push({ role: 'user', content: message })
+      messages[messages.length - 1].content = content
     }
 
     // Use vision-capable model if images are provided
@@ -448,7 +436,8 @@ export async function POST(req: NextRequest) {
         prompt_tokens: usage.prompt_tokens || 0,
         completion_tokens: usage.completion_tokens || 0,
         total_tokens: usage.total_tokens || 0
-      }
+      },
+      ...toolResults
     })
 
   } catch (error) {

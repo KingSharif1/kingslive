@@ -388,19 +388,19 @@ Help them develop, refine, or expand on this idea. Be concise but helpful. If th
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Lightbulb className="h-6 w-6 text-yellow-500" />
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <Lightbulb className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-500" />
             Ideas & Notes
           </h1>
-          <p className="text-sm text-muted-foreground">Capture your thoughts and inspirations</p>
+          <p className="text-xs sm:text-sm text-muted-foreground">Capture your thoughts</p>
         </div>
-        <Button onClick={() => setShowNewIdea(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Idea
+        <Button size="sm" onClick={() => setShowNewIdea(true)}>
+          <Plus className="h-4 w-4" />
+          <span className="ml-2">New Idea</span>
         </Button>
       </div>
 
@@ -416,14 +416,14 @@ Help them develop, refine, or expand on this idea. Be concise but helpful. If th
             className="w-full h-10 pl-10 pr-4 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
-        <div className="flex gap-1 flex-wrap">
+        <div className="flex gap-1 flex-wrap overflow-x-auto pb-1">
           {CATEGORIES.map(cat => (
             <Button
               key={cat.id}
               variant={filterCategory === cat.id ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFilterCategory(cat.id)}
-              className="text-xs"
+              className="text-[10px] sm:text-xs px-2 sm:px-3 h-7 sm:h-8"
             >
               {cat.label}
             </Button>
@@ -515,7 +515,7 @@ Help them develop, refine, or expand on this idea. Be concise but helpful. If th
           </div>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
           {filteredIdeas.map(idea => (
             <Card 
               key={idea.id} 
@@ -691,60 +691,70 @@ Help them develop, refine, or expand on this idea. Be concise but helpful. If th
 
       {/* Full-Page Expanded View */}
       {expandedIdea && (
-        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+        <div className="fixed inset-0 z-50 bg-background flex flex-col overflow-hidden">
           {/* Header */}
-          <div className="border-b p-4 flex items-center justify-between bg-background/95 backdrop-blur">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => setExpandedIdea(null)}>
-                <ChevronLeft className="h-5 w-5" />
+          <div className="border-b p-2 sm:p-4 flex items-center justify-between bg-background/95 backdrop-blur shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" onClick={() => setExpandedIdea(null)}>
+                <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
               <div>
-                <Badge className={`${getCategoryColor(expandedCategory)} text-white text-xs`}>
+                <Badge className={`${getCategoryColor(expandedCategory)} text-white text-[10px] sm:text-xs`}>
                   {CATEGORIES.find(c => c.id === expandedCategory)?.icon} {expandedCategory}
                 </Badge>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <Button 
                 variant="outline" 
                 size="sm"
+                className="h-8 text-xs hidden sm:flex"
                 onClick={() => openAIChat(expandedIdea)}
               >
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Chat with Milo
               </Button>
               <Button 
+                variant="outline" 
+                size="icon"
+                className="h-8 w-8 sm:hidden"
+                onClick={() => openAIChat(expandedIdea)}
+              >
+                <MessageSquare className="h-4 w-4" />
+              </Button>
+              <Button 
                 size="sm" 
+                className="h-8 text-xs"
                 onClick={saveExpandedIdea}
                 disabled={isExpandedSaving}
               >
-                {isExpandedSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                Save
+                {isExpandedSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                <span className="ml-1 hidden sm:inline">Save</span>
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => setExpandedIdea(null)}>
-                <X className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setExpandedIdea(null)}>
+                <X className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             </div>
           </div>
 
           {/* Content Area */}
-          <div className="flex-1 overflow-auto p-6 max-w-4xl mx-auto w-full">
+          <div className="flex-1 overflow-y-auto p-3 sm:p-6 max-w-4xl mx-auto w-full">
             {/* Title */}
             <input
               type="text"
               value={expandedTitle}
               onChange={(e) => setExpandedTitle(e.target.value)}
               placeholder="Title"
-              className="w-full text-3xl font-bold bg-transparent border-none focus:outline-none mb-4"
+              className="w-full text-xl sm:text-3xl font-bold bg-transparent border-none focus:outline-none mb-3 sm:mb-4"
             />
 
-            {/* Category selector */}
-            <div className="flex gap-2 mb-6">
+            {/* Category selector - scrollable on mobile */}
+            <div className="flex gap-2 mb-4 sm:mb-6 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 sm:overflow-visible sm:flex-wrap">
               {CATEGORIES.filter(c => c.id !== 'all').map(cat => (
                 <button
                   key={cat.id}
                   onClick={() => setExpandedCategory(cat.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs transition-all flex items-center gap-1 ${
+                  className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs transition-all flex items-center gap-1 whitespace-nowrap shrink-0 ${
                     expandedCategory === cat.id 
                       ? `${cat.color} text-white` 
                       : 'bg-muted hover:bg-muted/80'
@@ -756,7 +766,7 @@ Help them develop, refine, or expand on this idea. Be concise but helpful. If th
               ))}
             </div>
 
-            {/* Content */}
+            {/* Content - vertical scroll only */}
             <textarea
               value={expandedContent}
               onChange={(e) => setExpandedContent(e.target.value)}
@@ -767,7 +777,7 @@ You can use this space to:
 • Write detailed notes
 • Plan projects
 • Document anything important"
-              className="w-full min-h-[60vh] bg-transparent border-none focus:outline-none resize-none text-base leading-relaxed"
+              className="w-full min-h-[50vh] sm:min-h-[60vh] bg-transparent border-none focus:outline-none resize-none text-sm sm:text-base leading-relaxed"
               style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
             />
 

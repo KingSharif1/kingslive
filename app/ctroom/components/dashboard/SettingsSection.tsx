@@ -153,52 +153,55 @@ export function SettingsSection({ addToast }: SettingsSectionProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Settings className="h-6 w-6" />
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <Settings className="h-5 w-5 sm:h-6 sm:w-6" />
             Settings
           </h1>
-          <p className="text-sm text-muted-foreground">Manage your preferences and account settings</p>
+          <p className="text-xs sm:text-sm text-muted-foreground">Manage your preferences</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           {hasChanges && (
-            <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
-              Unsaved changes
+            <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 text-xs">
+              Unsaved
             </Badge>
           )}
-          <Button onClick={saveSettings} disabled={isSaving || !hasChanges}>
-            {isSaving ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-            Save Changes
+          <Button size="sm" onClick={saveSettings} disabled={isSaving || !hasChanges}>
+            {isSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            <span className="ml-2 hidden sm:inline">Save Changes</span>
+            <span className="ml-2 sm:hidden">Save</span>
           </Button>
         </div>
       </div>
 
       <Tabs defaultValue="ai-usage" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="ai-usage" className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4" />
-            <span className="hidden sm:inline">AI Usage</span>
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center gap-2">
-            <Bell className="h-4 w-4" />
-            <span className="hidden sm:inline">Notifications</span>
-          </TabsTrigger>
-          <TabsTrigger value="appearance" className="flex items-center gap-2">
-            <Palette className="h-4 w-4" />
-            <span className="hidden sm:inline">Appearance</span>
-          </TabsTrigger>
-          <TabsTrigger value="preferences" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            <span className="hidden sm:inline">Preferences</span>
-          </TabsTrigger>
-          <TabsTrigger value="data" className="flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            <span className="hidden sm:inline">Data</span>
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:grid-cols-5">
+            <TabsTrigger value="ai-usage" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3">
+              <Sparkles className="h-4 w-4" />
+              <span className="text-xs sm:text-sm">AI</span>
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3">
+              <Bell className="h-4 w-4" />
+              <span className="text-xs sm:text-sm hidden xs:inline">Alerts</span>
+            </TabsTrigger>
+            <TabsTrigger value="appearance" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3">
+              <Palette className="h-4 w-4" />
+              <span className="text-xs sm:text-sm hidden xs:inline">Theme</span>
+            </TabsTrigger>
+            <TabsTrigger value="preferences" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3">
+              <Settings className="h-4 w-4" />
+              <span className="text-xs sm:text-sm hidden xs:inline">Prefs</span>
+            </TabsTrigger>
+            <TabsTrigger value="data" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3">
+              <Database className="h-4 w-4" />
+              <span className="text-xs sm:text-sm hidden xs:inline">Data</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* AI Usage Tab */}
         <TabsContent value="ai-usage">
@@ -223,44 +226,44 @@ export function SettingsSection({ addToast }: SettingsSectionProps) {
                       <p className="text-sm text-muted-foreground">GPT-4o Mini & GPT-4o models</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3 rounded-lg bg-muted/50">
-                      <p className="text-xs text-muted-foreground">This Session</p>
-                      <p className="text-2xl font-bold">0</p>
-                      <p className="text-xs text-muted-foreground">tokens</p>
+                  <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                    <div className="p-2 sm:p-3 rounded-lg bg-muted/50">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">This Session</p>
+                      <p className="text-lg sm:text-2xl font-bold">0</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">tokens</p>
                     </div>
-                    <div className="p-3 rounded-lg bg-muted/50">
-                      <p className="text-xs text-muted-foreground">Estimated Cost</p>
-                      <p className="text-2xl font-bold">$0.00</p>
-                      <p className="text-xs text-muted-foreground">USD</p>
+                    <div className="p-2 sm:p-3 rounded-lg bg-muted/50">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Estimated Cost</p>
+                      <p className="text-lg sm:text-2xl font-bold">$0.00</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">USD</p>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">
                     💡 GPT-4o Mini: ~$0.15/1M input, ~$0.60/1M output • GPT-4o: ~$2.50/1M input, ~$10/1M output
                   </p>
                 </div>
 
                 {/* Gemini Usage */}
-                <div className="p-4 rounded-lg border space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                      <Brain className="h-5 w-5 text-blue-600" />
+                <div className="p-3 sm:p-4 rounded-lg border space-y-3 sm:space-y-4">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                      <Brain className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                     </div>
                     <div>
-                      <p className="font-medium">Google Gemini</p>
-                      <p className="text-sm text-muted-foreground">Gemini Flash & Lite models</p>
+                      <p className="font-medium text-sm sm:text-base">Google Gemini</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">Gemini Flash & Lite models</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3 rounded-lg bg-muted/50">
-                      <p className="text-xs text-muted-foreground">This Session</p>
-                      <p className="text-2xl font-bold">0</p>
-                      <p className="text-xs text-muted-foreground">tokens</p>
+                  <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                    <div className="p-2 sm:p-3 rounded-lg bg-muted/50">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">This Session</p>
+                      <p className="text-lg sm:text-2xl font-bold">0</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">tokens</p>
                     </div>
-                    <div className="p-3 rounded-lg bg-muted/50">
-                      <p className="text-xs text-muted-foreground">Estimated Cost</p>
-                      <p className="text-2xl font-bold">$0.00</p>
-                      <p className="text-xs text-muted-foreground">USD</p>
+                    <div className="p-2 sm:p-3 rounded-lg bg-muted/50">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Estimated Cost</p>
+                      <p className="text-lg sm:text-2xl font-bold">$0.00</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">USD</p>
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">

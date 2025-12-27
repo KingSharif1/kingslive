@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Send, Sparkles, Trash2, Loader2, Plus, MessageSquare, PanelLeftClose, PanelLeft, PanelRightClose, PanelRight, Paperclip, X, FileText, ChevronDown, Zap, Brain, Cpu, Search, Check, Pencil, XCircle, Copy, Image as ImageIcon, Undo2, Settings2, Lightbulb, Gauge, Rocket, Code2, ImagePlus, Wrench, Play, Eye, Code, ArrowLeft, Menu, Home, Calendar, Bookmark, LayoutDashboard } from "lucide-react"
+import { Send, Sparkles, Trash2, Loader2, Plus, MessageSquare, PanelLeftClose, PanelLeft, PanelRightClose, PanelRight, Paperclip, X, FileText, ChevronDown, Zap, Brain, Cpu, Search, Check, Pencil, XCircle, Copy, Image as ImageIcon, Undo2, Settings2, Lightbulb, Gauge, Rocket, Code2, ImagePlus, Wrench, Play, Eye, Code, ArrowLeft, Menu, Home, Calendar, Bookmark, LayoutDashboard, Layout } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -72,15 +72,18 @@ interface ThinkingStep {
   type: 'thinking' | 'searching' | 'browsing' | 'coding' | 'done'
   content: string
   timestamp: number
+  status: 'pending' | 'completed' | 'failed'
+  title: string
+  description?: string
 }
 
 const QUICK_PROMPTS = [
-  { text: "What should I focus on today?", icon: "🎯", category: "Planning" },
-  { text: "Help me plan my week", icon: "📅", category: "Planning" },
-  { text: "Content ideas for my brand", icon: "✨", category: "Content" },
-  { text: "Review my progress on goals", icon: "🏆", category: "Goals" },
-  { text: "Give me some real talk", icon: "💪", category: "Motivation" },
-  { text: "Let's brainstorm something", icon: "💡", category: "Creative" },
+  { text: "What's the status of our empire?", icon: "🏰", category: "Strategy" },
+  { text: "Search for recent tech news", icon: "🌐", category: "Web Search" },
+  { text: "Help me debug a React issue", icon: "🐛", category: "Coding" },
+  { text: "Review my GitHub projects", icon: "🐙", category: "GitHub" },
+  { text: "Draft a strategic plan for 2026", icon: "📈", category: "Planning" },
+  { text: "Milo, give me some real talk", icon: "💪", category: "Motivation" },
 ]
 
 export function Chat() {
@@ -102,10 +105,12 @@ export function Chat() {
   const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0 })
   const [showThinking, setShowThinking] = useState(true)
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([])
+  const [lastSources, setLastSources] = useState<{ type: 'web' | 'github' | null; count: number }>({ type: null, count: 0 })
   const [codePreview, setCodePreview] = useState<{ code: string; language: string; isOpen: boolean }>({ code: '', language: '', isOpen: false })
   const [previewTab, setPreviewTab] = useState<'preview' | 'code'>('preview')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const router = useRouter()
@@ -164,7 +169,7 @@ export function Chat() {
         return
       }
       setSessions(data || [])
-      
+
       // Auto-select most recent session or create new one
       if (data && data.length > 0) {
         selectSession(data[0])
@@ -205,7 +210,7 @@ export function Chat() {
         .single()
 
       if (error) throw error
-      
+
       setSessions(prev => [data, ...prev])
       setCurrentSession(data)
       setMessages([])
@@ -234,8 +239,8 @@ export function Chat() {
         .from('chat_sessions')
         .update({ title, updated_at: new Date().toISOString() })
         .eq('id', sessionId)
-      
-      setSessions(prev => prev.map(s => 
+
+      setSessions(prev => prev.map(s =>
         s.id === sessionId ? { ...s, title } : s
       ))
     } catch (err) {
@@ -293,7 +298,7 @@ export function Chat() {
         .insert({ title: text.slice(0, 40) || 'Image Analysis' })
         .select()
         .single()
-      
+
       if (error || !data) {
         console.error('Error creating session:', error)
         return
@@ -340,6 +345,18 @@ export function Chat() {
     }
 
     try {
+      // Build thinking steps based on tool
+      setThinkingSteps([
+        {
+          id: 'step-1',
+          type: selectedTool === 'web' ? 'searching' : selectedTool === 'code' ? 'coding' : selectedTool === 'github' ? 'browsing' : 'thinking',
+          title: selectedTool === 'web' ? 'Searching the web...' : selectedTool === 'code' ? 'Running code...' : selectedTool === 'github' ? 'Analyzing GitHub...' : 'Thinking...',
+          status: 'pending',
+          content: selectedTool === 'web' ? `Looking for: ${text}` : selectedTool === 'code' ? 'Executing snippet in sandbox' : selectedTool === 'github' ? `Searching repos: ${text}` : 'Processing request',
+          timestamp: Date.now()
+        }
+      ])
+
       // Build history for context (last 20 messages)
       const history = messages.slice(-20).map(m => ({
         role: m.role,
@@ -348,7 +365,7 @@ export function Chat() {
 
       // Convert images to base64 for vision models
       const imageContents: { type: string; image_url?: { url: string }; text?: string }[] = []
-      
+
       for (const attachment of currentAttachments) {
         if (attachment.type.startsWith('image/') && attachment.file) {
           const base64 = await fileToBase64(attachment.file)
@@ -362,8 +379,8 @@ export function Chat() {
       const response = await fetch('/api/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          message: text, 
+        body: JSON.stringify({
+          message: text,
           history,
           model: selectedModel,
           thinkingMode,
@@ -374,6 +391,32 @@ export function Chat() {
 
       const data = await response.json()
       const assistantContent = data.message || data.error || "Sorry, I couldn't process that."
+
+      // Mark thinking steps as complete
+      setThinkingSteps(prev => prev.map(s => ({ ...s, status: 'completed' as const })))
+      setTimeout(() => setThinkingSteps([]), 3000)
+
+      // Track sources from web search or GitHub
+      if (data.searchResults) {
+        const sourceCount = (data.searchResults.match(/\d+\.\s\*\*/g) || []).length
+        setLastSources({ type: 'web', count: sourceCount })
+      } else if (data.githubResults) {
+        const sourceCount = (data.githubResults.match(/\d+\.\s\*\*/g) || []).length
+        setLastSources({ type: 'github', count: sourceCount })
+      } else if (data.sandboxResult) {
+        setLastSources({ type: null, count: 0 })
+        // If code result, we might want to show it in the preview
+        if (selectedTool === 'code') {
+          // Open code preview if it's a code tool
+          setCodePreview({
+            code: data.sandboxResult,
+            language: 'python',
+            isOpen: true
+          })
+        }
+      } else {
+        setLastSources({ type: null, count: 0 })
+      }
 
       // Update token usage
       if (data.usage) {
@@ -388,7 +431,7 @@ export function Chat() {
       if (suggestions.length > 0) {
         setTaskSuggestions(prev => [...prev, ...suggestions])
       }
-      
+
       // Clean the content for display (remove task tags)
       const displayContent = cleanTaskTags(assistantContent)
 
@@ -438,7 +481,7 @@ export function Chat() {
   const parseTaskSuggestions = (content: string): TaskSuggestion[] => {
     const taskRegex = /\[TASK:\s*title="([^"]+)"(?:\s*priority="(high|medium|low)")?(?:\s*due="(\d{4}-\d{2}-\d{2})")?(?:\s*habit="(true|false)")?(?:\s*frequency="(daily|weekly|weekdays)")?\]/g
     const matches = Array.from(content.matchAll(taskRegex))
-    
+
     return matches.map((match, index) => {
       const [_, title, priority = 'medium', dueDate, isHabit, frequency] = match
       return {
@@ -469,9 +512,9 @@ export function Chat() {
           streak: 0,
           best_streak: 0
         })
-      
+
       if (!error) {
-        setTaskSuggestions(prev => prev.map(t => 
+        setTaskSuggestions(prev => prev.map(t =>
           t.id === suggestion.id ? { ...t, status: 'accepted' as const } : t
         ))
       }
@@ -482,21 +525,21 @@ export function Chat() {
 
   // Reject a task suggestion
   const rejectTask = (id: string) => {
-    setTaskSuggestions(prev => prev.map(t => 
+    setTaskSuggestions(prev => prev.map(t =>
       t.id === id ? { ...t, status: 'rejected' as const } : t
     ))
   }
 
   // Start editing a task
   const startEditingTask = (id: string) => {
-    setTaskSuggestions(prev => prev.map(t => 
+    setTaskSuggestions(prev => prev.map(t =>
       t.id === id ? { ...t, status: 'editing' as const, editedTitle: t.title } : t
     ))
   }
 
   // Update edited title
   const updateEditedTitle = (id: string, title: string) => {
-    setTaskSuggestions(prev => prev.map(t => 
+    setTaskSuggestions(prev => prev.map(t =>
       t.id === id ? { ...t, editedTitle: title } : t
     ))
   }
@@ -533,7 +576,7 @@ export function Chat() {
     }
 
     // Update local state
-    setMessages(prev => prev.slice(0, messageIndex + 1).map(m => 
+    setMessages(prev => prev.slice(0, messageIndex + 1).map(m =>
       m.id === messageId ? { ...m, content: editingContent } : m
     ))
     setEditingMessageId(null)
@@ -603,14 +646,14 @@ export function Chat() {
         } else {
           const code = codeContent.join('\n')
           const isPreviewable = ['html', 'htm', 'jsx', 'tsx', 'css', 'javascript', 'js'].includes(codeLanguage.toLowerCase())
-          
+
           elements.push(
             <div key={i} className="my-3 rounded-xl overflow-hidden border bg-zinc-950 dark:bg-zinc-900">
               <div className="flex items-center justify-between px-4 py-2 bg-zinc-800 border-b border-zinc-700">
                 <span className="text-xs text-zinc-400 font-mono">{codeLanguage || 'code'}</span>
                 <div className="flex items-center gap-2">
                   {isPreviewable && (
-                    <button 
+                    <button
                       className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1"
                       onClick={() => setCodePreview({ code, language: codeLanguage, isOpen: true })}
                     >
@@ -618,7 +661,7 @@ export function Chat() {
                       Preview
                     </button>
                   )}
-                  <button 
+                  <button
                     className="text-xs text-zinc-400 hover:text-white flex items-center gap-1"
                     onClick={() => navigator.clipboard.writeText(code)}
                   >
@@ -655,9 +698,9 @@ export function Chat() {
         flushList(i)
         elements.push(
           <div key={i} className="my-3">
-            <img 
-              src={imageMatch[2]} 
-              alt={imageMatch[1]} 
+            <img
+              src={imageMatch[2]}
+              alt={imageMatch[1]}
               className="max-w-full rounded-xl border shadow-sm"
               loading="lazy"
             />
@@ -810,8 +853,8 @@ export function Chat() {
     <div className="flex h-screen w-full overflow-hidden bg-background">
       {/* CTRoom Navigation Sidebar - LEFT side (all screen sizes) */}
       <div className={`
-        ${isMobile 
-          ? `fixed inset-y-0 left-0 z-50 w-56 transform transition-transform duration-300 ease-out ${showMobileMenu ? 'translate-x-0' : '-translate-x-full'}` 
+        ${isMobile
+          ? `fixed inset-y-0 left-0 z-50 w-56 transform transition-transform duration-300 ease-out ${showMobileMenu ? 'translate-x-0' : '-translate-x-full'}`
           : 'w-14 hover:w-56 transition-all duration-300 group/sidebar'
         } bg-background border-r flex-shrink-0
       `}>
@@ -848,11 +891,10 @@ export function Chat() {
                         }
                         if (isMobile) setShowMobileMenu(false)
                       }}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                        isActive 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                      }`}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive
+                        ? 'bg-primary text-primary-foreground'
+                        : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                        }`}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
                       <span className={`text-sm whitespace-nowrap ${isMobile ? 'opacity-100' : 'opacity-0 group-hover/sidebar:opacity-100'} transition-opacity duration-300`}>{item.label}</span>
@@ -872,7 +914,7 @@ export function Chat() {
 
       {/* Mobile Menu Overlay */}
       {isMobile && showMobileMenu && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40"
           onClick={() => setShowMobileMenu(false)}
         />
@@ -880,7 +922,7 @@ export function Chat() {
 
       {/* Chat History Sidebar Overlay - RIGHT side */}
       {showSidebar && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setShowSidebar(false)}
         />
@@ -893,16 +935,16 @@ export function Chat() {
           {/* Left side - Menu toggle on mobile */}
           <div className="flex items-center gap-1">
             {/* Mobile menu button */}
-            <Button 
-              size="icon" 
-              variant="ghost" 
+            <Button
+              size="icon"
+              variant="ghost"
               className="h-8 w-8 shrink-0 md:hidden"
               onClick={() => setShowMobileMenu(true)}
             >
               <Menu className="h-4 w-4" />
             </Button>
           </div>
-          
+
           {/* Model selector */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -940,6 +982,17 @@ export function Chat() {
 
           {/* Right side actions */}
           <div className="flex items-center gap-1">
+            {/* GitHub connection status */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400">
+                  <Code className="h-3 w-3" />
+                  <span className="text-[10px] font-medium">GitHub Connected</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>Your GitHub repos are accessible to Milo</TooltipContent>
+            </Tooltip>
+
             {currentSession && (
               <span className="text-xs text-muted-foreground hidden md:inline mr-2">
                 {messages.length} messages
@@ -953,13 +1006,13 @@ export function Chat() {
               </TooltipTrigger>
               <TooltipContent>New Chat</TooltipContent>
             </Tooltip>
-            
+
             {/* Chat history toggle - RIGHT side */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button 
-                  size="icon" 
-                  variant="ghost" 
+                <Button
+                  size="icon"
+                  variant="ghost"
                   className="h-8 w-8 shrink-0"
                   onClick={() => setShowSidebar(!showSidebar)}
                 >
@@ -971,12 +1024,34 @@ export function Chat() {
           </div>
         </div>
 
+
+        {/* Thinking Process Indicator */}
+        {(isLoading || thinkingSteps.length > 0) && (
+          <div className="mb-4 space-y-2">
+            {thinkingSteps.map((step, idx) => (
+              <div key={idx} className="flex items-center gap-2 text-xs text-muted-foreground animate-in fade-in slide-in-from-bottom-2">
+                {step.status === 'completed' ? (
+                  <Layout className="h-3 w-3 text-green-500" />
+                ) : step.status === 'failed' ? (
+                  <span className="text-red-500">×</span>
+                ) : (
+                  <span className="animate-spin">⟳</span>
+                )}
+                <span className="font-medium">{step.title}</span>
+                {step.description && <span className="opacity-70">- {step.description}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+
         {/* Messages Area */}
         <div className="flex-1 overflow-hidden">
           <ScrollArea className="h-full relative overflow-hidden" ref={scrollAreaRef}>
             {/* Simple gradient background */}
             <div className="absolute inset-0 bg-gradient-to-br from-chat via-chat to-muted/30 dark:to-muted/10" />
-            
+
             {/* Content container */}
             <div className="relative z-10 max-w-3xl mx-auto px-3 md:px-4 py-4 md:py-6">
               {messages.length === 0 && !isLoading ? (
@@ -984,14 +1059,14 @@ export function Chat() {
                   <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-4 md:mb-6 shadow-lg shadow-purple-500/20">
                     <Sparkles className="h-8 w-8 md:h-10 md:w-10 text-white" />
                   </div>
-                  <h2 className="text-xl md:text-2xl font-bold mb-2">What's good, King! 👑</h2>
+                  <h2 className="text-xl md:text-2xl font-bold mb-2 text-glow">Welcome back, King. 👑</h2>
                   <p className="text-sm md:text-base text-muted-foreground mb-1">
-                    I'm <span className="font-semibold text-purple-500">Milo</span>, your strategic advisor.
+                    I'm <span className="font-semibold text-purple-500">Milo</span>, your strategic right-hand and brother-in-arms.
                   </p>
-                  <p className="text-xs md:text-sm text-muted-foreground mb-6 md:mb-8 max-w-md">
-                    I remember our past conversations and can help you with planning, content, goals, and more.
+                  <p className="text-xs md:text-sm text-muted-foreground mb-6 md:mb-8 max-w-md italic">
+                    "Success is not final, failure is not fatal: it is the courage to continue that counts."
                   </p>
-                  
+
                   <div className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-3 w-full max-w-lg">
                     {QUICK_PROMPTS.map((prompt, i) => (
                       <button
@@ -1020,7 +1095,7 @@ export function Chat() {
                           <Sparkles className="h-3 w-3 md:h-4 md:w-4 text-white" />
                         </div>
                       )}
-                      
+
                       {/* Message Content */}
                       <div className={`flex-1 max-w-[88%] md:max-w-[85%] ${message.role === "user" ? "text-right" : ""}`}>
                         {editingMessageId === message.id ? (
@@ -1043,21 +1118,20 @@ export function Chat() {
                           </div>
                         ) : (
                           <>
-                            <div 
-                              className={`relative inline-block rounded-2xl px-4 py-3 ${
-                                message.role === "user" 
-                                  ? "bg-primary text-primary-foreground rounded-tr-sm" 
-                                  : "bg-muted rounded-tl-sm"
-                              }`}
+                            <div
+                              className={`relative inline-block rounded-2xl px-4 py-3 ${message.role === "user"
+                                ? "bg-primary text-primary-foreground rounded-tr-sm"
+                                : "bg-muted rounded-tl-sm"
+                                }`}
                             >
                               <div className="text-sm space-y-1 text-left">{formatContent(message.content)}</div>
-                              
+
                               {/* Edit/Delete buttons - inside bubble, show on hover */}
                               {message.role === "user" && (
                                 <div className="absolute -bottom-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5 bg-background/90 backdrop-blur rounded-lg border shadow-sm px-1 py-0.5">
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <button 
+                                      <button
                                         onClick={() => startEditingMessage(message)}
                                         className="h-6 w-6 rounded flex items-center justify-center hover:bg-muted"
                                       >
@@ -1068,7 +1142,7 @@ export function Chat() {
                                   </Tooltip>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <button 
+                                      <button
                                         onClick={() => deleteMessageAndAfter(message.id)}
                                         className="h-6 w-6 rounded flex items-center justify-center hover:bg-muted"
                                       >
@@ -1080,15 +1154,35 @@ export function Chat() {
                                 </div>
                               )}
                             </div>
-                            <p className="text-[10px] text-muted-foreground mt-1 px-1">
-                              {formatTime(message.created_at)}
-                            </p>
+                            <div className="flex items-center gap-2 mt-1 px-1">
+                              <p className="text-[10px] text-muted-foreground">
+                                {formatTime(message.created_at)}
+                              </p>
+                              {/* Sources indicator for last assistant message */}
+                              {message.role === 'assistant' &&
+                                messages.indexOf(message) === messages.length - 1 &&
+                                lastSources.type && lastSources.count > 0 && (
+                                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/50 border text-[10px] text-muted-foreground">
+                                    {lastSources.type === 'web' ? (
+                                      <>
+                                        <Search className="h-3 w-3" />
+                                        <span>{lastSources.count} sources</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Code className="h-3 w-3" />
+                                        <span>{lastSources.count} repos</span>
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+                            </div>
                           </>
                         )}
                       </div>
                     </div>
                   ))}
-                  
+
                   {/* Enhanced thinking indicator with steps */}
                   {isLoading && (
                     <div className="flex gap-2 md:gap-3">
@@ -1097,7 +1191,7 @@ export function Chat() {
                       </div>
                       <div className="flex-1 max-w-[88%] md:max-w-[85%]">
                         <div className="bg-muted rounded-2xl rounded-tl-sm overflow-hidden">
-                          <button 
+                          <button
                             onClick={() => setShowThinking(!showThinking)}
                             className="w-full px-3 md:px-4 py-2 flex items-center gap-2 hover:bg-muted/80 transition-colors"
                           >
@@ -1107,9 +1201,9 @@ export function Chat() {
                               <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                             </div>
                             <span className="text-[10px] md:text-xs text-muted-foreground">
-                              {selectedTool === 'web' ? 'Searching the web...' : 
-                               selectedTool === 'code' ? 'Writing code...' :
-                               'Milo is thinking...'}
+                              {selectedTool === 'web' ? 'Searching the web...' :
+                                selectedTool === 'code' ? 'Writing code...' :
+                                  'Milo is thinking...'}
                             </span>
                             <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ml-auto ${showThinking ? '' : '-rotate-90'}`} />
                           </button>
@@ -1176,11 +1270,10 @@ export function Chat() {
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium truncate">{suggestion.title}</p>
                                 <div className="flex items-center gap-2 mt-0.5">
-                                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                                    suggestion.priority === 'high' ? 'bg-red-500/10 text-red-500' :
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${suggestion.priority === 'high' ? 'bg-red-500/10 text-red-500' :
                                     suggestion.priority === 'medium' ? 'bg-yellow-500/10 text-yellow-500' :
-                                    'bg-green-500/10 text-green-500'
-                                  }`}>{suggestion.priority}</span>
+                                      'bg-green-500/10 text-green-500'
+                                    }`}>{suggestion.priority}</span>
                                   {suggestion.dueDate && <span className="text-[10px] text-muted-foreground">{suggestion.dueDate}</span>}
                                   {suggestion.isHabit && <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-500">habit</span>}
                                 </div>
@@ -1270,7 +1363,7 @@ export function Chat() {
                 multiple
                 className="hidden"
               />
-              
+
               {/* Text input */}
               <div className="px-3 md:px-4 py-2 md:py-3">
                 <textarea
@@ -1299,9 +1392,9 @@ export function Chat() {
                   {/* Attach button */}
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-7 w-7 md:h-8 md:w-8 rounded-lg"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isLoading}
@@ -1326,7 +1419,7 @@ export function Chat() {
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-48">
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         onClick={() => setSelectedTool(null)}
                         className={`cursor-pointer ${!selectedTool ? 'bg-primary/10' : ''}`}
                       >
@@ -1377,7 +1470,7 @@ export function Chat() {
                   </DropdownMenu>
 
                   {/* Send button */}
-                  <Button 
+                  <Button
                     size="icon"
                     className="h-7 w-7 md:h-8 md:w-8 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                     onClick={() => sendMessage()}
@@ -1394,8 +1487,8 @@ export function Chat() {
               <span className="hidden sm:inline">Enter to send • Shift+Enter for new line</span>
               <span className="sm:hidden">Tap send</span>
               <span>
-                {tokenUsage.input > 0 
-                  ? `~${Math.round((tokenUsage.input + tokenUsage.output) / 1000)}k tokens` 
+                {tokenUsage.input > 0
+                  ? `~${Math.round((tokenUsage.input + tokenUsage.output) / 1000)}k tokens`
                   : 'Ready'}
               </span>
             </div>
@@ -1405,8 +1498,8 @@ export function Chat() {
 
       {/* Chat History Sidebar - RIGHT side */}
       <div className={`
-        ${isMobile 
-          ? `fixed inset-y-0 right-0 z-50 w-72 transform transition-transform duration-300 ease-out ${showSidebar ? 'translate-x-0' : 'translate-x-full'}` 
+        ${isMobile
+          ? `fixed inset-y-0 right-0 z-50 w-72 transform transition-transform duration-300 ease-out ${showSidebar ? 'translate-x-0' : 'translate-x-full'}`
           : `${showSidebar ? 'w-72' : 'w-0'} transition-all duration-300 overflow-hidden`
         } bg-background border-l flex-shrink-0
       `}>
@@ -1431,9 +1524,9 @@ export function Chat() {
                 </TooltipTrigger>
                 <TooltipContent>New Chat</TooltipContent>
               </Tooltip>
-              <Button 
-                size="icon" 
-                variant="ghost" 
+              <Button
+                size="icon"
+                variant="ghost"
                 className="h-8 w-8 md:hidden"
                 onClick={() => setShowSidebar(false)}
               >
@@ -1478,11 +1571,10 @@ export function Chat() {
                       {group.sessions.map(session => (
                         <div
                           key={session.id}
-                          className={`group flex items-center gap-2 p-2.5 rounded-lg cursor-pointer transition-all ${
-                            currentSession?.id === session.id 
-                              ? 'bg-primary/10 border border-primary/20' 
-                              : 'hover:bg-muted border border-transparent'
-                          }`}
+                          className={`group flex items-center gap-2 p-2.5 rounded-lg cursor-pointer transition-all ${currentSession?.id === session.id
+                            ? 'bg-primary/10 border border-primary/20'
+                            : 'hover:bg-muted border border-transparent'
+                            }`}
                           onClick={() => {
                             selectSession(session)
                             if (isMobile) setShowSidebar(false)
@@ -1530,88 +1622,87 @@ export function Chat() {
       </div>
 
       {/* Code Preview Modal - Like Gemini Canvas */}
-      {codePreview.isOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="bg-background rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border shadow-2xl">
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-purple-500 flex items-center justify-center">
-                  <Code className="h-4 w-4 text-white" />
+      {
+        codePreview.isOpen && (
+          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+            <div className="bg-background rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border shadow-2xl">
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-purple-500 flex items-center justify-center">
+                    <Code className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-sm">Code Preview</h3>
+                    <p className="text-[10px] text-muted-foreground">{codePreview.language || 'HTML/JS'}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-sm">Code Preview</h3>
-                  <p className="text-[10px] text-muted-foreground">{codePreview.language || 'HTML/JS'}</p>
+                <div className="flex items-center gap-2">
+                  {/* Tab buttons */}
+                  <div className="flex bg-muted rounded-lg p-1">
+                    <button
+                      onClick={() => setPreviewTab('code')}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${previewTab === 'code' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
+                        }`}
+                    >
+                      <Code className="h-3 w-3 inline mr-1" />
+                      Code
+                    </button>
+                    <button
+                      onClick={() => setPreviewTab('preview')}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${previewTab === 'preview' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
+                        }`}
+                    >
+                      <Eye className="h-3 w-3 inline mr-1" />
+                      Preview
+                    </button>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => navigator.clipboard.writeText(codePreview.code)}
+                  >
+                    <Copy className="h-4 w-4 mr-1" />
+                    Copy
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={() => setCodePreview({ ...codePreview, isOpen: false })}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {/* Tab buttons */}
-                <div className="flex bg-muted rounded-lg p-1">
-                  <button
-                    onClick={() => setPreviewTab('code')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                      previewTab === 'code' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
-                    }`}
-                  >
-                    <Code className="h-3 w-3 inline mr-1" />
-                    Code
-                  </button>
-                  <button
-                    onClick={() => setPreviewTab('preview')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                      previewTab === 'preview' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
-                    }`}
-                  >
-                    <Eye className="h-3 w-3 inline mr-1" />
-                    Preview
-                  </button>
-                </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => navigator.clipboard.writeText(codePreview.code)}
-                >
-                  <Copy className="h-4 w-4 mr-1" />
-                  Copy
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  onClick={() => setCodePreview({ ...codePreview, isOpen: false })}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-hidden min-h-[400px]">
-              {previewTab === 'code' ? (
-                <ScrollArea className="h-full">
-                  <pre className="p-4 text-sm font-mono text-zinc-100 bg-zinc-950">
-                    <code>{codePreview.code}</code>
-                  </pre>
-                </ScrollArea>
-              ) : (
-                <div className="h-full bg-white relative">
-                  <iframe
-                    ref={iframeRef}
-                    srcDoc={(() => {
-                      const lang = codePreview.language.toLowerCase()
-                      const code = codePreview.code
-                      
-                      // Check if it's React/JSX code
-                      const isReact = lang === 'jsx' || lang === 'tsx' || 
-                        code.includes('import React') || code.includes('from "react"') ||
-                        code.includes("from 'react'") || code.includes('useState') ||
-                        code.includes('useEffect') || code.includes('<App')
-                      
-                      // Check if it's Python (show message)
-                      const isPython = lang === 'python' || lang === 'py'
-                      
-                      if (isPython) {
-                        return `<!DOCTYPE html>
+              {/* Content */}
+              <div className="flex-1 overflow-hidden min-h-[400px]">
+                {previewTab === 'code' ? (
+                  <ScrollArea className="h-full">
+                    <pre className="p-4 text-sm font-mono text-zinc-100 bg-zinc-950">
+                      <code>{codePreview.code}</code>
+                    </pre>
+                  </ScrollArea>
+                ) : (
+                  <div className="h-full bg-white relative">
+                    <iframe
+                      ref={iframeRef}
+                      srcDoc={(() => {
+                        const lang = codePreview.language.toLowerCase()
+                        const code = codePreview.code
+
+                        // Check if it's React/JSX code
+                        const isReact = lang === 'jsx' || lang === 'tsx' ||
+                          code.includes('import React') || code.includes('from "react"') ||
+                          code.includes("from 'react'") || code.includes('useState') ||
+                          code.includes('useEffect') || code.includes('<App')
+
+                        // Check if it's Python (show message)
+                        const isPython = lang === 'python' || lang === 'py'
+
+                        if (isPython) {
+                          return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -1630,10 +1721,10 @@ export function Chat() {
   </div>
 </body>
 </html>`
-                      }
-                      
-                      if (isReact) {
-                        return `<!DOCTYPE html>
+                        }
+
+                        if (isReact) {
+                          return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -1653,8 +1744,8 @@ export function Chat() {
     const { useState, useEffect, useRef, useCallback, useMemo } = React;
     
     ${code.replace(/import\s+.*?from\s+['"][^'"]+['"];?\s*/g, '')
-          .replace(/export\s+default\s+/g, '')
-          .replace(/export\s+/g, '')}
+                              .replace(/export\s+default\s+/g, '')
+                              .replace(/export\s+/g, '')}
     
     // Try to find and render the main component
     const components = [typeof App !== 'undefined' ? App : null, typeof Main !== 'undefined' ? Main : null].filter(Boolean);
@@ -1664,11 +1755,11 @@ export function Chat() {
   </script>
 </body>
 </html>`
-                      }
-                      
-                      // HTML code
-                      if (lang === 'html' || lang === 'htm') {
-                        return `<!DOCTYPE html>
+                        }
+
+                        // HTML code
+                        if (lang === 'html' || lang === 'htm') {
+                          return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -1683,11 +1774,11 @@ export function Chat() {
   ${code}
 </body>
 </html>`
-                      }
-                      
-                      // CSS code
-                      if (lang === 'css') {
-                        return `<!DOCTYPE html>
+                        }
+
+                        // CSS code
+                        if (lang === 'css') {
+                          return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -1702,10 +1793,10 @@ export function Chat() {
   </div>
 </body>
 </html>`
-                      }
-                      
-                      // JavaScript code
-                      return `<!DOCTYPE html>
+                        }
+
+                        // JavaScript code
+                        return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -1738,17 +1829,18 @@ export function Chat() {
   </script>
 </body>
 </html>`
-                    })()}
-                    className="w-full h-full border-0"
-                    sandbox="allow-scripts allow-modals allow-same-origin allow-forms allow-popups"
-                    title="Code Preview"
-                  />
-                </div>
-              )}
+                      })()}
+                      className="w-full h-full border-0"
+                      sandbox="allow-scripts allow-modals allow-same-origin allow-forms allow-popups"
+                      title="Code Preview"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   )
 }

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { supabase } from "@/lib/supabase"
-import { 
+import {
   ChevronLeft, ChevronRight, Download, Plus, Calendar,
   Check, Flag, Flame, Repeat, Clock, RefreshCw, X, Loader2,
   ListTodo, CalendarDays, AlertCircle, Trash2
@@ -35,7 +35,7 @@ export function CalendarView() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar')
-  
+
   // Task creation state
   const [showAddTask, setShowAddTask] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
@@ -127,7 +127,7 @@ export function CalendarView() {
 
       if (error) throw error
 
-      setTasks(prev => prev.map(t => 
+      setTasks(prev => prev.map(t =>
         t.id === taskId ? { ...t, completed: !t.completed } : t
       ))
     } catch (err) {
@@ -235,7 +235,7 @@ export function CalendarView() {
         const endDate = new Date(dueDate)
         endDate.setHours(endDate.getHours() + 1)
         const endStr = endDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
-        
+
         return [
           'BEGIN:VEVENT',
           `UID:${task.id}@kingslive`,
@@ -270,52 +270,52 @@ export function CalendarView() {
   const upcomingTasks = tasks.filter(t => t.due_date && !t.completed && !t.is_habit).length
 
   // Selected date tasks
-  const selectedDateTasks = selectedDate 
+  const selectedDateTasks = selectedDate
     ? tasks.filter(t => normalizeDate(t.due_date) === selectedDate)
     : []
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Calendar className="h-6 w-6" />
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <Calendar className="h-5 w-5 sm:h-6 sm:w-6" />
             Task Calendar
           </h1>
-          <p className="text-sm text-muted-foreground">
-            {totalTasks} tasks • {completedTasks} completed • {upcomingTasks} upcoming
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            {totalTasks} tasks • {completedTasks} done • {upcomingTasks} upcoming
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <div className="flex border rounded-lg overflow-hidden">
-            <Button 
-              variant={viewMode === 'calendar' ? 'default' : 'ghost'} 
-              size="sm" 
-              className="rounded-none"
+            <Button
+              variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+              size="sm"
+              className="rounded-none h-8"
               onClick={() => setViewMode('calendar')}
             >
               <CalendarDays className="h-4 w-4" />
             </Button>
-            <Button 
-              variant={viewMode === 'list' ? 'default' : 'ghost'} 
-              size="sm" 
-              className="rounded-none"
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              className="rounded-none h-8"
               onClick={() => setViewMode('list')}
             >
               <ListTodo className="h-4 w-4" />
             </Button>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchTasks} disabled={isLoading}>
+          <Button variant="outline" size="sm" className="h-8" onClick={fetchTasks} disabled={isLoading}>
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          <Button variant="outline" size="sm" onClick={exportToCalendar}>
+          <Button variant="outline" size="sm" className="h-8 hidden sm:flex" onClick={exportToCalendar}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Button size="sm" onClick={() => setShowAddTask(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Task
+          <Button size="sm" className="h-8" onClick={() => setShowAddTask(true)}>
+            <Plus className="h-4 w-4" />
+            <span className="ml-2 hidden sm:inline">Add Task</span>
           </Button>
         </div>
       </div>
@@ -329,7 +329,7 @@ export function CalendarView() {
               Create New Task
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             {/* Task Type Toggle */}
             <div className="flex gap-2">
@@ -427,17 +427,17 @@ export function CalendarView() {
             {/* Quick date buttons */}
             {!newTaskIsHabit && (
               <div className="flex gap-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   size="sm"
                   onClick={() => setNewTaskDueDate(new Date().toISOString().split('T')[0])}
                 >
                   Today
                 </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   size="sm"
                   onClick={() => {
                     const tomorrow = new Date()
@@ -447,9 +447,9 @@ export function CalendarView() {
                 >
                   Tomorrow
                 </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   size="sm"
                   onClick={() => {
                     const nextWeek = new Date()
@@ -481,12 +481,14 @@ export function CalendarView() {
         <Card>
           <CardContent className="p-4">
             <Tabs defaultValue="upcoming">
-              <TabsList className="grid w-full grid-cols-4 mb-4">
-                <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-                <TabsTrigger value="today">Today</TabsTrigger>
-                <TabsTrigger value="overdue" className="text-red-500">Overdue</TabsTrigger>
-                <TabsTrigger value="completed">Done</TabsTrigger>
-              </TabsList>
+              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:grid-cols-4 mb-4">
+                  <TabsTrigger value="upcoming" className="text-xs sm:text-sm px-2 sm:px-3">Upcoming</TabsTrigger>
+                  <TabsTrigger value="today" className="text-xs sm:text-sm px-2 sm:px-3">Today</TabsTrigger>
+                  <TabsTrigger value="overdue" className="text-xs sm:text-sm px-2 sm:px-3 text-red-500">Overdue</TabsTrigger>
+                  <TabsTrigger value="completed" className="text-xs sm:text-sm px-2 sm:px-3">Done</TabsTrigger>
+                </TabsList>
+              </div>
 
               <TabsContent value="upcoming" className="space-y-2">
                 {tasks
@@ -545,7 +547,7 @@ export function CalendarView() {
 
       {/* Calendar View */}
       {viewMode === 'calendar' && (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div className="flex flex-col-reverse lg:grid lg:grid-cols-4 gap-4">
           {/* Main Calendar */}
           <Card className="lg:col-span-3">
             <CardContent className="p-4">
@@ -558,7 +560,7 @@ export function CalendarView() {
                   <Button variant="outline" size="icon" onClick={nextMonth}>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
-                  <h2 className="text-xl font-semibold ml-2">
+                  <h2 className="text-lg sm:text-xl font-semibold ml-2">
                     {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                   </h2>
                 </div>
@@ -568,141 +570,73 @@ export function CalendarView() {
               </div>
 
               {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
                 {/* Day headers */}
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                  <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
-                    {day}
+                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+                  <div key={i} className="text-center text-[10px] sm:text-sm font-medium text-muted-foreground py-1 sm:py-2">
+                    <span className="sm:hidden">{day}</span>
+                    <span className="hidden sm:inline">{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][i]}</span>
                   </div>
                 ))}
 
                 {/* Calendar days */}
                 {calendarDays.map((day, index) => {
                   if (day === null) {
-                    return <div key={`empty-${index}`} className="h-24 bg-muted/20 rounded-lg" />
+                    return <div key={`empty-${index}`} className="h-14 sm:h-24 bg-muted/20 rounded-lg" />
                   }
 
-                  const dayTasks = getTasksForDate(day)
-                  const hasHighPriority = dayTasks.some(t => t.priority === 'high' && !t.completed)
-                  const hasMediumPriority = dayTasks.some(t => t.priority === 'medium' && !t.completed)
-                  const hasLowPriority = dayTasks.some(t => t.priority === 'low' && !t.completed)
-                  const hasHabits = dayTasks.some(t => t.is_habit)
-                  const allCompleted = dayTasks.length > 0 && dayTasks.every(t => t.completed)
-                  const dateStr = getDateString(day)
+                  const dateStr = day.toISOString().split('T')[0]
                   const isSelected = selectedDate === dateStr
-                  const hasTasks = dayTasks.length > 0
+                  const dayTasks = tasks.filter(t => t.date?.startsWith(dateStr))
+                  const isToday = new Date().toISOString().split('T')[0] === dateStr
+                  const allCompleted = dayTasks.length > 0 && dayTasks.every(t => t.completed)
+                  const bgClass = isSelected ? 'bg-primary/5 ring-1 ring-primary inset-0 z-10' : 'hover:bg-muted/50'
 
                   return (
-                    <Tooltip key={day}>
-                      <TooltipTrigger asChild>
-                        <div
-                          className={`h-24 p-2 rounded-lg border cursor-pointer transition-all relative ${
-                            isToday(day) 
-                              ? 'bg-primary/10 border-primary ring-2 ring-primary/20' 
-                              : isSelected
-                                ? 'bg-accent border-accent-foreground/20'
-                                : isPast(day) 
-                                  ? 'bg-muted/30 border-transparent' 
-                                  : 'bg-card hover:bg-accent/50 border-border'
-                          }`}
-                          onClick={() => setSelectedDate(dateStr)}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-1">
-                              <span className={`text-sm font-medium ${
-                                isToday(day) ? 'text-primary' : isPast(day) ? 'text-muted-foreground' : ''
-                              }`}>
-                                {day}
-                              </span>
-                              {/* Prominent dot indicator */}
-                              {hasTasks && !allCompleted && (
-                                <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${
-                                  hasHighPriority ? 'bg-red-500' : 
-                                  hasMediumPriority ? 'bg-yellow-500' : 
-                                  hasLowPriority ? 'bg-green-500' : 
-                                  'bg-purple-500'
-                                }`} />
-                              )}
-                            </div>
-                            {dayTasks.length > 0 && (
-                              <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
-                                {dayTasks.length}
-                              </Badge>
-                            )}
-                          </div>
+                    <div
+                      key={dateStr}
+                      onClick={() => setSelectedDate(dateStr)}
+                      className={`
+                        h-14 sm:h-24 p-0.5 sm:p-2 bg-background cursor-pointer transition-all relative group min-w-0 border rounded-lg overflow-hidden
+                        ${bgClass}
+                      `}
+                    >
+                      <div className="flex justify-between items-start">
+                        <span className={`
+                          text-[10px] sm:text-sm font-medium w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full
+                          ${isToday ? 'bg-primary text-primary-foreground' : 'text-foreground'}
+                        `}>
+                          {day.getDate()}
+                        </span>
+                        {dayTasks.length > 0 && (
+                          <span className="hidden sm:flex h-4 w-4 bg-primary/10 text-primary text-[10px] rounded-full items-center justify-center">
+                            {dayTasks.length}
+                          </span>
+                        )}
+                      </div>
 
-                          {/* Task preview (first 2) */}
-                          <div className="mt-1 space-y-0.5 overflow-hidden">
-                            {dayTasks.slice(0, 2).map(task => (
-                              <div 
-                                key={task.id} 
-                                className={`text-[10px] truncate px-1 py-0.5 rounded flex items-center gap-1 ${
-                                  task.completed 
-                                    ? 'bg-muted text-muted-foreground line-through' 
-                                    : task.is_habit
-                                      ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
-                                      : task.priority === 'high'
-                                        ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                                        : task.priority === 'medium'
-                                          ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
-                                          : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                                }`}
-                              >
-                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                  task.is_habit ? 'bg-purple-500' : getPriorityColor(task.priority)
-                                }`} />
-                                <span className="truncate">{task.title}</span>
-                              </div>
-                            ))}
-                            {dayTasks.length > 2 && (
-                              <div className="text-[10px] text-muted-foreground pl-1">
-                                +{dayTasks.length - 2} more
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Completed checkmark */}
-                          {allCompleted && dayTasks.length > 0 && (
-                            <div className="absolute bottom-1 right-1">
-                              <Check className="w-4 h-4 text-green-500" />
-                            </div>
-                          )}
-                        </div>
-                      </TooltipTrigger>
-                      {dayTasks.length > 0 && (
-                        <TooltipContent side="right" className="max-w-[280px] p-3">
-                          <div className="space-y-2">
-                            <p className="font-semibold text-sm border-b pb-1">
-                              {new Date(year, month, day).toLocaleDateString('en-US', { 
-                                weekday: 'long', month: 'short', day: 'numeric' 
-                              })}
-                            </p>
-                            {dayTasks.map(task => (
-                              <div key={task.id} className="flex items-start gap-2 text-xs">
-                                <span className={`w-2 h-2 rounded-full mt-1 shrink-0 ${
-                                  task.is_habit ? 'bg-purple-500' : getPriorityColor(task.priority)
-                                }`} />
-                                <div>
-                                  <span className={`font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
-                                    {task.title}
-                                  </span>
-                                  {task.description && (
-                                    <p className="text-muted-foreground text-[10px] mt-0.5">{task.description}</p>
-                                  )}
-                                </div>
-                                {task.is_habit && <Repeat className="h-3 w-3 text-purple-500 shrink-0" />}
-                              </div>
-                            ))}
-                          </div>
-                        </TooltipContent>
-                      )}
-                    </Tooltip>
+                      <div className="mt-1 flex flex-wrap gap-0.5 content-end">
+                        {dayTasks.slice(0, 4).map((task, i) => (
+                          <div
+                            key={task.id}
+                            className={`
+                              w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full
+                              ${task.completed ? 'bg-green-500' : 'bg-blue-500'}
+                            `}
+                          />
+                        ))}
+                        {dayTasks.length > 4 && (
+                          <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-muted-foreground" />
+                        )}
+                      </div>
+                    </div>
                   )
                 })}
-              </div>
+
+              </div >
 
               {/* Legend */}
-              <div className="flex items-center gap-4 mt-4 pt-4 border-t text-xs text-muted-foreground">
+              < div className="flex items-center gap-4 mt-4 pt-4 border-t text-xs text-muted-foreground" >
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
                   High
@@ -719,135 +653,132 @@ export function CalendarView() {
                   <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
                   Habit
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </div >
+            </CardContent >
+          </Card >
 
-        {/* Sidebar - Selected Date Details */}
-        <Card>
-          <CardContent className="p-4">
-            <h3 className="font-semibold mb-3">
-              {selectedDate 
-                ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { 
-                    weekday: 'long', month: 'long', day: 'numeric' 
+          {/* Sidebar - Selected Date Details */}
+          < Card >
+            <CardContent className="p-4">
+              <h3 className="font-semibold mb-3">
+                {selectedDate
+                  ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
+                    weekday: 'long', month: 'long', day: 'numeric'
                   })
-                : 'Select a date'
-              }
-            </h3>
+                  : 'Select a date'
+                }
+              </h3>
 
-            {selectedDate ? (
-              selectedDateTasks.length > 0 ? (
-                <div className="space-y-2">
-                  {selectedDateTasks.map(task => (
-                    <div 
-                      key={task.id} 
-                      className={`p-3 rounded-lg border ${
-                        task.completed 
-                          ? 'bg-muted/30' 
+              {selectedDate ? (
+                selectedDateTasks.length > 0 ? (
+                  <div className="space-y-2">
+                    {selectedDateTasks.map(task => (
+                      <div
+                        key={task.id}
+                        className={`p - 3 rounded - lg border ${task.completed
+                          ? 'bg-muted/30'
                           : task.is_habit
                             ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800'
                             : task.priority === 'high'
                               ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
                               : 'bg-card'
-                      }`}
-                    >
-                      <div className="flex items-start gap-2">
-                        <div className={`w-2 h-2 rounded-full mt-1.5 ${
-                          task.is_habit ? 'bg-purple-500' : getPriorityColor(task.priority)
-                        }`} />
-                        <div className="flex-1 min-w-0">
-                          <p className={`font-medium text-sm ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
-                            {task.title}
-                          </p>
-                          {task.description && (
-                            <p className="text-xs text-muted-foreground mt-1">{task.description}</p>
-                          )}
-                          <div className="flex items-center gap-2 mt-2">
-                            {task.is_habit ? (
-                              <Badge variant="secondary" className="text-purple-600 bg-purple-100 dark:bg-purple-900/30">
-                                <Repeat className="h-3 w-3 mr-1" />
-                                {task.frequency}
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary" className={`text-xs ${
-                                task.priority === 'high' ? 'text-red-600 bg-red-100 dark:bg-red-900/30' :
-                                task.priority === 'medium' ? 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30' :
-                                'text-green-600 bg-green-100 dark:bg-green-900/30'
-                              }`}>
-                                <Flag className="h-3 w-3 mr-1" />
-                                {task.priority}
-                              </Badge>
+                          } `}
+                      >
+                        <div className="flex items-start gap-2">
+                          <div className={`w - 2 h - 2 rounded - full mt - 1.5 ${task.is_habit ? 'bg-purple-500' : getPriorityColor(task.priority)
+                            } `} />
+                          <div className="flex-1 min-w-0">
+                            <p className={`font - medium text - sm ${task.completed ? 'line-through text-muted-foreground' : ''} `}>
+                              {task.title}
+                            </p>
+                            {task.description && (
+                              <p className="text-xs text-muted-foreground mt-1">{task.description}</p>
                             )}
-                            {task.completed && (
-                              <Badge variant="secondary" className="text-green-600 bg-green-100 dark:bg-green-900/30">
-                                <Check className="h-3 w-3 mr-1" />
-                                Done
-                              </Badge>
-                            )}
-                            {task.streak && task.streak > 0 && (
-                              <Badge variant="secondary" className="text-orange-600 bg-orange-100 dark:bg-orange-900/30">
-                                <Flame className="h-3 w-3 mr-1" />
-                                {task.streak}
-                              </Badge>
-                            )}
+                            <div className="flex items-center gap-2 mt-2">
+                              {task.is_habit ? (
+                                <Badge variant="secondary" className="text-purple-600 bg-purple-100 dark:bg-purple-900/30">
+                                  <Repeat className="h-3 w-3 mr-1" />
+                                  {task.frequency}
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className={`text - xs ${task.priority === 'high' ? 'text-red-600 bg-red-100 dark:bg-red-900/30' :
+                                  task.priority === 'medium' ? 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30' :
+                                    'text-green-600 bg-green-100 dark:bg-green-900/30'
+                                  } `}>
+                                  <Flag className="h-3 w-3 mr-1" />
+                                  {task.priority}
+                                </Badge>
+                              )}
+                              {task.completed && (
+                                <Badge variant="secondary" className="text-green-600 bg-green-100 dark:bg-green-900/30">
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Done
+                                </Badge>
+                              )}
+                              {task.streak && task.streak > 0 && (
+                                <Badge variant="secondary" className="text-orange-600 bg-orange-100 dark:bg-orange-900/30">
+                                  <Flame className="h-3 w-3 mr-1" />
+                                  {task.streak}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Clock className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No tasks for this day</p>
+                  </div>
+                )
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  <Clock className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">No tasks for this day</p>
+                  <Calendar className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">Click a date to see tasks</p>
                 </div>
-              )
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Calendar className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">Click a date to see tasks</p>
-              </div>
-            )}
+              )}
 
-            {/* Upcoming tasks */}
-            <div className="mt-6 pt-4 border-t">
-              <h4 className="font-medium text-sm mb-2">Upcoming</h4>
-              <div className="space-y-2">
-                {tasks
-                  .filter(t => t.due_date && !t.completed && !t.is_habit)
-                  .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())
-                  .slice(0, 5)
-                  .map(task => (
-                    <div key={task.id} className="flex items-center gap-2 text-xs">
-                      <span className={`w-1.5 h-1.5 rounded-full ${getPriorityColor(task.priority)}`} />
-                      <span className="truncate flex-1">{task.title}</span>
-                      <span className="text-muted-foreground shrink-0">
-                        {new Date(task.due_date!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </span>
-                    </div>
-                  ))
-                }
-                {tasks.filter(t => t.due_date && !t.completed && !t.is_habit).length === 0 && (
-                  <p className="text-xs text-muted-foreground">No upcoming tasks</p>
-                )}
+              {/* Upcoming tasks */}
+              <div className="mt-6 pt-4 border-t">
+                <h4 className="font-medium text-sm mb-2">Upcoming</h4>
+                <div className="space-y-2">
+                  {tasks
+                    .filter(t => t.due_date && !t.completed && !t.is_habit)
+                    .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())
+                    .slice(0, 5)
+                    .map(task => (
+                      <div key={task.id} className="flex items-center gap-2 text-xs">
+                        <span className={`w - 1.5 h - 1.5 rounded - full ${getPriorityColor(task.priority)} `} />
+                        <span className="truncate flex-1">{task.title}</span>
+                        <span className="text-muted-foreground shrink-0">
+                          {new Date(task.due_date!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                    ))
+                  }
+                  {tasks.filter(t => t.due_date && !t.completed && !t.is_habit).length === 0 && (
+                    <p className="text-xs text-muted-foreground">No upcoming tasks</p>
+                  )}
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        </div>
+            </CardContent>
+          </Card >
+        </div >
       )}
-    </div>
+    </div >
   )
 }
 
 // Helper components
-function TaskItem({ 
-  task, 
-  onToggle, 
-  onDelete, 
+function TaskItem({
+  task,
+  onToggle,
+  onDelete,
   getPriorityColor,
-  isOverdue 
-}: { 
+  isOverdue
+}: {
   task: Task
   onToggle: (id: string) => void
   onDelete: (id: string) => void
@@ -855,37 +786,35 @@ function TaskItem({
   isOverdue?: boolean
 }) {
   return (
-    <div className={`p-3 rounded-lg border flex items-center gap-3 group ${
-      task.completed 
-        ? 'bg-muted/30' 
-        : isOverdue
-          ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-          : task.priority === 'high'
-            ? 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'
-            : 'bg-card'
-    }`}>
+    <div className={`p - 3 rounded - lg border flex items - center gap - 3 group ${task.completed
+      ? 'bg-muted/30'
+      : isOverdue
+        ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+        : task.priority === 'high'
+          ? 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'
+          : 'bg-card'
+      } `}>
       <Button
         variant="outline"
         size="icon"
-        className={`h-6 w-6 rounded-full shrink-0 ${
-          task.completed ? 'bg-green-500 text-white border-green-500' : ''
-        }`}
+        className={`h - 6 w - 6 rounded - full shrink - 0 ${task.completed ? 'bg-green-500 text-white border-green-500' : ''
+          } `}
         onClick={() => onToggle(task.id)}
       >
         {task.completed && <Check className="h-3 w-3" />}
       </Button>
-      
+
       <div className="flex-1 min-w-0">
-        <p className={`font-medium text-sm ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+        <p className={`font - medium text - sm ${task.completed ? 'line-through text-muted-foreground' : ''} `}>
           {task.title}
         </p>
         <div className="flex items-center gap-2 mt-1">
-          <span className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`} />
+          <span className={`w - 2 h - 2 rounded - full ${getPriorityColor(task.priority)} `} />
           <span className="text-xs text-muted-foreground capitalize">{task.priority}</span>
           {task.due_date && (
             <>
               <span className="text-muted-foreground">•</span>
-              <span className={`text-xs ${isOverdue ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}>
+              <span className={`text - xs ${isOverdue ? 'text-red-500 font-medium' : 'text-muted-foreground'} `}>
                 {new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </span>
             </>

@@ -99,7 +99,7 @@ export function TaskList() {
         .single()
 
       if (error) throw error
-      
+
       setTasks(prev => {
         const updated = [data, ...prev]
         return updated.sort((a, b) => {
@@ -133,28 +133,28 @@ export function TaskList() {
     const isCompleting = !task.completed
 
     try {
-      let updateData: any = { 
-        completed: isCompleting, 
-        updated_at: new Date().toISOString() 
+      let updateData: any = {
+        completed: isCompleting,
+        updated_at: new Date().toISOString()
       }
 
       // Handle habit streak logic
       if (task.is_habit && isCompleting) {
         const lastCompleted = task.last_completed
         let newStreak = (task.streak || 0) + 1
-        
+
         // Check if streak should continue or reset
         if (lastCompleted) {
           const lastDate = new Date(lastCompleted)
           const todayDate = new Date(today)
           const diffDays = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
-          
+
           // Reset streak if more than 1 day gap (for daily habits)
           if (task.frequency === 'daily' && diffDays > 1) {
             newStreak = 1
           }
         }
-        
+
         updateData.streak = newStreak
         updateData.best_streak = Math.max(newStreak, task.best_streak || 0)
         updateData.last_completed = today
@@ -168,7 +168,7 @@ export function TaskList() {
 
       if (error) throw error
 
-      setTasks(prev => prev.map(t => 
+      setTasks(prev => prev.map(t =>
         t.id === taskId ? { ...t, ...updateData } : t
       ))
     } catch (err) {
@@ -226,7 +226,7 @@ export function TaskList() {
         const endDate = new Date(dueDate)
         endDate.setHours(endDate.getHours() + 1)
         const endStr = endDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
-        
+
         return [
           'BEGIN:VEVENT',
           `UID:${task.id}@kingslive`,
@@ -310,7 +310,7 @@ export function TaskList() {
     const lastDay = new Date(year, month + 1, 0)
     const daysInMonth = lastDay.getDate()
     const startingDay = firstDay.getDay()
-    
+
     const days: (number | null)[] = []
     for (let i = 0; i < startingDay; i++) days.push(null)
     for (let i = 1; i <= daysInMonth; i++) days.push(i)
@@ -324,9 +324,9 @@ export function TaskList() {
 
   const isToday = (day: number) => {
     const today = new Date()
-    return day === today.getDate() && 
-           calendarMonth.getMonth() === today.getMonth() && 
-           calendarMonth.getFullYear() === today.getFullYear()
+    return day === today.getDate() &&
+      calendarMonth.getMonth() === today.getMonth() &&
+      calendarMonth.getFullYear() === today.getFullYear()
   }
 
   const prevMonth = () => {
@@ -338,9 +338,9 @@ export function TaskList() {
   }
 
   return (
-    <Card className="w-full">
+    <Card className="w-full max-w-full overflow-x-hidden">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <CardTitle>Tasks</CardTitle>
             <CardDescription>
@@ -354,9 +354,9 @@ export function TaskList() {
             </CardDescription>
           </div>
           <div className="flex gap-1">
-            <Button 
-              variant={showCalendar ? "default" : "ghost"} 
-              size="sm" 
+            <Button
+              variant={showCalendar ? "default" : "ghost"}
+              size="sm"
               onClick={() => setShowCalendar(!showCalendar)}
               title="Calendar View"
             >
@@ -393,22 +393,20 @@ export function TaskList() {
                 const dayTasks = day ? getTasksForDate(day) : []
                 const hasHighPriority = dayTasks.some(t => t.priority === 'high')
                 const hasTasks = dayTasks.length > 0
-                
+
                 return (
                   <div
                     key={i}
-                    className={`relative h-8 flex items-center justify-center text-xs rounded-md transition-colors ${
-                      day === null ? '' :
-                      isToday(day) ? 'bg-primary text-primary-foreground font-bold' :
-                      hasTasks ? 'bg-muted hover:bg-muted/80 cursor-pointer' : 'hover:bg-muted/50'
-                    }`}
+                    className={`relative h-8 flex items-center justify-center text-xs rounded-md transition-colors ${day === null ? '' :
+                        isToday(day) ? 'bg-primary text-primary-foreground font-bold' :
+                          hasTasks ? 'bg-muted hover:bg-muted/80 cursor-pointer' : 'hover:bg-muted/50'
+                      }`}
                     title={day && hasTasks ? dayTasks.map(t => t.title).join(', ') : undefined}
                   >
                     {day}
                     {hasTasks && (
-                      <span className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${
-                        hasHighPriority ? 'bg-red-500' : 'bg-blue-500'
-                      }`} />
+                      <span className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${hasHighPriority ? 'bg-red-500' : 'bg-blue-500'
+                        }`} />
                     )}
                   </div>
                 )
@@ -439,9 +437,9 @@ export function TaskList() {
 
         {/* Add task button or form */}
         {!showAddForm ? (
-          <Button 
-            onClick={() => setShowAddForm(true)} 
-            variant="outline" 
+          <Button
+            onClick={() => setShowAddForm(true)}
+            variant="outline"
             className="w-full mb-4 border-dashed"
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -457,7 +455,7 @@ export function TaskList() {
               className="text-base"
               autoFocus
             />
-            
+
             {/* Description (optional) */}
             <Input
               placeholder="Add details (optional)"
@@ -561,9 +559,9 @@ export function TaskList() {
 
             {/* Action buttons */}
             <div className="flex gap-2 pt-2">
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   setShowAddForm(false)
                   setNewTaskTitle("")
@@ -574,9 +572,9 @@ export function TaskList() {
               >
                 Cancel
               </Button>
-              <Button 
-                onClick={addTask} 
-                size="sm" 
+              <Button
+                onClick={addTask}
+                size="sm"
                 disabled={isSaving || !newTaskTitle.trim()}
                 className="flex-1"
               >
@@ -588,18 +586,20 @@ export function TaskList() {
         )}
 
         <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5 mb-4">
-            <TabsTrigger value="all">Tasks</TabsTrigger>
-            <TabsTrigger value="habits" className="text-purple-600">
-              <Repeat className="h-3 w-3 mr-1" />
-              Habits
-            </TabsTrigger>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="high" className="text-red-500">
-              🔥
-            </TabsTrigger>
-            <TabsTrigger value="completed">Done</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto pb-2 mb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:pb-0 sm:mb-4 no-scrollbar">
+            <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:grid-cols-5 h-auto p-1 bg-muted/50 rounded-xl">
+              <TabsTrigger value="all" className="flex-1 px-3 py-1.5 text-xs sm:text-sm">Tasks</TabsTrigger>
+              <TabsTrigger value="habits" className="flex-1 px-3 py-1.5 text-xs sm:text-sm text-purple-600">
+                <Repeat className="h-3 w-3 mr-1 inline" />
+                Habits
+              </TabsTrigger>
+              <TabsTrigger value="active" className="flex-1 px-3 py-1.5 text-xs sm:text-sm">Active</TabsTrigger>
+              <TabsTrigger value="high" className="flex-1 px-3 py-1.5 text-xs sm:text-sm text-red-500">
+                <span className="mr-1">🔥</span> High
+              </TabsTrigger>
+              <TabsTrigger value="completed" className="flex-1 px-3 py-1.5 text-xs sm:text-sm">Done</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value={activeTab} className="mt-0">
             {isLoading ? (
@@ -609,10 +609,10 @@ export function TaskList() {
             ) : filteredTasks.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <p className="text-sm">
-                  {activeTab === "completed" ? "No completed tasks yet" : 
-                   activeTab === "high" ? "No high priority tasks 🎉" :
-                   activeTab === "habits" ? "No habits yet. Build your routine!" :
-                   "No tasks yet. Add one above!"}
+                  {activeTab === "completed" ? "No completed tasks yet" :
+                    activeTab === "high" ? "No high priority tasks 🎉" :
+                      activeTab === "habits" ? "No habits yet. Build your routine!" :
+                        "No tasks yet. Add one above!"}
                 </p>
               </div>
             ) : (
@@ -620,30 +620,28 @@ export function TaskList() {
                 {filteredTasks.map(task => (
                   <div
                     key={task.id}
-                    className={`flex items-center p-3 rounded-lg border transition-all ${
-                      task.is_habit
+                    className={`flex items-center p-3 rounded-lg border transition-all ${task.is_habit
                         ? isHabitCompletedToday(task)
                           ? "bg-purple-50/50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800"
                           : "bg-purple-50/30 dark:bg-purple-900/10 border-purple-100 dark:border-purple-900/30"
-                        : task.completed 
-                          ? "bg-muted/30 border-muted" 
-                          : task.priority === "high" 
-                            ? "bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30" 
+                        : task.completed
+                          ? "bg-muted/30 border-muted"
+                          : task.priority === "high"
+                            ? "bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30"
                             : "bg-card hover:bg-accent/5"
-                    }`}
+                      }`}
                   >
                     <Button
                       variant="outline"
                       size="icon"
-                      className={`h-6 w-6 rounded-full mr-3 shrink-0 ${
-                        task.is_habit 
+                      className={`h-6 w-6 rounded-full mr-3 shrink-0 ${task.is_habit
                           ? isHabitCompletedToday(task)
                             ? "bg-purple-500 text-white border-purple-500"
                             : "border-purple-300 hover:bg-purple-100"
-                          : task.completed 
-                            ? "bg-primary text-primary-foreground border-primary" 
+                          : task.completed
+                            ? "bg-primary text-primary-foreground border-primary"
                             : ""
-                      }`}
+                        }`}
                       onClick={() => toggleTaskCompletion(task.id)}
                     >
                       {(task.completed || (task.is_habit && isHabitCompletedToday(task))) && <Check className="h-3 w-3" />}

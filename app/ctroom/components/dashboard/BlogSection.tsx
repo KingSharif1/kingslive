@@ -139,61 +139,61 @@ export function BlogSection({ addToast }: BlogSectionProps) {
   const totalPending = comments.filter(c => !c.approved && !c.archived && !c.flagged).length
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Newspaper className="h-6 w-6" />
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <Newspaper className="h-5 w-5 sm:h-6 sm:w-6" />
             Blog Management
           </h1>
-          <p className="text-sm text-muted-foreground">Manage your posts and comments in one place</p>
+          <p className="text-xs sm:text-sm text-muted-foreground">Manage your posts and comments</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => { fetchPosts(); fetchComments(); }}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingPosts || isLoadingComments ? 'animate-spin' : ''}`} />
-            Refresh
+            <RefreshCw className={`h-4 w-4 ${isLoadingPosts || isLoadingComments ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline ml-2">Refresh</span>
           </Button>
           <Button size="sm" onClick={() => window.open('https://kingslive.sanity.studio/structure/post', '_blank')}>
-            <PenLine className="h-4 w-4 mr-2" />
-            New Post
-            <ExternalLink className="h-3 w-3 ml-1 opacity-50" />
+            <PenLine className="h-4 w-4" />
+            <span className="hidden sm:inline ml-2">New Post</span>
+            <ExternalLink className="h-3 w-3 ml-1 opacity-50 hidden sm:inline" />
           </Button>
         </div>
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 border-blue-200/50 dark:border-blue-800/50">
-          <CardContent className="p-4">
+          <CardContent className="p-2 sm:p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground">Total Posts</p>
-                <p className="text-2xl font-bold">{posts.length}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">Posts</p>
+                <p className="text-lg sm:text-2xl font-bold">{posts.length}</p>
               </div>
-              <FileText className="h-8 w-8 text-blue-500/50" />
+              <FileText className="h-5 w-5 sm:h-8 sm:w-8 text-blue-500/50" />
             </div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-950/30 dark:to-green-900/20 border-green-200/50 dark:border-green-800/50">
-          <CardContent className="p-4">
+          <CardContent className="p-2 sm:p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground">Total Comments</p>
-                <p className="text-2xl font-bold">{comments.filter(c => !c.archived).length}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">Comments</p>
+                <p className="text-lg sm:text-2xl font-bold">{comments.filter(c => !c.archived).length}</p>
               </div>
-              <MessageCircle className="h-8 w-8 text-green-500/50" />
+              <MessageCircle className="h-5 w-5 sm:h-8 sm:w-8 text-green-500/50" />
             </div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-950/30 dark:to-orange-900/20 border-orange-200/50 dark:border-orange-800/50">
-          <CardContent className="p-4">
+          <CardContent className="p-2 sm:p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground">Pending Review</p>
-                <p className="text-2xl font-bold">{totalPending}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">Pending</p>
+                <p className="text-lg sm:text-2xl font-bold">{totalPending}</p>
               </div>
-              <Clock className="h-8 w-8 text-orange-500/50" />
+              <Clock className="h-5 w-5 sm:h-8 sm:w-8 text-orange-500/50" />
             </div>
           </CardContent>
         </Card>
@@ -202,7 +202,7 @@ export function BlogSection({ addToast }: BlogSectionProps) {
       {/* Main Content - Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Posts List */}
-        <Card className="h-[500px] flex flex-col">
+        <Card className="h-[350px] sm:h-[500px] flex flex-col">
           <CardHeader className="pb-2 shrink-0">
             <CardTitle className="text-base flex items-center gap-2">
               <FileText className="h-4 w-4" />
@@ -261,7 +261,7 @@ export function BlogSection({ addToast }: BlogSectionProps) {
         </Card>
 
         {/* Comments for Selected Post */}
-        <Card className="h-[500px] flex flex-col">
+        <Card className="h-[350px] sm:h-[500px] flex flex-col">
           <CardHeader className="pb-2 shrink-0">
             <div className="flex items-center justify-between">
               <div>

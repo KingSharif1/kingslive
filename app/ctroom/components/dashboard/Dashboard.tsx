@@ -25,61 +25,61 @@ export function Dashboard({ addToast }: DashboardProps) {
   const searchParams = useSearchParams()
   const sectionParam = searchParams.get('section')
   const [activeSection, setActiveSection] = useState<string>(sectionParam || 'overview')
-  
+
   useEffect(() => {
     const newSection = searchParams.get('section') || 'overview'
     setActiveSection(newSection)
   }, [searchParams])
-  
+
   const { data: stats } = useStats()
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full max-w-full overflow-x-hidden">
       {activeSection === 'overview' && (
         <>
           {/* Quick Stats Row */}
-          <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-            <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/50 dark:to-blue-900/30 border-blue-200 dark:border-blue-800">
-              <CardContent className="p-4">
+          <div className="grid gap-2 sm:gap-3 grid-cols-2 lg:grid-cols-4">
+            <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/50 dark:to-blue-900/30 border-blue-200 dark:border-blue-800 shadow-sm">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-muted-foreground">Posts</p>
-                    <p className="text-2xl font-bold">{stats?.totalPosts || 0}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider font-semibold">Posts</p>
+                    <p className="text-xl sm:text-2xl font-bold">{stats?.totalPosts || 0}</p>
                   </div>
-                  <FileText className="h-8 w-8 text-blue-500 opacity-50" />
+                  <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 opacity-50" />
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-900/30 border-green-200 dark:border-green-800">
-              <CardContent className="p-4">
+            <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-900/30 border-green-200 dark:border-green-800 shadow-sm">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-muted-foreground">Published</p>
-                    <p className="text-2xl font-bold">{stats?.publishedPosts || 0}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider font-semibold">Published</p>
+                    <p className="text-xl sm:text-2xl font-bold">{stats?.publishedPosts || 0}</p>
                   </div>
-                  <FileText className="h-8 w-8 text-green-500 opacity-50" />
+                  <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 opacity-50" />
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/50 dark:to-purple-900/30 border-purple-200 dark:border-purple-800">
-              <CardContent className="p-4">
+            <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/50 dark:to-purple-900/30 border-purple-200 dark:border-purple-800 shadow-sm">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-muted-foreground">Comments</p>
-                    <p className="text-2xl font-bold">{stats?.totalComments || 0}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider font-semibold">Comments</p>
+                    <p className="text-xl sm:text-2xl font-bold">{stats?.totalComments || 0}</p>
                   </div>
-                  <MessageSquare className="h-8 w-8 text-purple-500 opacity-50" />
+                  <MessageSquare className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500 opacity-50" />
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/50 dark:to-orange-900/30 border-orange-200 dark:border-orange-800">
-              <CardContent className="p-4">
+            <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/50 dark:to-orange-900/30 border-orange-200 dark:border-orange-800 shadow-sm">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-muted-foreground">Pending</p>
-                    <p className="text-2xl font-bold">{stats?.pendingComments || 0}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider font-semibold">Pending</p>
+                    <p className="text-xl sm:text-2xl font-bold">{stats?.pendingComments || 0}</p>
                   </div>
-                  <Users className="h-8 w-8 text-orange-500 opacity-50" />
+                  <Users className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 opacity-50" />
                 </div>
               </CardContent>
             </Card>
