@@ -1,4 +1,3 @@
 {
-  "/api/assistant/route": "app/api/assistant/route.js",
   "/ctroom/page": "app/ctroom/page.js"
 }

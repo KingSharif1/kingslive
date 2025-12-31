@@ -3,11 +3,36 @@ import { createClient } from '@supabase/supabase-js'
 import { google } from 'googleapis'
 import { HfInference } from '@huggingface/inference'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
 const customSearch = google.customsearch('v1')
+
+// Helper function to estimate tokens (rough approximation: 1 token ≈ 4 characters)
+function estimateTokens(text: string): number {
+    return Math.ceil(text.length / 4);
+}
+
+// Helper function to track token usage
+async function trackTokenUsage(provider: string, model: string, inputText: string, outputText: string) {
+    try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        const totalTokens = estimateTokens(inputText) + estimateTokens(outputText)
+
+        await supabase.from('token_usage').insert([{
+            user_id: user.id,
+            provider,
+            model,
+            tokens: totalTokens,
+            request_type: 'chat'
+        }])
+    } catch (error) {
+        console.error('Error tracking token usage:', error)
+    }
+}
 
 // KING_INFO for context
 const KING_INFO = {
@@ -75,6 +100,12 @@ Current User Context: ${JSON.stringify(KING_INFO)}
     // 3. Notes Access
     if (query.toLowerCase().includes('idea') || query.toLowerCase().includes('note')) {
         thinkingSteps.push({ title: 'Checking Notes', status: 'pending', description: 'Querying Supabase...' })
+        
+        // Initialize Supabase client only when needed
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+        
         const { data: notes } = await supabase.from('ideas').select('*').order('created_at', { ascending: false }).limit(5)
         if (notes) {
             context += `\n\nRecent Notes:\n${JSON.stringify(notes)}\n\n`
@@ -107,6 +138,9 @@ Current User Context: ${JSON.stringify(KING_INFO)}
             })
             const data = await resp.json()
             generatedText = data.choices?.[0]?.message?.content || "OpenAI Response Error"
+            
+            // Track token usage
+            await trackTokenUsage('OpenAI', model, query, generatedText)
         } catch (e) {
             console.error(e)
             generatedText = "Error communicating with OpenAI."
@@ -128,6 +162,9 @@ Current User Context: ${JSON.stringify(KING_INFO)}
             })
             const data = await resp.json()
             generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Gemini Response Error"
+            
+            // Track token usage
+            await trackTokenUsage('Google', geminiModel, query, generatedText)
         } catch (e) {
             console.error(e)
             generatedText = "Error communicating with Gemini."
@@ -142,6 +179,9 @@ Current User Context: ${JSON.stringify(KING_INFO)}
                 parameters: { max_new_tokens: 500, return_full_text: false }
             })
             generatedText = response.generated_text
+            
+            // Track token usage
+            await trackTokenUsage('HuggingFace', 'mistralai/Mistral-7B-Instruct-v0.3', query, generatedText)
         } catch (e) {
             generatedText = "I'm having trouble connecting to my brain. (Check API Keys)"
         }
