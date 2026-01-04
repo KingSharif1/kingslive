@@ -46,6 +46,7 @@ const KING_INFO = {
 
 export async function POST(req: Request) {
   try {
+<<<<<<< Updated upstream
     const { messages, model, thinkingMode, tools } = await req.json()
     const lastMessage = messages[messages.length - 1]
     const query = lastMessage.content
@@ -116,10 +117,29 @@ Current User Context: ${JSON.stringify(KING_INFO)}
 
     // 4. Generate Response (Multi-Provider)
     thinkingSteps.push({ title: 'Formulating Answer', status: 'pending', description: `Using ${model}` })
+=======
+    const { message } = await req.json()
+    
+    // Check if the message is valid
+    if (!message || typeof message !== 'string') {
+      return NextResponse.json(
+        { error: 'Invalid message format' },
+        { status: 400 }
+      )
+    }
+
+    // Handle greetings differently
+    if (isGreeting(message)) {
+      return NextResponse.json({ 
+        message: "Hi there! 👋 What would you like to know about King Sharif? I can tell you about his skills, projects, education, or interests."
+      })
+    }
+>>>>>>> Stashed changes
     
     const sysPrompt = `${context}\n\nUser: ${query}`
     let generatedText = ""
 
+<<<<<<< Updated upstream
     // Provider Logic
     if (model.startsWith('gpt') && process.env.OPENAI_API_KEY) {
         // OpenAI
@@ -184,6 +204,31 @@ Current User Context: ${JSON.stringify(KING_INFO)}
             await trackTokenUsage('HuggingFace', 'mistralai/Mistral-7B-Instruct-v0.3', query, generatedText)
         } catch (e) {
             generatedText = "I'm having trouble connecting to my brain. (Check API Keys)"
+=======
+Here's some information about King Sharif:
+${JSON.stringify(KING_INFO)}
+
+User: ${message}
+Assistant:`
+    
+    console.log('Sending request to Hugging Face API...')
+    
+    // Fallback response in case API fails
+    let aiMessage = "I'm sorry, I couldn't process your request at the moment. King Sharif is a full-stack developer with expertise in React, Next.js, and TypeScript. Feel free to explore his portfolio or ask another question!"
+    
+    try {
+      // Call Hugging Face API with a simple model that should be available
+      const response = await hf.textGeneration({
+        model: 'gpt2', // Using a very basic model that should be available
+        inputs: prompt,
+        parameters: {
+          max_new_tokens: 100,
+          temperature: 0.5,
+          top_p: 0.9,
+          repetition_penalty: 1.2,
+          do_sample: true,
+          return_full_text: false
+>>>>>>> Stashed changes
         }
     }
 

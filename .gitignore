@@ -63,3 +63,7 @@ fix-imports.js
 
 #supabase
 supabase/*
+
+#nextjs
+.next
+.next/*
