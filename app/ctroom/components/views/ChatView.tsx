@@ -3,7 +3,7 @@
  * Simplified design - slick, cool, unique
  */
 import React, { useRef, useEffect, useState } from 'react';
-import { Bot, Send, Settings, ChevronDown, X, Zap, Brain, Sparkles, Volume2, Moon, Sun, Bell, Globe, Github, Code, Image as ImageIcon } from 'lucide-react';
+import { Bot, Send, Settings, ChevronDown, X, Zap, Brain, Sparkles, Volume2, Moon, Sun, Bell, Globe, Github, Code, Image as ImageIcon, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Message, AIModel, ChatTool, ChatSpeed, ChatContext, Task, Idea } from '../../types/index';
 import { ChatMessage } from '../chat/ChatMessage';
@@ -28,19 +28,22 @@ interface ChatViewProps {
     setChatInput: (val: string) => void;
     handleSendMessage: (model: string, tool: ChatTool, speed: ChatSpeed, context: ChatContext[]) => void;
     isTyping: boolean;
+    isTyping: boolean;
     tasks: Task[];
     ideas: Idea[];
+    apiKeys: { google?: string; github?: string; openai?: string; };
 }
 
-export const ChatView = ({ messages, chatInput, setChatInput, handleSendMessage, isTyping }: ChatViewProps) => {
+export const ChatView = ({ messages, chatInput, setChatInput, handleSendMessage, isTyping, apiKeys }: ChatViewProps) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    const [selectedModel, setSelectedModel] = useState(AI_MODELS[0]);
+    const [selectedModel, setSelectedModel] = useState(AI_MODELS[2]); // Default to Gemini
     const [selectedSpeed, setSelectedSpeed] = useState<ChatSpeed>('balanced');
     const [selectedTool, setSelectedTool] = useState<ChatTool>('none');
 
     const [showModelPicker, setShowModelPicker] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
+    const [showTools, setShowTools] = useState(false);
 
     // Settings state
     const [settings, setSettings] = useState({
@@ -67,39 +70,23 @@ export const ChatView = ({ messages, chatInput, setChatInput, handleSendMessage,
     const showWelcome = messages.length <= 1;
 
     return (
-        <div className="h-full flex flex-col bg-background relative">
+        <div className="h-full flex flex-col bg-background relative font-sans">
 
-            {/* Simple Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 bg-background/95 backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                    {/* Avatar */}
-                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                        <Bot className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                        <h1 className="font-semibold text-sm">Milo</h1>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                            Online
-                        </div>
-                    </div>
+            {/* Top Bar - Minimal */}
+            <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-6 py-4">
+                <div
+                    onClick={() => setShowModelPicker(!showModelPicker)}
+                    className="flex items-center gap-2 cursor-pointer opacity-70 hover:opacity-100 transition-opacity bg-background/50 backdrop-blur-md px-3 py-1.5 rounded-full"
+                >
+                    <span className="text-lg">{selectedModel.icon}</span>
+                    <span className="font-medium text-sm text-foreground/80">{selectedModel.name}</span>
+                    <ChevronDown className="w-3 h-3 text-muted-foreground" />
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {/* Model Picker */}
-                    <button
-                        onClick={() => setShowModelPicker(!showModelPicker)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary/50 hover:bg-secondary rounded-lg text-sm transition-colors"
-                    >
-                        <span>{selectedModel.icon}</span>
-                        <span className="hidden sm:inline text-muted-foreground">{selectedModel.name}</span>
-                        <ChevronDown className={cn("w-3.5 h-3.5 text-muted-foreground transition-transform", showModelPicker && "rotate-180")} />
-                    </button>
-
-                    {/* Settings */}
                     <button
                         onClick={() => setShowSettings(true)}
-                        className="p-2 hover:bg-secondary rounded-lg text-muted-foreground transition-colors"
+                        className="p-2 hover:bg-secondary/50 rounded-full text-muted-foreground transition-colors backdrop-blur-md"
                     >
                         <Settings className="w-5 h-5" />
                     </button>
@@ -112,29 +99,26 @@ export const ChatView = ({ messages, chatInput, setChatInput, handleSendMessage,
                     <>
                         <div className="fixed inset-0 z-40" onClick={() => setShowModelPicker(false)} />
                         <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="absolute right-4 top-16 w-56 bg-card border border-border rounded-xl shadow-2xl z-50 overflow-hidden"
+                            initial={{ opacity: 0, scale: 0.95, y: -20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                            className="absolute top-16 left-6 w-64 bg-popover/90 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl z-50 overflow-hidden"
                         >
-                            <div className="p-1.5">
+                            <div className="p-2 space-y-1">
                                 {AI_MODELS.map(model => (
                                     <button
                                         key={model.id}
                                         onClick={() => { setSelectedModel(model); setShowModelPicker(false); }}
                                         className={cn(
-                                            "w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors",
-                                            selectedModel.id === model.id ? "bg-primary/10" : "hover:bg-secondary"
+                                            "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all",
+                                            selectedModel.id === model.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                                         )}
                                     >
                                         <span className="text-xl">{model.icon}</span>
-                                        <div className="flex-1 min-w-0">
+                                        <div>
                                             <div className="font-medium text-sm">{model.name}</div>
-                                            <div className="text-xs text-muted-foreground">{model.description}</div>
+                                            <div className="text-[10px] opacity-70">{model.description}</div>
                                         </div>
-                                        {selectedModel.id === model.id && (
-                                            <div className="w-2 h-2 bg-primary rounded-full" />
-                                        )}
                                     </button>
                                 ))}
                             </div>
@@ -151,7 +135,7 @@ export const ChatView = ({ messages, chatInput, setChatInput, handleSendMessage,
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black/40 z-50"
+                            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50"
                             onClick={() => setShowSettings(false)}
                         />
                         <motion.div
@@ -159,24 +143,24 @@ export const ChatView = ({ messages, chatInput, setChatInput, handleSendMessage,
                             animate={{ x: 0 }}
                             exit={{ x: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                            className="fixed right-0 top-0 bottom-0 w-80 bg-card border-l border-border shadow-2xl z-50 flex flex-col"
+                            className="fixed right-0 top-0 bottom-0 w-80 bg-background border-l border-border shadow-2xl z-50 flex flex-col"
                         >
-                            <div className="flex items-center justify-between p-4 border-b border-border/50">
-                                <h2 className="font-semibold">Settings</h2>
-                                <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-secondary rounded-lg">
+                            <div className="flex items-center justify-between p-6 border-b border-border/50">
+                                <h2 className="font-semibold text-lg">Chat Settings</h2>
+                                <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-secondary rounded-full">
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                            <div className="flex-1 overflow-y-auto p-6 space-y-8">
                                 {/* Response Speed */}
                                 <div>
-                                    <label className="text-sm font-medium text-muted-foreground mb-3 block">Response Mode</label>
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 block">Thinking Mode</label>
                                     <div className="space-y-2">
                                         {[
                                             { id: 'fast', icon: Zap, label: 'Fast', desc: 'Quick responses' },
-                                            { id: 'balanced', icon: Sparkles, label: 'Balanced', desc: 'Best for most tasks' },
-                                            { id: 'deep', icon: Brain, label: 'Deep', desc: 'Thorough analysis' },
+                                            { id: 'balanced', icon: Sparkles, label: 'Balanced', desc: 'Standard reasoning' },
+                                            { id: 'deep', icon: Brain, label: 'Deep', desc: 'Complex problem solving' },
                                         ].map(speed => (
                                             <button
                                                 key={speed.id}
@@ -184,81 +168,95 @@ export const ChatView = ({ messages, chatInput, setChatInput, handleSendMessage,
                                                 className={cn(
                                                     "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
                                                     selectedSpeed === speed.id
-                                                        ? "bg-primary/10 border-primary/30"
-                                                        : "border-border/50 hover:border-border"
+                                                        ? "bg-primary/5 border-primary/40 text-primary"
+                                                        : "border-border/50 text-muted-foreground hover:bg-secondary/50"
                                                 )}
                                             >
-                                                <speed.icon className={cn("w-5 h-5", selectedSpeed === speed.id ? "text-primary" : "text-muted-foreground")} />
+                                                <speed.icon className="w-5 h-5" />
                                                 <div className="flex-1">
                                                     <div className="font-medium text-sm">{speed.label}</div>
-                                                    <div className="text-xs text-muted-foreground">{speed.desc}</div>
                                                 </div>
+                                                {selectedSpeed === speed.id && <div className="w-2 h-2 bg-primary rounded-full" />}
                                             </button>
                                         ))}
                                     </div>
                                 </div>
 
-                                {/* Tool Selection */}
+                                {/* Connections Status */}
                                 <div>
-                                    <label className="text-sm font-medium text-muted-foreground mb-3 block">Tools</label>
-                                    <div className="space-y-2">
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 block">Connections</label>
+                                    <div className="space-y-3">
                                         {[
-                                            { id: 'none', icon: X, label: 'None', desc: 'No tools' },
-                                            { id: 'search-web', icon: Globe, label: 'Web Search', desc: 'Search the internet' },
-                                            { id: 'github', icon: Github, label: 'GitHub', desc: 'Scan repositories' },
-                                            { id: 'write-code', icon: Code, label: 'Code Generation', desc: 'Write code' },
-                                            { id: 'analyze-images', icon: ImageIcon, label: 'Vision', desc: 'Analyze images' },
-                                        ].map(tool => (
-                                            <button
-                                                key={tool.id}
-                                                onClick={() => setSelectedTool(tool.id as ChatTool)}
-                                                className={cn(
-                                                    "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
-                                                    selectedTool === tool.id
-                                                        ? "bg-primary/10 border-primary/30"
-                                                        : "border-border/50 hover:border-border"
-                                                )}
-                                            >
-                                                <tool.icon className={cn("w-5 h-5", selectedTool === tool.id ? "text-primary" : "text-muted-foreground")} />
-                                                <div className="flex-1">
-                                                    <div className="font-medium text-sm">{tool.label}</div>
-                                                    <div className="text-xs text-muted-foreground">{tool.desc}</div>
+                                            {
+                                                id: 'internet',
+                                                icon: Globe,
+                                                label: 'Internet Access',
+                                                connected: !!(apiKeys?.google || process.env.NEXT_PUBLIC_GOOGLE_API_KEY)
+                                            },
+                                            {
+                                                id: 'github',
+                                                icon: Github,
+                                                label: 'GitHub Integration',
+                                                connected: !!(apiKeys?.github || process.env.NEXT_PUBLIC_GITHUB_TOKEN)
+                                            }
+                                        ].map(conn => (
+                                            <div key={conn.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-xl">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={cn(
+                                                        "w-8 h-8 rounded-full flex items-center justify-center",
+                                                        conn.connected ? "bg-emerald-500/10 text-emerald-500" : "bg-muted text-muted-foreground"
+                                                    )}>
+                                                        <conn.icon className="w-4 h-4" />
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm font-medium">{conn.label}</div>
+                                                        <div className={cn(
+                                                            "text-[10px] font-medium",
+                                                            conn.connected ? "text-emerald-500" : "text-muted-foreground"
+                                                        )}>
+                                                            {conn.connected ? 'Connected' : 'Not Connected'}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                {selectedTool === tool.id && (
-                                                    <div className="w-2 h-2 bg-primary rounded-full" />
-                                                )}
-                                            </button>
+                                                <div className={cn(
+                                                    "w-2 h-2 rounded-full",
+                                                    conn.connected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-zinc-400"
+                                                )} />
+                                            </div>
                                         ))}
                                     </div>
                                 </div>
 
-                                {/* Toggle Settings */}
-                                <div className="space-y-3">
-                                    {[
-                                        { key: 'soundEnabled', icon: Volume2, label: 'Sound Effects' },
-                                        { key: 'darkMode', icon: Moon, label: 'Dark Mode' },
-                                        { key: 'notifications', icon: Bell, label: 'Notifications' },
-                                        { key: 'streamResponses', icon: Sparkles, label: 'Stream Responses' },
-                                    ].map(item => (
-                                        <div key={item.key} className="flex items-center justify-between p-3 bg-secondary/30 rounded-xl">
-                                            <div className="flex items-center gap-3">
-                                                <item.icon className="w-4 h-4 text-muted-foreground" />
-                                                <span className="text-sm font-medium">{item.label}</span>
+                                {/* Preferences Toggles */}
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 block">Preferences</label>
+                                    <div className="space-y-3">
+                                        {[
+                                            { key: 'soundEnabled', icon: Volume2, label: 'Sound Effects' },
+                                            { key: 'darkMode', icon: Moon, label: 'Dark Mode' },
+                                            { key: 'notifications', icon: Bell, label: 'Notifications' },
+                                            { key: 'streamResponses', icon: Sparkles, label: 'Stream Responses' },
+                                        ].map(item => (
+                                            <div key={item.key} className="flex items-center justify-between p-3 bg-secondary/30 rounded-xl">
+                                                <div className="flex items-center gap-3">
+                                                    <item.icon className="w-4 h-4 text-muted-foreground" />
+                                                    <span className="text-sm font-medium">{item.label}</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => setSettings(prev => ({ ...prev, [item.key]: !prev[item.key as keyof typeof settings] }))}
+                                                    className={cn(
+                                                        "w-10 h-6 rounded-full transition-colors relative",
+                                                        settings[item.key as keyof typeof settings] ? "bg-primary" : "bg-muted"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform",
+                                                        settings[item.key as keyof typeof settings] ? "left-5" : "left-1"
+                                                    )} />
+                                                </button>
                                             </div>
-                                            <button
-                                                onClick={() => setSettings(prev => ({ ...prev, [item.key]: !prev[item.key as keyof typeof settings] }))}
-                                                className={cn(
-                                                    "w-10 h-6 rounded-full transition-colors relative",
-                                                    settings[item.key as keyof typeof settings] ? "bg-primary" : "bg-muted"
-                                                )}
-                                            >
-                                                <div className={cn(
-                                                    "absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform",
-                                                    settings[item.key as keyof typeof settings] ? "left-5" : "left-1"
-                                                )} />
-                                            </button>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </motion.div>
@@ -267,61 +265,111 @@ export const ChatView = ({ messages, chatInput, setChatInput, handleSendMessage,
             </AnimatePresence>
 
             {/* Chat Messages */}
-            <div className="flex-1 overflow-y-auto" ref={scrollRef}>
+            <div className="flex-1 overflow-y-auto pt-20" ref={scrollRef}>
                 {showWelcome ? (
-                    <div className="h-full flex flex-col items-center justify-center px-6 pb-20">
-                        <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-500/30 mb-6">
-                            <Sparkles className="w-8 h-8 text-white" />
+                    <div className="h-full flex flex-col items-center justify-center -mt-20 px-4">
+                        <div className="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                            <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 mb-4 text-center">
+                                Hello, King.
+                            </h1>
+                            <p className="text-xl md:text-2xl text-muted-foreground font-light text-center">
+                                How can I help you today?
+                            </p>
                         </div>
-                        <h2 className="text-xl font-bold text-center mb-2">Hey there 👋</h2>
-                        <p className="text-muted-foreground text-center mb-8 max-w-xs text-sm">
-                            I'm Milo. How can I help?
-                        </p>
 
-                        <div className="w-full max-w-xs space-y-2">
+                        <div className="w-full max-w-2xl grid grid-cols-1 sm:grid-cols-3 gap-3 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
                             {QUICK_PROMPTS.map((prompt, idx) => (
                                 <button
                                     key={idx}
                                     onClick={() => setChatInput(prompt)}
-                                    className="w-full p-3 bg-secondary/50 hover:bg-secondary border border-border/50 rounded-xl text-left text-sm font-medium transition-all hover:scale-[1.02]"
+                                    className="p-4 bg-secondary/30 hover:bg-secondary/60 border border-border/30 rounded-2xl text-left transition-all hover:-translate-y-1 hover:shadow-lg"
                                 >
-                                    {prompt}
+                                    <p className="font-medium text-sm">{prompt}</p>
                                 </button>
                             ))}
                         </div>
                     </div>
                 ) : (
-                    <div className="px-4 py-4 space-y-4 max-w-3xl mx-auto">
+                    <div className="px-4 pb-32 max-w-4xl mx-auto space-y-6">
                         {messages.map((msg) => (
                             <ChatMessage key={msg.id} message={msg} />
                         ))}
                         {isTyping && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="flex items-start gap-3"
-                            >
-                                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white shadow-sm flex-shrink-0">
-                                    <Bot className="w-4 h-4" />
+                            <div className="flex items-start gap-4 animate-in fade-in duration-300">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shrink-0 animate-pulse">
+                                    <Sparkles className="w-4 h-4 text-white" />
                                 </div>
-                                <div className="bg-secondary/50 rounded-2xl rounded-tl-sm px-4 py-3">
-                                    <div className="flex gap-1.5">
-                                        <div className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                        <div className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                        <div className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                                    </div>
+                                <div className="text-sm text-muted-foreground py-2 flex items-center gap-1">
+                                    Thinking <span className="animate-pulse">...</span>
                                 </div>
-                            </motion.div>
+                            </div>
                         )}
+                        <div className="h-4" /> {/* Spacer */}
                     </div>
                 )}
             </div>
 
-            {/* Input Area */}
-            <div className="p-4 bg-background border-t border-border/30">
-                <div className="max-w-3xl mx-auto">
-                    <div className="flex items-end gap-3">
-                        <div className="flex-1 bg-secondary/50 border border-border/50 rounded-2xl overflow-hidden focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10 transition-all">
+            {/* Input Floating Island */}
+            <div className="absolute bottom-6 left-0 right-0 px-4 flex justify-center z-20">
+                <div className="w-full max-w-3xl bg-secondary/80 backdrop-blur-xl border border-white/10 shadow-2xl rounded-3xl p-2 transition-all duration-300 ring-1 ring-black/5 dark:ring-white/10">
+                    <div className="flex flex-col gap-2">
+                        {/* Selected Tool / Context Indicator */}
+                        {selectedTool !== 'none' && (
+                            <div className="px-4 pt-2 flex items-center gap-2 text-xs text-primary font-medium">
+                                <div className="flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full">
+                                    {AI_MODELS.find(m => m.id === selectedModel.id)?.icon} Using {selectedTool}
+                                    <button onClick={() => setSelectedTool('none')} className="hover:bg-primary/20 rounded-full p-0.5 ml-1"><X className="w-3 h-3" /></button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex items-end gap-2 px-2 pb-1">
+                            {/* Tools / Plus Button */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowTools(!showTools)}
+                                    className={cn(
+                                        "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200",
+                                        showTools ? "bg-primary text-primary-foreground rotate-45" : "bg-secondary-foreground/5 hover:bg-secondary-foreground/10 text-muted-foreground"
+                                    )}
+                                >
+                                    <Plus className="w-5 h-5" />
+                                </button>
+
+                                <AnimatePresence>
+                                    {showTools && (
+                                        <>
+                                            <div className="fixed inset-0 z-0" onClick={() => setShowTools(false)} />
+                                            <motion.div
+                                                initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                                className="absolute bottom-14 left-0 w-48 bg-popover/95 backdrop-blur-xl border border-border/50 rounded-2xl shadow-xl z-10 overflow-hidden"
+                                            >
+                                                <div className="p-1.5 space-y-0.5">
+                                                    {[
+                                                        { id: 'search-web', icon: Globe, label: 'Search' },
+                                                        { id: 'github', icon: Github, label: 'GitHub' },
+                                                        { id: 'analyze-images', icon: ImageIcon, label: 'Upload Image' },
+                                                        { id: 'write-code', icon: Code, label: 'Code Mode' },
+                                                    ].map(tool => (
+                                                        <button
+                                                            key={tool.id}
+                                                            onClick={() => { setSelectedTool(tool.id as ChatTool); setShowTools(false); }}
+                                                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-secondary rounded-xl text-sm transition-colors text-left"
+                                                        >
+                                                            <div className="w-8 h-8 rounded-full bg-secondary/50 flex items-center justify-center text-muted-foreground">{tool.icon && <tool.icon className="w-4 h-4" />}</div>
+                                                            <span>{tool.label}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </motion.div>
+                                        </>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+
+                            {/* Text Input */}
                             <textarea
                                 ref={inputRef}
                                 value={chatInput}
@@ -332,28 +380,34 @@ export const ChatView = ({ messages, chatInput, setChatInput, handleSendMessage,
                                         onSend();
                                     }
                                 }}
-                                placeholder="Message Milo..."
-                                className="w-full bg-transparent border-0 focus:ring-0 px-4 py-3 text-sm placeholder:text-muted-foreground/50 resize-none"
+                                placeholder="Ask Milo anything..."
+                                className="flex-1 bg-transparent border-0 focus:ring-0 p-2.5 text-base placeholder:text-muted-foreground/50 resize-none max-h-32 min-h-[44px]"
                                 rows={1}
-                                style={{ minHeight: '48px', maxHeight: '120px' }}
                             />
-                        </div>
 
-                        <button
-                            onClick={onSend}
-                            disabled={!chatInput.trim()}
-                            className={cn(
-                                "p-3 rounded-xl transition-all flex-shrink-0",
-                                chatInput.trim()
-                                    ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30 hover:shadow-xl"
-                                    : "bg-secondary text-muted-foreground"
-                            )}
-                        >
-                            <Send className="w-5 h-5" />
-                        </button>
+                            {/* Send Button */}
+                            <button
+                                onClick={onSend}
+                                disabled={!chatInput.trim()}
+                                className={cn(
+                                    "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 mb-0.5",
+                                    chatInput.trim()
+                                        ? "bg-primary text-primary-foreground shadow-lg hover:scale-105"
+                                        : "text-muted-foreground/30"
+                                )}
+                            >
+                                <Send className="w-5 h-5 ml-0.5" />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            {/* Background Gradient Effect */}
+            <div className="absolute inset-0 z-0 pointer-events-none">
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/80" />
+            </div>
+
         </div>
     );
 };

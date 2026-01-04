@@ -1,13 +1,15 @@
 import React from 'react';
 import { Zap, TrendingUp, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { UsageStats } from '../../types/index';
 
 interface UsageWidgetProps {
     usage: UsageStats;
     onClick?: () => void;
+    apiKeys: { google?: string; github?: string; openai?: string; };
 }
 
-export const UsageWidget = ({ usage, onClick }: UsageWidgetProps) => {
+export const UsageWidget = ({ usage, onClick, apiKeys }: UsageWidgetProps) => {
     const totalPercentage = (usage.total.used / usage.total.limit) * 100;
     const totalTokens = usage.byProvider.reduce((sum, p) => sum + p.tokens, 0);
 
@@ -17,10 +19,13 @@ export const UsageWidget = ({ usage, onClick }: UsageWidgetProps) => {
         return 'from-indigo-500 to-purple-500';
     };
 
+    const isInternetConnected = !!(apiKeys?.google || process.env.NEXT_PUBLIC_GOOGLE_API_KEY);
+    const isGithubConnected = !!(apiKeys?.github || process.env.NEXT_PUBLIC_GITHUB_TOKEN);
+
     return (
         <button
             onClick={onClick}
-            className="w-full bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-4 rounded-2xl border border-indigo-500/10 relative overflow-hidden group hover:border-indigo-500/30 transition-all cursor-pointer"
+            className="w-full bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-4 rounded-2xl border border-indigo-500/10 relative overflow-hidden group hover:border-indigo-500/30 transition-all cursor-pointer text-left"
         >
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
 
@@ -28,26 +33,43 @@ export const UsageWidget = ({ usage, onClick }: UsageWidgetProps) => {
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                         <Zap className="w-4 h-4 text-indigo-500" />
-                        <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">Token Usage</span>
+                        <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">Usage & Connections</span>
                     </div>
                     <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
                 </div>
 
                 {/* Total Usage Bar */}
-                <div className="w-full bg-background/50 h-2 rounded-full overflow-hidden mb-2">
-                    <div
-                        className={`h-full bg-gradient-to-r ${getUsageColor(totalPercentage)} rounded-full transition-all duration-500`}
-                        style={{ width: `${Math.min(totalPercentage, 100)}%` }}
-                    />
+                <div className="mb-4">
+                    <div className="flex justify-between items-center text-[10px] text-muted-foreground mb-1.5">
+                        <span className="font-medium">Monthly Tokens</span>
+                        <span className="font-mono">{totalPercentage.toFixed(0)}%</span>
+                    </div>
+                    <div className="w-full bg-background/50 h-1.5 rounded-full overflow-hidden">
+                        <div
+                            className={`h-full bg-gradient-to-r ${getUsageColor(totalPercentage)} rounded-full transition-all duration-500`}
+                            style={{ width: `${Math.min(totalPercentage, 100)}%` }}
+                        />
+                    </div>
                 </div>
 
-                <div className="flex justify-between items-center text-[10px] text-muted-foreground">
-                    <span className="font-mono">{totalTokens.toLocaleString()} tokens</span>
-                    <span className="flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3" />
-                        {totalPercentage.toFixed(0)}%
-                    </span>
+                {/* Connections Mini-Status */}
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div className={cn(
+                        "bg-background/40 rounded-lg p-2 flex items-center gap-2 transition-colors",
+                        isInternetConnected ? "opacity-100" : "opacity-50 grayscale"
+                    )}>
+                        <div className={cn("w-2 h-2 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]", isInternetConnected ? "bg-emerald-500" : "bg-zinc-400 shadow-none")}></div>
+                        <span className="text-[10px] font-medium opacity-80">Internet</span>
+                    </div>
+                    <div className={cn(
+                        "bg-background/40 rounded-lg p-2 flex items-center gap-2 transition-colors",
+                        isGithubConnected ? "opacity-100" : "opacity-50 grayscale"
+                    )}>
+                        <div className={cn("w-2 h-2 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]", isGithubConnected ? "bg-emerald-500" : "bg-zinc-400 shadow-none")}></div>
+                        <span className="text-[10px] font-medium opacity-80">GitHub</span>
+                    </div>
                 </div>
+
             </div>
         </button>
     );

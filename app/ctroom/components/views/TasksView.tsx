@@ -4,19 +4,20 @@
  * - Clean list view like Todoist (default)
  * - Smart date grouping (Today, Tomorrow, Next 7 Days, etc.)
  * - Pinch/tap to zoom calendar (no zoom buttons)
- * - Functional sidebar navigation (Inbox, Today, Upcoming, Projects)
+ * - Functional sidebar navigation (Inbox, Today, Upcoming, Categories)
  * - Confetti on completion
  */
 import React, { useState, useRef } from 'react';
 import {
     CheckCircle2, Calendar as CalendarIcon, Plus, MoreHorizontal,
     List, ChevronLeft, ChevronRight, Sun, Sunrise, Inbox, Filter,
-    Flag, CalendarDays, ChevronDown, Repeat, Flame
+    Flag, CalendarDays, ChevronDown, Repeat, Flame, Edit2, Trash2, Copy,
+    Archive, ChevronUp
 } from 'lucide-react';
 import {
     format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay,
     addMonths, subMonths, isToday, isTomorrow, startOfWeek, endOfWeek,
-    addDays, isThisWeek, isPast, isAfter
+    addDays, isThisWeek, isPast, isAfter, differenceInDays, differenceInMonths, differenceInYears
 } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Task, Project } from '../../types/';
@@ -53,15 +54,22 @@ interface TasksViewProps {
     projects: Project[];
     toggleTaskStatus: (id: string) => void;
     openTaskModal: () => void;
+    onDeleteTask: (id: string) => void;
+    onArchiveTask: (id: string) => void;
+    onDuplicateTask: (task: Task) => void;
+    onEditTask: (task: Task) => void;
 }
 
-export const TasksView = ({ tasks, projects, toggleTaskStatus, openTaskModal }: TasksViewProps) => {
+export const TasksView = ({ tasks, projects, toggleTaskStatus, openTaskModal, onDeleteTask, onArchiveTask, onDuplicateTask, onEditTask }: TasksViewProps) => {
     const [viewMode, setViewMode] = useState<ViewMode>('list');
     const [calendarZoom, setCalendarZoom] = useState<CalendarZoom>('month');
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedNav, setSelectedNav] = useState<NavFilter>('today');
     const [confettiPos, setConfettiPos] = useState<{ x: number, y: number } | null>(null);
-    const [expandedSections, setExpandedSections] = useState<string[]>(['today', 'tomorrow', 'thisWeek']);
+    const [expandedSections, setExpandedSections] = useState<string[]>(['today', 'tomorrow', 'completed']);
+    const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+    const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
 
     // Touch handling for pinch zoom (mobile)
     const calendarRef = useRef<HTMLDivElement>(null);
@@ -110,20 +118,20 @@ export const TasksView = ({ tasks, projects, toggleTaskStatus, openTaskModal }: 
 
     // Filter tasks based on selected nav
     const getFilteredTasks = () => {
-        let filtered = tasks.filter(t => t.status !== 'done');
-
         switch (selectedNav) {
             case 'inbox':
-                return filtered.filter(t => !t.projectId || t.projectId === 'inbox');
+                return tasks.filter(t => t.status !== 'done' && (!t.projectId || t.projectId === 'inbox'));
             case 'today':
-                return filtered.filter(t => isToday(t.date) || isPast(t.date));
+                return tasks.filter(t => t.status !== 'done' && (isToday(t.date) || isPast(t.date)));
             case 'upcoming':
-                return filtered.filter(t => isAfter(t.date, new Date()));
+                return tasks.filter(t => t.status !== 'done' && isAfter(t.date, new Date()));
+            case 'completed':
+                return tasks.filter(t => t.status === 'done');
             case 'filters':
-                return filtered; // Show all for now
+                return tasks; // Show all for now
             default:
                 // Project filter
-                return filtered.filter(t => t.projectId === selectedNav);
+                return tasks.filter(t => t.status !== 'done' && t.projectId === selectedNav);
         }
     };
 
@@ -132,19 +140,23 @@ export const TasksView = ({ tasks, projects, toggleTaskStatus, openTaskModal }: 
         const filtered = getFilteredTasks();
         const today: Task[] = [];
         const tomorrow: Task[] = [];
-        const thisWeek: Task[] = [];
         const later: Task[] = [];
         const overdue: Task[] = [];
+        const completed: Task[] = [];
 
         filtered.forEach(task => {
-            if (isPast(task.date) && !isToday(task.date)) overdue.push(task);
+            if (task.status === 'done') {
+                completed.push(task);
+            }
+            else if (isPast(task.date) && !isToday(task.date)) {
+                overdue.push(task);
+            }
             else if (isToday(task.date)) today.push(task);
             else if (isTomorrow(task.date)) tomorrow.push(task);
-            else if (isThisWeek(task.date)) thisWeek.push(task);
             else later.push(task);
         });
 
-        return { overdue, today, tomorrow, thisWeek, later };
+        return { overdue, completed, today, tomorrow, later };
     };
 
     const grouped = groupTasksByDate();
@@ -160,10 +172,12 @@ export const TasksView = ({ tasks, projects, toggleTaskStatus, openTaskModal }: 
     // Get counts for nav items
     const getNavCount = (navId: string) => {
         const pending = tasks.filter(t => t.status !== 'done');
+        const completed = tasks.filter(t => t.status === 'done');
         switch (navId) {
             case 'inbox': return pending.filter(t => !t.projectId || t.projectId === 'inbox').length;
             case 'today': return pending.filter(t => isToday(t.date) || isPast(t.date)).length;
             case 'upcoming': return pending.filter(t => isAfter(t.date, new Date())).length;
+            case 'completed': return completed.length;
             default: return pending.filter(t => t.projectId === navId).length;
         }
     };
@@ -173,18 +187,13 @@ export const TasksView = ({ tasks, projects, toggleTaskStatus, openTaskModal }: 
         { id: 'inbox', icon: Inbox, label: 'Inbox' },
         { id: 'today', icon: Sun, label: 'Today' },
         { id: 'upcoming', icon: CalendarDays, label: 'Upcoming' },
+        { id: 'completed', icon: CheckCircle2, label: 'Completed' },
         { id: 'filters', icon: Filter, label: 'Filters & Labels' },
     ];
 
     // Task Item Component
     const TaskItem = ({ task }: { task: Task }) => (
-        <motion.div
-            layout
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="group flex items-start gap-3 py-3 px-3 hover:bg-secondary/30 rounded-xl transition-colors cursor-pointer"
-        >
+        <div className="group flex items-start gap-3 py-3 px-3 hover:bg-secondary/30 rounded-xl transition-colors cursor-pointer relative">
             <button
                 onClick={(e) => handleTaskCheck(e, task.id)}
                 className={cn(
@@ -244,15 +253,127 @@ export const TasksView = ({ tasks, projects, toggleTaskStatus, openTaskModal }: 
                 </div>
             </div>
 
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                <button className="p-1.5 hover:bg-secondary rounded-lg text-muted-foreground">
-                    <CalendarIcon className="w-4 h-4" />
-                </button>
-                <button className="p-1.5 hover:bg-secondary rounded-lg text-muted-foreground">
+            <div className="flex items-center gap-1">
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (menuOpenId === task.id) {
+                            setMenuOpenId(null);
+                            setDeleteConfirmId(null);
+                            setMenuPosition(null);
+                        } else {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const menuHeight = 200;
+                            const spaceBelow = window.innerHeight - rect.bottom;
+                            
+                            const top = spaceBelow >= menuHeight 
+                                ? rect.bottom + 4
+                                : rect.top - menuHeight - 4;
+                            
+                            const left = rect.right - 180;
+                            
+                            setMenuPosition({ top, left });
+                            setMenuOpenId(task.id);
+                            setDeleteConfirmId(null);
+                        }
+                    }}
+                    className="p-1.5 hover:bg-secondary rounded-lg text-muted-foreground"
+                    title="More options"
+                >
                     <MoreHorizontal className="w-4 h-4" />
                 </button>
+
+                {/* Dropdown Menu */}
+                {menuOpenId === task.id && menuPosition && (
+                        <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="fixed bg-card border border-border rounded-lg shadow-lg z-[100] overflow-hidden"
+                            style={{
+                                minWidth: '180px',
+                                top: `${menuPosition.top}px`,
+                                left: `${menuPosition.left}px`
+                            }}
+                        >
+                            {!deleteConfirmId ? (
+                                <>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onEditTask(task);
+                                            setMenuOpenId(null);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-secondary text-left text-sm"
+                                    >
+                                        <Edit2 className="w-4 h-4" /> Edit task
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onDuplicateTask(task);
+                                            setMenuOpenId(null);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-secondary text-left text-sm"
+                                    >
+                                        <Copy className="w-4 h-4" /> Duplicate
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onArchiveTask(task.id);
+                                            setMenuOpenId(null);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-secondary text-left text-sm"
+                                    >
+                                        <Archive className="w-4 h-4" /> Archive
+                                    </button>
+                                    <hr className="border-border/50" />
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setDeleteConfirmId(task.id);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-red-500/10 text-left text-sm text-red-500"
+                                    >
+                                        <Trash2 className="w-4 h-4" /> Delete
+                                    </button>
+                                </>
+                            ) : (
+                                <div className="p-3">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Trash2 className="w-4 h-4 text-red-500" />
+                                        <div className="text-sm font-medium">Delete task?</div>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground mb-3">
+                                        This action cannot be undone.
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setDeleteConfirmId(null);
+                                            }}
+                                            className="flex-1 px-3 py-2 bg-secondary text-sm rounded-lg hover:bg-secondary/80 transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onDeleteTask(task.id);
+                                                setMenuOpenId(null);
+                                                setDeleteConfirmId(null);
+                                            }}
+                                            className="flex-1 px-3 py-2 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors"
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                )}
             </div>
-        </motion.div>
+        </div>
     );
 
     // Section Header
@@ -277,6 +398,7 @@ export const TasksView = ({ tasks, projects, toggleTaskStatus, openTaskModal }: 
             case 'inbox': return 'Inbox';
             case 'today': return 'Today';
             case 'upcoming': return 'Upcoming';
+            case 'completed': return 'Completed';
             case 'filters': return 'All Tasks';
             default:
                 const project = projects.find(p => p.id === selectedNav);
@@ -285,7 +407,12 @@ export const TasksView = ({ tasks, projects, toggleTaskStatus, openTaskModal }: 
     };
 
     return (
-        <div className="h-full flex flex-col md:flex-row animate-in fade-in duration-300 overflow-hidden">
+        <div
+            className="h-full flex flex-col md:flex-row animate-in fade-in duration-300 overflow-hidden"
+            onClick={() => {
+                setMenuOpenId(null);
+            }}
+        >
             {confettiPos && <ConfettiExplosion x={confettiPos.x} y={confettiPos.y} />}
 
             {/* Left Sidebar */}
@@ -321,10 +448,10 @@ export const TasksView = ({ tasks, projects, toggleTaskStatus, openTaskModal }: 
                     ))}
                 </nav>
 
-                {/* Projects */}
+                {/* Categories */}
                 <div className="mt-6">
                     <div className="flex items-center justify-between px-3 mb-2">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Projects</span>
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Categories</span>
                         <button className="text-muted-foreground hover:text-foreground p-1">
                             <Plus className="w-3.5 h-3.5" />
                         </button>
@@ -416,7 +543,7 @@ export const TasksView = ({ tasks, projects, toggleTaskStatus, openTaskModal }: 
                             </div>
 
                             {/* Overdue */}
-                            {grouped.overdue.length > 0 && (
+                            {grouped.overdue && grouped.overdue.length > 0 && (
                                 <div className="mb-4">
                                     <SectionHeader id="overdue" label="Overdue" count={grouped.overdue.length} />
                                     <AnimatePresence>
@@ -433,12 +560,12 @@ export const TasksView = ({ tasks, projects, toggleTaskStatus, openTaskModal }: 
 
                             {/* Today */}
                             <div className="mb-4">
-                                <SectionHeader id="today" label="Today" count={grouped.today.length} icon={Sun} />
+                                <SectionHeader id="today" label="Today" count={grouped.today?.length || 0} icon={Sun} />
                                 <AnimatePresence>
                                     {expandedSections.includes('today') && (
                                         <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
                                             <div className="bg-card rounded-xl border border-border/50">
-                                                {grouped.today.length > 0 ? (
+                                                {grouped.today && grouped.today.length > 0 ? (
                                                     <div className="divide-y divide-border/30">
                                                         {grouped.today.map(task => <TaskItem key={task.id} task={task} />)}
                                                     </div>
@@ -455,7 +582,7 @@ export const TasksView = ({ tasks, projects, toggleTaskStatus, openTaskModal }: 
                             </div>
 
                             {/* Tomorrow */}
-                            {grouped.tomorrow.length > 0 && (
+                            {grouped.tomorrow && grouped.tomorrow.length > 0 && (
                                 <div className="mb-4">
                                     <SectionHeader id="tomorrow" label="Tomorrow" count={grouped.tomorrow.length} icon={Sunrise} />
                                     <AnimatePresence>
@@ -470,24 +597,9 @@ export const TasksView = ({ tasks, projects, toggleTaskStatus, openTaskModal }: 
                                 </div>
                             )}
 
-                            {/* This Week */}
-                            {grouped.thisWeek.length > 0 && (
-                                <div className="mb-4">
-                                    <SectionHeader id="thisWeek" label="This Week" count={grouped.thisWeek.length} />
-                                    <AnimatePresence>
-                                        {expandedSections.includes('thisWeek') && (
-                                            <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
-                                                <div className="bg-card rounded-xl border border-border/50 divide-y divide-border/30">
-                                                    {grouped.thisWeek.map(task => <TaskItem key={task.id} task={task} />)}
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                            )}
 
                             {/* Later */}
-                            {grouped.later.length > 0 && (
+                            {grouped.later && grouped.later.length > 0 && (
                                 <div className="mb-4">
                                     <SectionHeader id="later" label="Later" count={grouped.later.length} />
                                     <AnimatePresence>
@@ -495,6 +607,22 @@ export const TasksView = ({ tasks, projects, toggleTaskStatus, openTaskModal }: 
                                             <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
                                                 <div className="bg-card rounded-xl border border-border/50 divide-y divide-border/30">
                                                     {grouped.later.map(task => <TaskItem key={task.id} task={task} />)}
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            )}
+
+                            {/* Completed */}
+                            {grouped.completed && grouped.completed.length > 0 && (
+                                <div className="mb-4">
+                                    <SectionHeader id="completed" label="Completed" count={grouped.completed.length} icon={CheckCircle2} />
+                                    <AnimatePresence>
+                                        {expandedSections.includes('completed') && (
+                                            <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+                                                <div className="bg-gray-500/5 rounded-xl border border-gray-500/20 divide-y divide-gray-500/10">
+                                                    {grouped.completed.map(task => <TaskItem key={task.id} task={task} />)}
                                                 </div>
                                             </motion.div>
                                         )}
