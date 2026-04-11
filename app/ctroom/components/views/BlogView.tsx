@@ -119,7 +119,7 @@ export const BlogView = () => {
         <div className="animate-in fade-in duration-500 pb-20 md:pb-0">
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h2 className="text-2xl font-bold flex items-center gap-2">
+                    <h2 className="font-display text-2xl flex items-center gap-2">
                         <FileText className="w-6 h-6 text-orange-500" />
                         Blog Management
                     </h2>
@@ -146,7 +146,7 @@ export const BlogView = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="bg-card border border-border/40 rounded-xl p-6 shadow-sm flex items-center justify-between">
                     <div>
-                        <div className="text-3xl font-bold">{stats.publishedPosts}</div>
+                        <div className="font-mono text-3xl font-bold">{stats.publishedPosts}</div>
                         <div className="text-sm text-muted-foreground font-medium">Published Posts</div>
                     </div>
                     <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600">
@@ -155,7 +155,7 @@ export const BlogView = () => {
                 </div>
                 <div className="bg-card border border-border/40 rounded-xl p-6 shadow-sm flex items-center justify-between">
                     <div>
-                        <div className="text-3xl font-bold">{stats.totalComments}</div>
+                        <div className="font-mono text-3xl font-bold">{stats.totalComments}</div>
                         <div className="text-sm text-muted-foreground font-medium">Comments</div>
                     </div>
                     <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center text-green-600">
@@ -167,7 +167,7 @@ export const BlogView = () => {
                     className="bg-card border border-border/40 rounded-xl p-6 shadow-sm flex items-center justify-between hover:bg-secondary/30 transition-colors w-full text-left"
                 >
                     <div>
-                        <div className="text-3xl font-bold">{stats.pendingComments}</div>
+                        <div className="font-mono text-3xl font-bold">{stats.pendingComments}</div>
                         <div className="text-sm text-muted-foreground font-medium">Pending Review</div>
                     </div>
                     <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600">
@@ -180,7 +180,7 @@ export const BlogView = () => {
             {showComments && pendingComments.length > 0 && (
                 <div className="bg-card border border-border/40 rounded-2xl overflow-hidden shadow-sm mb-8">
                     <div className="p-6 border-b border-border/40 flex items-center justify-between">
-                        <h3 className="font-semibold text-lg flex items-center gap-2">
+                        <h3 className="font-display text-lg flex items-center gap-2">
                             <MessageSquare className="w-5 h-5 text-orange-500" />
                             Pending Comments ({pendingComments.length})
                         </h3>
@@ -232,7 +232,7 @@ export const BlogView = () => {
             {/* Posts List */}
             <div className="bg-card border border-border/40 rounded-2xl overflow-hidden shadow-sm">
                 <div className="p-6 border-b border-border/40 flex items-center justify-between">
-                    <h3 className="font-semibold text-lg">Recent Posts</h3>
+                    <h3 className="font-display text-lg">Recent Posts</h3>
                     <button 
                         onClick={() => window.open('/blog', '_blank')}
                         className="text-xs text-muted-foreground hover:text-foreground"

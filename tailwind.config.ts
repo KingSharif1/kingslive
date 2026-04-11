@@ -11,9 +11,17 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
+        // Portfolio fonts (unchanged)
         unbounded: ['var(--font-unbounded)', 'sans-serif'],
         sora: ['var(--font-sora)', 'sans-serif'],
         sans: ['var(--font-sora)', 'sans-serif'],
+        // ─── Ctroom font system ─────────────────────────────
+        // font-display → section titles, view headings
+        display: ['var(--font-display)', 'serif'],
+        // font-inter  → body, labels, buttons (ctroom default)
+        inter: ['var(--font-inter)', 'sans-serif'],
+        // font-mono   → stats, numbers, XP, project code tags
+        mono: ['var(--font-mono)', 'monospace'],
       },
       colors: {
         background: 'var(--background)',

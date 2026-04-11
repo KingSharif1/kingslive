@@ -1,26 +1,38 @@
+'use client';
+
 /**
- * ChatView - Clean, Minimal AI Chat
- * Simplified design - slick, cool, unique
+ * Milo — King's personal AI command interface
+ * Jarvis-like, context-aware, elite UI
  */
-import React, { useRef, useEffect, useState } from 'react';
-import { Bot, Send, Settings, ChevronDown, X, Zap, Brain, Sparkles, Volume2, Moon, Sun, Bell, Globe, Github, Code, Image as ImageIcon, Plus } from 'lucide-react';
+
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import {
+    Send, Settings, ChevronDown, X, Zap, Brain, Sparkles, Globe,
+    Github, Code, Check, RefreshCw, Clock, ChevronRight,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Message, AIModel, ChatTool, ChatSpeed, ChatContext, Task, Idea } from '../../types/index';
-import { ChatMessage } from '../chat/ChatMessage';
+import { Message, AIModel, ChatTool, ChatSpeed, ChatContext, ActionItem, Mission } from '../../types/index';
 import { cn } from '@/lib/utils';
+import { format, isToday } from 'date-fns';
+
+// ─── Models ───────────────────────────────────────────────────────────────────
 
 const AI_MODELS: AIModel[] = [
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Fast', contextTokens: '128K', icon: '⚡' },
-    { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Smart', contextTokens: '128K', icon: '🧠' },
-    { id: 'gemini-flash', name: 'Gemini Flash', provider: 'Google', description: 'Multimodal', contextTokens: '1M', icon: '✨' },
-    { id: 'claude-sonnet', name: 'Claude Sonnet', provider: 'Anthropic', description: 'Writing', contextTokens: '200K', icon: '🎭' },
+    { id: 'gemini-2.0-flash', name: 'Gemini Flash', provider: 'Google', description: 'Fast & Multimodal', contextTokens: '1M', icon: '✦' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Fast & Smart', contextTokens: '128K', icon: '⚡' },
+    { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Most Capable', contextTokens: '128K', icon: '🧠' },
+    { id: 'claude-sonnet-4-6', name: 'Claude Sonnet', provider: 'Anthropic', description: 'Writing & Analysis', contextTokens: '200K', icon: '◈' },
+    { id: 'groq-llama', name: 'Llama 3.3', provider: 'Groq', description: 'Lightning Fast', contextTokens: '128K', icon: '⚡' },
 ];
 
-const QUICK_PROMPTS = [
-    "What's on my schedule?",
-    "Help me brainstorm",
-    "Draft an email",
-];
+const PROVIDER_COLORS: Record<string, string> = {
+    Google: 'from-blue-500 to-cyan-400',
+    OpenAI: 'from-emerald-500 to-teal-400',
+    Anthropic: 'from-amber-500 to-orange-400',
+    Groq: 'from-purple-500 to-pink-400',
+};
+
+// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface ChatViewProps {
     messages: Message[];
@@ -28,106 +40,241 @@ interface ChatViewProps {
     setChatInput: (val: string) => void;
     handleSendMessage: (model: string, tool: ChatTool, speed: ChatSpeed, context: ChatContext[]) => void;
     isTyping: boolean;
-    isTyping: boolean;
-    tasks: Task[];
-    ideas: Idea[];
-    apiKeys: { google?: string; github?: string; openai?: string; };
+    actionItems: ActionItem[];
+    missions: Mission[];
+    apiKeys: { google?: string; github?: string; openai?: string; anthropic?: string; groq?: string; [key: string]: string | undefined };
 }
 
-export const ChatView = ({ messages, chatInput, setChatInput, handleSendMessage, isTyping, apiKeys }: ChatViewProps) => {
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getGreeting() {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+}
+
+function buildQuickPrompts(actionItems: ActionItem[], missions: Mission[]): string[] {
+    const prompts: string[] = [];
+
+    const todayTasks = actionItems.filter(t =>
+        t.status !== 'done' && t.status !== 'archived' && isToday(new Date(t.date))
+    );
+    if (todayTasks.length > 0) {
+        prompts.push(`I have ${todayTasks.length} task${todayTasks.length > 1 ? 's' : ''} today — help me prioritize`);
+    }
+
+    const focusMission = missions.find(m => m.focusWeek && m.status === 'active');
+    if (focusMission) {
+        prompts.push(`What should I focus on for "${focusMission.name}" today?`);
+    } else if (missions.filter(m => m.status === 'active').length > 0) {
+        prompts.push(`Give me a status check on my active projects`);
+    }
+
+    // Fallbacks
+    const defaults = [
+        'Help me brainstorm ideas',
+        "What's the best approach for this?",
+        'Draft something for me',
+        'Explain this concept simply',
+    ];
+    while (prompts.length < 3) {
+        const next = defaults.shift();
+        if (!next) break;
+        prompts.push(next);
+    }
+
+    return prompts.slice(0, 3);
+}
+
+// ─── Milo Orb ─────────────────────────────────────────────────────────────────
+
+function MiloOrb({ size = 'md', pulse = false }: { size?: 'sm' | 'md' | 'lg'; pulse?: boolean }) {
+    const sizes = { sm: 'w-7 h-7 text-sm', md: 'w-9 h-9 text-base', lg: 'w-14 h-14 text-2xl' };
+    return (
+        <div className={cn(
+            'rounded-full bg-gradient-to-tr from-violet-600 via-purple-500 to-indigo-400 flex items-center justify-center shrink-0 shadow-lg shadow-violet-500/20',
+            sizes[size],
+            pulse && 'animate-pulse',
+        )}>
+            <span className="font-display text-white">M</span>
+        </div>
+    );
+}
+
+// ─── Context Badge ────────────────────────────────────────────────────────────
+
+function ContextBadge({ label, count, icon: Icon }: { label: string; count: number; icon: React.ElementType }) {
+    return (
+        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-secondary/50 rounded-full text-xs text-muted-foreground border border-border/40">
+            <Icon className="w-3 h-3" />
+            <span className="font-medium">{count}</span>
+            <span>{label}</span>
+        </div>
+    );
+}
+
+// ─── Thinking Steps ───────────────────────────────────────────────────────────
+
+function ThinkingStepsDisplay({ steps }: { steps: { title: string; status: string; description: string }[] }) {
+    const [open, setOpen] = useState(false);
+    if (!steps?.length) return null;
+    return (
+        <div className="mt-2 mb-1">
+            <button
+                onClick={() => setOpen(!open)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+            >
+                <Brain className="w-3 h-3" />
+                <span>Thinking steps</span>
+                <ChevronRight className={cn('w-3 h-3 transition-transform', open && 'rotate-90')} />
+            </button>
+            <AnimatePresence>
+                {open && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden mt-2 ml-1 border-l-2 border-border/50 pl-3 space-y-1.5"
+                    >
+                        {steps.map((step, i) => (
+                            <div key={i} className="flex items-start gap-2">
+                                <div className={cn(
+                                    'w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5',
+                                    step.status === 'completed' ? 'bg-emerald-500/20 text-emerald-500' :
+                                    step.status === 'failed' ? 'bg-red-500/20 text-red-500' :
+                                    'bg-muted text-muted-foreground'
+                                )}>
+                                    {step.status === 'completed' ? <Check className="w-2.5 h-2.5" /> : <Clock className="w-2.5 h-2.5" />}
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium text-foreground/80">{step.title}</div>
+                                    <div className="text-[10px] text-muted-foreground">{step.description}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+export const ChatView = ({
+    messages, chatInput, setChatInput, handleSendMessage, isTyping,
+    actionItems, missions, apiKeys,
+}: ChatViewProps) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    const [selectedModel, setSelectedModel] = useState(AI_MODELS[2]); // Default to Gemini
+
+    const [selectedModel, setSelectedModel] = useState(AI_MODELS[0]);
     const [selectedSpeed, setSelectedSpeed] = useState<ChatSpeed>('balanced');
     const [selectedTool, setSelectedTool] = useState<ChatTool>('none');
-
     const [showModelPicker, setShowModelPicker] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [showTools, setShowTools] = useState(false);
 
-    // Settings state
-    const [settings, setSettings] = useState({
-        soundEnabled: true,
-        darkMode: true,
-        notifications: true,
-        streamResponses: true,
-    });
+    const quickPrompts = buildQuickPrompts(actionItems, missions);
+    const todayTasks = actionItems.filter(t => t.status !== 'done' && t.status !== 'archived' && isToday(new Date(t.date)));
+    const activeMissions = missions.filter(m => m.status === 'active');
 
+    // Auto-scroll
     useEffect(() => {
-        if (scrollRef.current) {
-            setTimeout(() => {
-                scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-            }, 100);
-        }
+        setTimeout(() => {
+            scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+        }, 80);
     }, [messages, isTyping]);
+
+    // Auto-resize textarea
+    const handleInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setChatInput(e.target.value);
+        e.target.style.height = 'auto';
+        e.target.style.height = Math.min(e.target.scrollHeight, 128) + 'px';
+    }, [setChatInput]);
 
     const onSend = () => {
         if (!chatInput.trim()) return;
         handleSendMessage(selectedModel.id, selectedTool, selectedSpeed, []);
         inputRef.current?.focus();
+        if (inputRef.current) inputRef.current.style.height = 'auto';
     };
 
-    const showWelcome = messages.length <= 1;
+    const isWelcome = messages.length <= 1;
+    const providerGradient = PROVIDER_COLORS[selectedModel.provider] || 'from-violet-500 to-indigo-400';
 
     return (
-        <div className="h-full flex flex-col bg-background relative font-sans">
+        <div className="h-full flex flex-col bg-background relative overflow-hidden">
 
-            {/* Top Bar - Minimal */}
-            <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-6 py-4">
-                <div
-                    onClick={() => setShowModelPicker(!showModelPicker)}
-                    className="flex items-center gap-2 cursor-pointer opacity-70 hover:opacity-100 transition-opacity bg-background/50 backdrop-blur-md px-3 py-1.5 rounded-full"
+            {/* ── Header ── */}
+            <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-5 py-3.5 border-b border-border/30 bg-background/70 backdrop-blur-xl">
+                {/* Model picker */}
+                <button
+                    onClick={() => setShowModelPicker(v => !v)}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-secondary/50 hover:bg-secondary border border-border/40 transition-all"
                 >
-                    <span className="text-lg">{selectedModel.icon}</span>
-                    <span className="font-medium text-sm text-foreground/80">{selectedModel.name}</span>
-                    <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                    <span className={cn(
+                        'w-5 h-5 rounded-md bg-gradient-to-tr flex items-center justify-center text-[10px] font-bold text-white shrink-0',
+                        providerGradient,
+                    )}>{selectedModel.icon}</span>
+                    <span className="text-sm font-medium">{selectedModel.name}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                </button>
+
+                {/* Milo wordmark */}
+                <div className="flex items-center gap-2">
+                    <MiloOrb size="sm" />
+                    <span className="font-display text-sm tracking-tight text-foreground/80">Milo</span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setShowSettings(true)}
-                        className="p-2 hover:bg-secondary/50 rounded-full text-muted-foreground transition-colors backdrop-blur-md"
-                    >
-                        <Settings className="w-5 h-5" />
-                    </button>
-                </div>
+                {/* Settings */}
+                <button
+                    onClick={() => setShowSettings(true)}
+                    className="p-2 rounded-xl hover:bg-secondary/60 text-muted-foreground transition-colors"
+                >
+                    <Settings className="w-4.5 h-4.5" />
+                </button>
             </div>
 
-            {/* Model Picker Dropdown */}
+            {/* ── Model Picker Dropdown ── */}
             <AnimatePresence>
                 {showModelPicker && (
                     <>
                         <div className="fixed inset-0 z-40" onClick={() => setShowModelPicker(false)} />
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: -20 }}
+                            initial={{ opacity: 0, scale: 0.95, y: -8 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: -20 }}
-                            className="absolute top-16 left-6 w-64 bg-popover/90 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                            exit={{ opacity: 0, scale: 0.95, y: -8 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute top-[60px] left-5 w-72 bg-popover/95 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl z-50 p-2"
                         >
-                            <div className="p-2 space-y-1">
-                                {AI_MODELS.map(model => (
-                                    <button
-                                        key={model.id}
-                                        onClick={() => { setSelectedModel(model); setShowModelPicker(false); }}
-                                        className={cn(
-                                            "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all",
-                                            selectedModel.id === model.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
-                                        )}
-                                    >
-                                        <span className="text-xl">{model.icon}</span>
-                                        <div>
-                                            <div className="font-medium text-sm">{model.name}</div>
-                                            <div className="text-[10px] opacity-70">{model.description}</div>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
+                            {AI_MODELS.map(model => (
+                                <button
+                                    key={model.id}
+                                    onClick={() => { setSelectedModel(model); setShowModelPicker(false); }}
+                                    className={cn(
+                                        'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all',
+                                        selectedModel.id === model.id ? 'bg-secondary' : 'hover:bg-secondary/50',
+                                    )}
+                                >
+                                    <span className={cn(
+                                        'w-8 h-8 rounded-lg bg-gradient-to-tr flex items-center justify-center text-sm font-bold text-white shrink-0',
+                                        PROVIDER_COLORS[model.provider] || 'from-gray-500 to-gray-400',
+                                    )}>{model.icon}</span>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-medium text-sm">{model.name}</div>
+                                        <div className="text-[10px] text-muted-foreground">{model.provider} · {model.description}</div>
+                                    </div>
+                                    {selectedModel.id === model.id && <Check className="w-4 h-4 text-primary shrink-0" />}
+                                </button>
+                            ))}
                         </motion.div>
                     </>
                 )}
             </AnimatePresence>
 
-            {/* Settings Panel */}
+            {/* ── Settings Panel ── */}
             <AnimatePresence>
                 {showSettings && (
                     <>
@@ -135,127 +282,97 @@ export const ChatView = ({ messages, chatInput, setChatInput, handleSendMessage,
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50"
+                            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50"
                             onClick={() => setShowSettings(false)}
                         />
                         <motion.div
                             initial={{ x: '100%' }}
                             animate={{ x: 0 }}
                             exit={{ x: '100%' }}
-                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
                             className="fixed right-0 top-0 bottom-0 w-80 bg-background border-l border-border shadow-2xl z-50 flex flex-col"
                         >
-                            <div className="flex items-center justify-between p-6 border-b border-border/50">
-                                <h2 className="font-semibold text-lg">Chat Settings</h2>
-                                <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-secondary rounded-full">
-                                    <X className="w-5 h-5" />
+                            <div className="flex items-center justify-between p-5 border-b border-border/50">
+                                <div className="flex items-center gap-2.5">
+                                    <MiloOrb size="sm" />
+                                    <h2 className="font-display font-semibold">Milo Settings</h2>
+                                </div>
+                                <button onClick={() => setShowSettings(false)} className="p-1.5 hover:bg-secondary rounded-lg">
+                                    <X className="w-4 h-4" />
                                 </button>
                             </div>
-
-                            <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                                {/* Response Speed */}
+                            <div className="flex-1 overflow-y-auto p-5 space-y-7">
+                                {/* Thinking mode */}
                                 <div>
-                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 block">Thinking Mode</label>
-                                    <div className="space-y-2">
+                                    <label className="font-mono text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-3 block">Thinking Mode</label>
+                                    <div className="space-y-1.5">
                                         {[
-                                            { id: 'fast', icon: Zap, label: 'Fast', desc: 'Quick responses' },
-                                            { id: 'balanced', icon: Sparkles, label: 'Balanced', desc: 'Standard reasoning' },
-                                            { id: 'deep', icon: Brain, label: 'Deep', desc: 'Complex problem solving' },
-                                        ].map(speed => (
+                                            { id: 'fast' as ChatSpeed, icon: Zap, label: 'Fast', desc: 'Quick, direct responses' },
+                                            { id: 'balanced' as ChatSpeed, icon: Sparkles, label: 'Balanced', desc: 'Standard reasoning' },
+                                            { id: 'deep-think' as ChatSpeed, icon: Brain, label: 'Deep Think', desc: 'Complex problem solving' },
+                                        ].map(s => (
                                             <button
-                                                key={speed.id}
-                                                onClick={() => setSelectedSpeed(speed.id as ChatSpeed)}
+                                                key={s.id}
+                                                onClick={() => setSelectedSpeed(s.id)}
                                                 className={cn(
-                                                    "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
-                                                    selectedSpeed === speed.id
-                                                        ? "bg-primary/5 border-primary/40 text-primary"
-                                                        : "border-border/50 text-muted-foreground hover:bg-secondary/50"
+                                                    'w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left',
+                                                    selectedSpeed === s.id
+                                                        ? 'bg-primary/5 border-primary/40 text-primary'
+                                                        : 'border-border/40 text-muted-foreground hover:bg-secondary/50',
                                                 )}
                                             >
-                                                <speed.icon className="w-5 h-5" />
+                                                <s.icon className="w-4 h-4 shrink-0" />
                                                 <div className="flex-1">
-                                                    <div className="font-medium text-sm">{speed.label}</div>
+                                                    <div className="font-medium text-sm">{s.label}</div>
+                                                    <div className="text-[10px] opacity-60">{s.desc}</div>
                                                 </div>
-                                                {selectedSpeed === speed.id && <div className="w-2 h-2 bg-primary rounded-full" />}
+                                                {selectedSpeed === s.id && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
                                             </button>
                                         ))}
                                     </div>
                                 </div>
 
-                                {/* Connections Status */}
+                                {/* Connections */}
                                 <div>
-                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 block">Connections</label>
-                                    <div className="space-y-3">
+                                    <label className="font-mono text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-3 block">Connected Services</label>
+                                    <div className="space-y-2">
                                         {[
-                                            {
-                                                id: 'internet',
-                                                icon: Globe,
-                                                label: 'Internet Access',
-                                                connected: !!(apiKeys?.google || process.env.NEXT_PUBLIC_GOOGLE_API_KEY)
-                                            },
-                                            {
-                                                id: 'github',
-                                                icon: Github,
-                                                label: 'GitHub Integration',
-                                                connected: !!(apiKeys?.github || process.env.NEXT_PUBLIC_GITHUB_TOKEN)
-                                            }
+                                            { label: 'GitHub', connected: !!(apiKeys?.github || process.env.NEXT_PUBLIC_GITHUB_TOKEN), icon: Github, color: 'bg-zinc-800 text-white' },
+                                            { label: 'Web Search', connected: !!(apiKeys?.google), icon: Globe, color: 'bg-blue-500 text-white' },
+                                            { label: 'OpenAI', connected: !!(apiKeys?.openai), icon: Zap, color: 'bg-emerald-500 text-white' },
                                         ].map(conn => (
-                                            <div key={conn.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-xl">
-                                                <div className="flex items-center gap-3">
-                                                    <div className={cn(
-                                                        "w-8 h-8 rounded-full flex items-center justify-center",
-                                                        conn.connected ? "bg-emerald-500/10 text-emerald-500" : "bg-muted text-muted-foreground"
-                                                    )}>
-                                                        <conn.icon className="w-4 h-4" />
+                                            <div key={conn.label} className="flex items-center justify-between px-3 py-2.5 bg-secondary/30 rounded-xl">
+                                                <div className="flex items-center gap-2.5">
+                                                    <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center', conn.color)}>
+                                                        <conn.icon className="w-3.5 h-3.5" />
                                                     </div>
-                                                    <div>
-                                                        <div className="text-sm font-medium">{conn.label}</div>
-                                                        <div className={cn(
-                                                            "text-[10px] font-medium",
-                                                            conn.connected ? "text-emerald-500" : "text-muted-foreground"
-                                                        )}>
-                                                            {conn.connected ? 'Connected' : 'Not Connected'}
-                                                        </div>
-                                                    </div>
+                                                    <span className="text-sm font-medium">{conn.label}</span>
                                                 </div>
                                                 <div className={cn(
-                                                    "w-2 h-2 rounded-full",
-                                                    conn.connected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-zinc-400"
+                                                    'w-2 h-2 rounded-full',
+                                                    conn.connected ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-zinc-500',
                                                 )} />
                                             </div>
                                         ))}
                                     </div>
                                 </div>
 
-                                {/* Preferences Toggles */}
+                                {/* Context */}
                                 <div>
-                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 block">Preferences</label>
-                                    <div className="space-y-3">
-                                        {[
-                                            { key: 'soundEnabled', icon: Volume2, label: 'Sound Effects' },
-                                            { key: 'darkMode', icon: Moon, label: 'Dark Mode' },
-                                            { key: 'notifications', icon: Bell, label: 'Notifications' },
-                                            { key: 'streamResponses', icon: Sparkles, label: 'Stream Responses' },
-                                        ].map(item => (
-                                            <div key={item.key} className="flex items-center justify-between p-3 bg-secondary/30 rounded-xl">
-                                                <div className="flex items-center gap-3">
-                                                    <item.icon className="w-4 h-4 text-muted-foreground" />
-                                                    <span className="text-sm font-medium">{item.label}</span>
-                                                </div>
-                                                <button
-                                                    onClick={() => setSettings(prev => ({ ...prev, [item.key]: !prev[item.key as keyof typeof settings] }))}
-                                                    className={cn(
-                                                        "w-10 h-6 rounded-full transition-colors relative",
-                                                        settings[item.key as keyof typeof settings] ? "bg-primary" : "bg-muted"
-                                                    )}
-                                                >
-                                                    <div className={cn(
-                                                        "absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform",
-                                                        settings[item.key as keyof typeof settings] ? "left-5" : "left-1"
-                                                    )} />
-                                                </button>
-                                            </div>
-                                        ))}
+                                    <label className="font-mono text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-3 block">Milo Knows About</label>
+                                    <div className="space-y-2 text-sm">
+                                        <div className="flex items-center justify-between px-3 py-2 bg-secondary/30 rounded-xl">
+                                            <span className="text-muted-foreground">Active tasks</span>
+                                            <span className="font-mono font-semibold">{actionItems.filter(t => t.status !== 'done' && t.status !== 'archived').length}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between px-3 py-2 bg-secondary/30 rounded-xl">
+                                            <span className="text-muted-foreground">Active projects</span>
+                                            <span className="font-mono font-semibold">{activeMissions.length}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between px-3 py-2 bg-secondary/30 rounded-xl">
+                                            <span className="text-muted-foreground">Due today</span>
+                                            <span className="font-mono font-semibold">{todayTasks.length}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -264,76 +381,176 @@ export const ChatView = ({ messages, chatInput, setChatInput, handleSendMessage,
                 )}
             </AnimatePresence>
 
-            {/* Chat Messages */}
-            <div className="flex-1 overflow-y-auto pt-20" ref={scrollRef}>
-                {showWelcome ? (
-                    <div className="h-full flex flex-col items-center justify-center -mt-20 px-4">
-                        <div className="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                            <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 mb-4 text-center">
-                                Hello, King.
-                            </h1>
-                            <p className="text-xl md:text-2xl text-muted-foreground font-light text-center">
-                                How can I help you today?
-                            </p>
-                        </div>
+            {/* ── Message Area ── */}
+            <div className="flex-1 overflow-y-auto pt-[60px] pb-[88px]" ref={scrollRef}>
+                {isWelcome ? (
+                    /* Welcome Screen */
+                    <div className="h-full flex flex-col items-center justify-center px-6 -mt-8">
+                        {/* Milo orb + greeting */}
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            transition={{ duration: 0.5, ease: 'easeOut' }}
+                            className="flex flex-col items-center gap-4 mb-8"
+                        >
+                            <div className="relative">
+                                <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-violet-600 via-purple-500 to-indigo-400 flex items-center justify-center shadow-xl shadow-violet-500/25">
+                                    <span className="font-display text-3xl font-bold text-white">M</span>
+                                </div>
+                                <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-violet-600 to-indigo-400 opacity-20 blur-md -z-10" />
+                            </div>
+                            <div className="text-center">
+                                <h1 className="font-display text-3xl font-bold text-foreground mb-1">
+                                    {getGreeting()}, King.
+                                </h1>
+                                <p className="text-muted-foreground">
+                                    {todayTasks.length > 0
+                                        ? `You have ${todayTasks.length} task${todayTasks.length > 1 ? 's' : ''} due today.`
+                                        : activeMissions.length > 0
+                                            ? `${activeMissions.length} active project${activeMissions.length > 1 ? 's' : ''} in motion.`
+                                            : "What's on your mind?"}
+                                </p>
+                            </div>
+                        </motion.div>
 
-                        <div className="w-full max-w-2xl grid grid-cols-1 sm:grid-cols-3 gap-3 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
-                            {QUICK_PROMPTS.map((prompt, idx) => (
+                        {/* Context pills */}
+                        {(todayTasks.length > 0 || activeMissions.length > 0) && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="flex flex-wrap items-center justify-center gap-2 mb-8"
+                            >
+                                {todayTasks.length > 0 && (
+                                    <ContextBadge label="due today" count={todayTasks.length} icon={Check} />
+                                )}
+                                {activeMissions.length > 0 && (
+                                    <ContextBadge label="projects" count={activeMissions.length} icon={Code} />
+                                )}
+                            </motion.div>
+                        )}
+
+                        {/* Quick prompt cards */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 16 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.3 }}
+                            className="w-full max-w-xl grid grid-cols-1 gap-2.5"
+                        >
+                            {quickPrompts.map((prompt, idx) => (
                                 <button
                                     key={idx}
                                     onClick={() => setChatInput(prompt)}
-                                    className="p-4 bg-secondary/30 hover:bg-secondary/60 border border-border/30 rounded-2xl text-left transition-all hover:-translate-y-1 hover:shadow-lg"
+                                    className="px-4 py-3 bg-secondary/30 hover:bg-secondary/60 border border-border/30 hover:border-border/60 rounded-xl text-left text-sm text-foreground/80 hover:text-foreground transition-all hover:-translate-y-0.5"
                                 >
-                                    <p className="font-medium text-sm">{prompt}</p>
+                                    {prompt}
                                 </button>
                             ))}
-                        </div>
+                        </motion.div>
                     </div>
                 ) : (
-                    <div className="px-4 pb-32 max-w-4xl mx-auto space-y-6">
-                        {messages.map((msg) => (
-                            <ChatMessage key={msg.id} message={msg} />
+                    /* Messages */
+                    <div className="px-4 max-w-3xl mx-auto space-y-5 py-4">
+                        {messages.map(msg => (
+                            <div key={msg.id}>
+                                {msg.role === 'user' ? (
+                                    /* User bubble */
+                                    <div className="flex justify-end">
+                                        <div className="max-w-[75%] px-4 py-3 bg-primary text-primary-foreground rounded-2xl rounded-tr-sm text-sm">
+                                            {msg.content}
+                                        </div>
+                                    </div>
+                                ) : msg.role === 'assistant' ? (
+                                    /* Milo response */
+                                    <div className="flex items-start gap-3">
+                                        <MiloOrb size="sm" />
+                                        <div className="flex-1 min-w-0">
+                                            {msg.thoughts && Array.isArray(msg.thoughts) && msg.thoughts.length > 0 && (
+                                                <ThinkingStepsDisplay steps={msg.thoughts as any} />
+                                            )}
+                                            <div className="bg-card border border-border/40 rounded-2xl rounded-tl-sm px-4 py-3 text-sm leading-relaxed shadow-sm">
+                                                <p className="whitespace-pre-wrap">{msg.content}</p>
+                                            </div>
+                                            {msg.sources && msg.sources.length > 0 && (
+                                                <div className="flex gap-2 mt-2 flex-wrap">
+                                                    {msg.sources.map((src, i) => (
+                                                        <a key={i} href={src.url} target="_blank" rel="noopener noreferrer"
+                                                            className="flex items-center gap-1.5 bg-secondary/50 hover:bg-secondary border border-border/40 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                                        >
+                                                            <Globe className="w-3 h-3" />
+                                                            {src.title}
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <div className="mt-1.5 flex items-center gap-2 text-[10px] text-muted-foreground/40">
+                                                <Clock className="w-3 h-3" />
+                                                <span>{format(msg.timestamp, 'h:mm a')}</span>
+                                                {msg.model && <span>· {msg.model}</span>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </div>
                         ))}
+
+                        {/* Typing indicator */}
                         {isTyping && (
-                            <div className="flex items-start gap-4 animate-in fade-in duration-300">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shrink-0 animate-pulse">
-                                    <Sparkles className="w-4 h-4 text-white" />
-                                </div>
-                                <div className="text-sm text-muted-foreground py-2 flex items-center gap-1">
-                                    Thinking <span className="animate-pulse">...</span>
+                            <div className="flex items-start gap-3">
+                                <MiloOrb size="sm" pulse />
+                                <div className="flex items-center gap-1.5 py-3 px-1">
+                                    {[0, 1, 2].map(i => (
+                                        <motion.div
+                                            key={i}
+                                            className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full"
+                                            animate={{ y: [0, -4, 0] }}
+                                            transition={{ duration: 0.8, delay: i * 0.15, repeat: Infinity }}
+                                        />
+                                    ))}
                                 </div>
                             </div>
                         )}
-                        <div className="h-4" /> {/* Spacer */}
                     </div>
                 )}
             </div>
 
-            {/* Input Floating Island */}
-            <div className="absolute bottom-6 left-0 right-0 px-4 flex justify-center z-20">
-                <div className="w-full max-w-3xl bg-secondary/80 backdrop-blur-xl border border-white/10 shadow-2xl rounded-3xl p-2 transition-all duration-300 ring-1 ring-black/5 dark:ring-white/10">
-                    <div className="flex flex-col gap-2">
-                        {/* Selected Tool / Context Indicator */}
-                        {selectedTool !== 'none' && (
-                            <div className="px-4 pt-2 flex items-center gap-2 text-xs text-primary font-medium">
-                                <div className="flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full">
-                                    {AI_MODELS.find(m => m.id === selectedModel.id)?.icon} Using {selectedTool}
-                                    <button onClick={() => setSelectedTool('none')} className="hover:bg-primary/20 rounded-full p-0.5 ml-1"><X className="w-3 h-3" /></button>
-                                </div>
-                            </div>
-                        )}
+            {/* ── Input Island ── */}
+            <div className="absolute bottom-0 left-0 right-0 px-4 pb-4 pt-2 bg-gradient-to-t from-background via-background/95 to-transparent z-10">
+                <div className="max-w-3xl mx-auto">
+                    <div className="bg-secondary/70 backdrop-blur-xl border border-border/50 shadow-xl rounded-2xl overflow-hidden">
+                        {/* Active tool chip */}
+                        <AnimatePresence>
+                            {selectedTool !== 'none' && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="px-4 pt-2.5 flex items-center gap-2"
+                                >
+                                    <div className="flex items-center gap-1.5 bg-primary/10 text-primary px-2.5 py-1 rounded-full text-xs font-medium">
+                                        {selectedTool === 'search-web' && <Globe className="w-3 h-3" />}
+                                        {selectedTool === 'github' && <Github className="w-3 h-3" />}
+                                        {selectedTool === 'write-code' && <Code className="w-3 h-3" />}
+                                        <span>{selectedTool.replace('-', ' ')}</span>
+                                        <button onClick={() => setSelectedTool('none')} className="ml-1 hover:opacity-70">
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
-                        <div className="flex items-end gap-2 px-2 pb-1">
-                            {/* Tools / Plus Button */}
+                        <div className="flex items-end gap-2 px-3 py-2.5">
+                            {/* Tools button */}
                             <div className="relative">
                                 <button
                                     onClick={() => setShowTools(!showTools)}
                                     className={cn(
-                                        "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200",
-                                        showTools ? "bg-primary text-primary-foreground rotate-45" : "bg-secondary-foreground/5 hover:bg-secondary-foreground/10 text-muted-foreground"
+                                        'w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shrink-0',
+                                        showTools ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
                                     )}
                                 >
-                                    <Plus className="w-5 h-5" />
+                                    <span className={cn('text-lg leading-none transition-transform duration-200', showTools && 'rotate-45')}>+</span>
                                 </button>
 
                                 <AnimatePresence>
@@ -341,73 +558,72 @@ export const ChatView = ({ messages, chatInput, setChatInput, handleSendMessage,
                                         <>
                                             <div className="fixed inset-0 z-0" onClick={() => setShowTools(false)} />
                                             <motion.div
-                                                initial={{ opacity: 0, scale: 0.9, y: 10 }}
-                                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                                exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                                                className="absolute bottom-14 left-0 w-48 bg-popover/95 backdrop-blur-xl border border-border/50 rounded-2xl shadow-xl z-10 overflow-hidden"
+                                                initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                                                className="absolute bottom-11 left-0 w-52 bg-popover/95 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl z-10 p-1.5"
                                             >
-                                                <div className="p-1.5 space-y-0.5">
-                                                    {[
-                                                        { id: 'search-web', icon: Globe, label: 'Search' },
-                                                        { id: 'github', icon: Github, label: 'GitHub' },
-                                                        { id: 'analyze-images', icon: ImageIcon, label: 'Upload Image' },
-                                                        { id: 'write-code', icon: Code, label: 'Code Mode' },
-                                                    ].map(tool => (
-                                                        <button
-                                                            key={tool.id}
-                                                            onClick={() => { setSelectedTool(tool.id as ChatTool); setShowTools(false); }}
-                                                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-secondary rounded-xl text-sm transition-colors text-left"
-                                                        >
-                                                            <div className="w-8 h-8 rounded-full bg-secondary/50 flex items-center justify-center text-muted-foreground">{tool.icon && <tool.icon className="w-4 h-4" />}</div>
-                                                            <span>{tool.label}</span>
-                                                        </button>
-                                                    ))}
-                                                </div>
+                                                {[
+                                                    { id: 'search-web' as ChatTool, icon: Globe, label: 'Web Search' },
+                                                    { id: 'github' as ChatTool, icon: Github, label: 'GitHub Context' },
+                                                    { id: 'write-code' as ChatTool, icon: Code, label: 'Code Mode' },
+                                                ].map(t => (
+                                                    <button
+                                                        key={t.id}
+                                                        onClick={() => { setSelectedTool(t.id); setShowTools(false); }}
+                                                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-secondary rounded-xl text-sm transition-colors"
+                                                    >
+                                                        <t.icon className="w-4 h-4 text-muted-foreground" />
+                                                        <span>{t.label}</span>
+                                                        {selectedTool === t.id && <Check className="w-3.5 h-3.5 text-primary ml-auto" />}
+                                                    </button>
+                                                ))}
                                             </motion.div>
                                         </>
                                     )}
                                 </AnimatePresence>
                             </div>
 
-                            {/* Text Input */}
+                            {/* Textarea */}
                             <textarea
                                 ref={inputRef}
                                 value={chatInput}
-                                onChange={(e) => setChatInput(e.target.value)}
-                                onKeyDown={(e) => {
+                                onChange={handleInput}
+                                onKeyDown={e => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
                                         onSend();
                                     }
                                 }}
                                 placeholder="Ask Milo anything..."
-                                className="flex-1 bg-transparent border-0 focus:ring-0 p-2.5 text-base placeholder:text-muted-foreground/50 resize-none max-h-32 min-h-[44px]"
+                                className="flex-1 bg-transparent border-0 focus:ring-0 py-1.5 text-sm placeholder:text-muted-foreground/40 resize-none min-h-[36px] max-h-32"
                                 rows={1}
                             />
 
-                            {/* Send Button */}
-                            <button
+                            {/* Send */}
+                            <motion.button
                                 onClick={onSend}
                                 disabled={!chatInput.trim()}
+                                whileTap={{ scale: 0.9 }}
                                 className={cn(
-                                    "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 mb-0.5",
+                                    'w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shrink-0',
                                     chatInput.trim()
-                                        ? "bg-primary text-primary-foreground shadow-lg hover:scale-105"
-                                        : "text-muted-foreground/30"
+                                        ? 'bg-gradient-to-tr from-violet-600 to-indigo-500 text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40'
+                                        : 'text-muted-foreground/30',
                                 )}
                             >
-                                <Send className="w-5 h-5 ml-0.5" />
-                            </button>
+                                <Send className="w-3.5 h-3.5" />
+                            </motion.button>
                         </div>
+                    </div>
+
+                    <div className="text-center mt-2">
+                        <span className="text-[10px] text-muted-foreground/40">
+                            {selectedModel.name} · {selectedSpeed} · Enter to send
+                        </span>
                     </div>
                 </div>
             </div>
-
-            {/* Background Gradient Effect */}
-            <div className="absolute inset-0 z-0 pointer-events-none">
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/80" />
-            </div>
-
         </div>
     );
 };

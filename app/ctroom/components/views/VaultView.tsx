@@ -1,0 +1,3124 @@
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import ReactMarkdown from 'react-markdown';
+import {
+  Wallet, TrendingUp, TrendingDown, Plus, RefreshCw, Link,
+  CreditCard, PiggyBank, Target, X, Check,
+  DollarSign, AlertCircle, Trash2, Upload, FileText,
+  ArrowUpRight, ArrowDownRight, Building2, Landmark, Pencil,
+  Repeat, CalendarClock
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useTellerConnect, TellerConnectEnrollment } from 'teller-connect-react';
+import { supabase } from '@/lib/supabase';
+import { VaultDataService } from '../../services/vaultDataService';
+import {
+  VaultAccount, VaultTransaction, BudgetCategory,
+  DebtEntry, SavingsGoal, AccountType, TransactionType,
+  TransactionRule, Subscription, SubscriptionFrequency
+} from '../../types/index';
+import { cn } from '@/lib/utils';
+import dynamic from 'next/dynamic';
+
+// ── Lazy-load chart components (recharts is SSR-incompatible) ────────────────
+const VaultCharts = dynamic(() => import('./VaultCharts'), { ssr: false });
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+const fmtFull = (n: number) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+
+const pct = (current: number, target: number) =>
+  target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+
+const ACCOUNT_COLORS: Record<AccountType, string> = {
+  checking: '#3b82f6', savings: '#10b981', credit: '#ef4444',
+  loan: '#f59e0b', investment: '#8b5cf6', cash: '#6b7280',
+};
+
+const ACCOUNT_ICONS: Record<AccountType, React.ReactNode> = {
+  checking:   <Landmark className="w-4 h-4" />,
+  savings:    <PiggyBank className="w-4 h-4" />,
+  credit:     <CreditCard className="w-4 h-4" />,
+  loan:       <Building2 className="w-4 h-4" />,
+  investment: <TrendingUp className="w-4 h-4" />,
+  cash:       <DollarSign className="w-4 h-4" />,
+};
+
+type VaultTab = 'overview' | 'transactions' | 'budget' | 'debt' | 'goals' | 'subscriptions';
+type TimeRange = 'today' | 'week' | 'month' | 'last_month' | '3months' | '6months' | 'all';
+
+const TIME_RANGE_LABELS: Record<TimeRange, string> = {
+  today: 'Today', week: '7d', month: 'Month', last_month: 'Last Mo.', '3months': '3M', '6months': '6M', all: 'All',
+};
+
+function filterByRange(txs: VaultTransaction[], range: TimeRange): VaultTransaction[] {
+  if (range === 'all') return txs;
+  const now = new Date();
+  let from: Date, to: Date = now;
+  if (range === 'today')           { from = new Date(now.getFullYear(), now.getMonth(), now.getDate()); }
+  else if (range === 'week')       from = new Date(now.getTime() - 7 * 86400000);
+  else if (range === 'month')      from = new Date(now.getFullYear(), now.getMonth(), 1);
+  else if (range === 'last_month') { from = new Date(now.getFullYear(), now.getMonth() - 1, 1); to = new Date(now.getFullYear(), now.getMonth(), 0); }
+  else if (range === '3months')    from = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+  else                             from = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  return txs.filter(t => { const d = new Date(t.date); return d >= from && d <= to; });
+}
+
+const CATEGORIES = [
+  'Food & Drink', 'Groceries', 'Shopping', 'Transportation', 'Housing', 'Entertainment',
+  'Medical', 'Loan Payments', 'Education', 'Travel', 'Bills & Utilities', 'Investment', 'Income',
+  'Personal Care', 'Services', 'Software', 'Business', 'Charity', 'Transfer', 'Other',
+];
+
+// Keywords that mark a transaction as recurring
+const RECURRING_TX_KEYWORDS = [
+  'recurring', 'autopay', 'auto pay', 'automatic payment',
+  'scheduled payment', 'bill pay', 'recurring charge', 'recurring debit',
+];
+
+function isRecurringTx(tx: VaultTransaction): boolean {
+  const text = `${tx.description} ${tx.merchant || ''}`.toLowerCase();
+  return RECURRING_TX_KEYWORDS.some(kw => text.includes(kw));
+}
+
+// True spending = expenses that aren't transfers/internal moves
+function isRealExpense(tx: VaultTransaction): boolean {
+  return tx.type === 'expense' && tx.category !== 'Transfer';
+}
+
+// ── Teller Connect button ─────────────────────────────────────────────────────
+function TellerConnectButton({ onSuccess, disabled }: {
+  onSuccess: () => void;
+  disabled?: boolean;
+}) {
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const handleSuccess = useCallback(async (enrollment: TellerConnectEnrollment) => {
+    setIsConnecting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const jwt = session?.access_token;
+
+      const res = await fetch('/api/teller/enroll', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+        },
+        body: JSON.stringify({
+          accessToken:  enrollment.accessToken,
+          enrollmentId: enrollment.enrollment.id,
+          institution:  enrollment.enrollment.institution,
+        }),
+      });
+
+      const result = await res.json();
+      if (!result.success) console.error('Teller enroll failed:', result.error);
+      else onSuccess();
+    } catch (err) {
+      console.error('Teller onSuccess error:', err);
+    } finally {
+      setIsConnecting(false);
+    }
+  }, [onSuccess]);
+
+  const { open, ready } = useTellerConnect({
+    applicationId: process.env.NEXT_PUBLIC_TELLER_APP_ID || '',
+    environment:   (process.env.NEXT_PUBLIC_TELLER_ENV as 'sandbox' | 'development' | 'production') || 'sandbox',
+    onSuccess:     handleSuccess,
+    onExit:        () => setIsConnecting(false),
+  });
+
+  return (
+    <button
+      onClick={() => { setIsConnecting(true); open(); }}
+      disabled={disabled || isConnecting || !ready}
+      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors text-sm font-medium disabled:opacity-60"
+    >
+      <Link className="w-4 h-4" />
+      <span className="hidden sm:inline">
+        {isConnecting ? 'Connecting…' : 'Link Bank'}
+      </span>
+    </button>
+  );
+}
+
+// ── Known subscription keyword database ───────────────────────────────────────
+const KNOWN_SUBS: { keywords: string[]; name: string; emoji: string; category: string; color: string }[] = [
+  { keywords: ['netflix'],              name: 'Netflix',           emoji: '🎬', category: 'Entertainment', color: '#e50914' },
+  { keywords: ['spotify'],              name: 'Spotify',           emoji: '🎵', category: 'Entertainment', color: '#1db954' },
+  { keywords: ['apple.com/bill', 'apple cash', 'itunes', 'apple one'], name: 'Apple Services', emoji: '🍎', category: 'Software', color: '#555' },
+  { keywords: ['amazon prime', 'prime video'], name: 'Amazon Prime', emoji: '📦', category: 'Shopping', color: '#ff9900' },
+  { keywords: ['hulu'],                 name: 'Hulu',              emoji: '📺', category: 'Entertainment', color: '#1ce783' },
+  { keywords: ['disney', 'disneyplus'], name: 'Disney+',           emoji: '🏰', category: 'Entertainment', color: '#113ccf' },
+  { keywords: ['youtube premium', 'youtubepremium'], name: 'YouTube Premium', emoji: '▶️', category: 'Entertainment', color: '#ff0000' },
+  { keywords: ['hbo', 'max.com'],       name: 'HBO Max',           emoji: '📺', category: 'Entertainment', color: '#4b0082' },
+  { keywords: ['paramount'],            name: 'Paramount+',        emoji: '⭐', category: 'Entertainment', color: '#0064ff' },
+  { keywords: ['peacock'],              name: 'Peacock',           emoji: '🦚', category: 'Entertainment', color: '#000' },
+  { keywords: ['adobe'],                name: 'Adobe',             emoji: '🎨', category: 'Software', color: '#ff0000' },
+  { keywords: ['microsoft 365', 'office 365', 'microsoft office'], name: 'Microsoft 365', emoji: '💻', category: 'Software', color: '#0078d4' },
+  { keywords: ['google one', 'google storage'], name: 'Google One', emoji: '☁️', category: 'Software', color: '#4285f4' },
+  { keywords: ['dropbox'],              name: 'Dropbox',           emoji: '📁', category: 'Software', color: '#0061ff' },
+  { keywords: ['github'],               name: 'GitHub',            emoji: '🐙', category: 'Software', color: '#333' },
+  { keywords: ['notion'],               name: 'Notion',            emoji: '📓', category: 'Software', color: '#000' },
+  { keywords: ['figma'],                name: 'Figma',             emoji: '🎨', category: 'Software', color: '#f24e1e' },
+  { keywords: ['chatgpt', 'openai'],    name: 'ChatGPT Plus',      emoji: '🤖', category: 'Software', color: '#10a37f' },
+  { keywords: ['claude', 'anthropic'],  name: 'Claude Pro',        emoji: '🤖', category: 'Software', color: '#d97706' },
+  { keywords: ['cursor'],               name: 'Cursor',            emoji: '💻', category: 'Software', color: '#000' },
+  { keywords: ['vercel'],               name: 'Vercel',            emoji: '▲',  category: 'Software', color: '#000' },
+  { keywords: ['supabase'],             name: 'Supabase',          emoji: '⚡', category: 'Software', color: '#3ecf8e' },
+  { keywords: ['gym', 'planet fitness', 'anytime fitness', 'la fitness', 'crunch fitness'], name: 'Gym', emoji: '💪', category: 'Personal Care', color: '#f59e0b' },
+  { keywords: ['audible'],              name: 'Audible',           emoji: '🎧', category: 'Entertainment', color: '#f76a1e' },
+  { keywords: ['kindle unlimited'],     name: 'Kindle Unlimited',  emoji: '📚', category: 'Entertainment', color: '#ff9900' },
+  { keywords: ['twitch'],               name: 'Twitch',            emoji: '🎮', category: 'Entertainment', color: '#9146ff' },
+  { keywords: ['discord nitro'],        name: 'Discord Nitro',     emoji: '💬', category: 'Entertainment', color: '#5865f2' },
+  { keywords: ['duolingo'],             name: 'Duolingo',          emoji: '🦉', category: 'Education', color: '#58cc02' },
+  { keywords: ['masterclass'],          name: 'MasterClass',       emoji: '🎓', category: 'Education', color: '#000' },
+  { keywords: ['icloud'],               name: 'iCloud',            emoji: '☁️', category: 'Software', color: '#555' },
+  { keywords: ['experian', 'equifax', 'transunion', 'credit karma'], name: 'Credit Monitor', emoji: '📊', category: 'Services', color: '#3b82f6' },
+  { keywords: ['tidal'],                name: 'Tidal',             emoji: '🎵', category: 'Entertainment', color: '#000' },
+  { keywords: ['sirius', 'siriusxm'],   name: 'SiriusXM',          emoji: '📻', category: 'Entertainment', color: '#0000cc' },
+  { keywords: ['dazn'],                 name: 'DAZN',              emoji: '🥊', category: 'Entertainment', color: '#f5a623' },
+  { keywords: ['espn'],                 name: 'ESPN+',             emoji: '🏈', category: 'Entertainment', color: '#cc0000' },
+  { keywords: ['nba league pass'],      name: 'NBA League Pass',   emoji: '🏀', category: 'Entertainment', color: '#c9082a' },
+  { keywords: ['calm', 'headspace'],    name: 'Meditation App',    emoji: '🧘', category: 'Personal Care', color: '#f97316' },
+  { keywords: ['noom', 'weight watchers', 'weightwatchers'], name: 'Health App', emoji: '🥗', category: 'Personal Care', color: '#84cc16' },
+];
+
+function matchKnownSub(merchantOrDesc: string) {
+  const s = merchantOrDesc.toLowerCase();
+  return KNOWN_SUBS.find(k => k.keywords.some(kw => s.includes(kw)));
+}
+
+// ── Recurring payment detector ────────────────────────────────────────────────
+interface RecurringItem {
+  merchant: string;
+  amount: number;
+  frequency: string;
+  estimatedMonthly: number;
+  lastDate: Date;
+  category?: string;
+  count: number;
+}
+
+function detectRecurring(transactions: VaultTransaction[]): RecurringItem[] {
+  const byMerchant: Record<string, VaultTransaction[]> = {};
+  transactions
+    .filter(t => t.type === 'expense' && (t.merchant || t.description))
+    .forEach(t => {
+      const key = (t.merchant || t.description).toLowerCase().trim();
+      if (!byMerchant[key]) byMerchant[key] = [];
+      byMerchant[key].push(t);
+    });
+
+  const results: RecurringItem[] = [];
+  for (const txs of Object.values(byMerchant)) {
+    if (txs.length < 2) continue;
+    const sorted = [...txs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const amounts = txs.map(t => t.amount);
+    const avgAmount = amounts.reduce((s, a) => s + a, 0) / amounts.length;
+    const consistent = amounts.every(a => Math.abs(a - avgAmount) / (avgAmount || 1) < 0.15);
+    if (!consistent && txs.length < 3) continue;
+
+    const intervals: number[] = [];
+    for (let i = 0; i < sorted.length - 1; i++) {
+      intervals.push((new Date(sorted[i].date).getTime() - new Date(sorted[i + 1].date).getTime()) / 86400000);
+    }
+    const avgInterval = intervals.reduce((s, d) => s + d, 0) / intervals.length;
+
+    let frequency = '';
+    let estimatedMonthly = 0;
+    if (avgInterval >= 25 && avgInterval <= 35)       { frequency = 'monthly';    estimatedMonthly = avgAmount; }
+    else if (avgInterval >= 6 && avgInterval <= 8)    { frequency = 'weekly';     estimatedMonthly = avgAmount * 4.33; }
+    else if (avgInterval >= 12 && avgInterval <= 16)  { frequency = 'bi-weekly'; estimatedMonthly = avgAmount * 2.17; }
+    else if (avgInterval >= 85 && avgInterval <= 95)  { frequency = 'quarterly'; estimatedMonthly = avgAmount / 3; }
+    else if (avgInterval >= 355 && avgInterval <= 375){ frequency = 'annual';    estimatedMonthly = avgAmount / 12; }
+    else continue;
+
+    results.push({
+      merchant: txs[0].merchant || txs[0].description,
+      amount: avgAmount,
+      frequency,
+      estimatedMonthly,
+      lastDate: new Date(sorted[0].date),
+      category: txs[0].category,
+      count: txs.length,
+    });
+  }
+  return results.sort((a, b) => b.estimatedMonthly - a.estimatedMonthly);
+}
+
+// ── VaultView ─────────────────────────────────────────────────────────────────
+export function VaultView() {
+  const [tab, setTab] = useState<VaultTab>('overview');
+  const [accounts, setAccounts] = useState<VaultAccount[]>([]);
+  const [transactions, setTransactions] = useState<VaultTransaction[]>([]);
+  const [budgets, setBudgets] = useState<BudgetCategory[]>([]);
+  const [debts, setDebts] = useState<DebtEntry[]>([]);
+  const [goals, setGoals] = useState<SavingsGoal[]>([]);
+  const [rules, setRules] = useState<TransactionRule[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [selectedTx, setSelectedTx] = useState<VaultTransaction | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
+  const [timeRange, setTimeRange] = useState<TimeRange>('month');
+
+  // modals
+  const [showAddAccount, setShowAddAccount] = useState(false);
+  const [showAddTransaction, setShowAddTransaction] = useState(false);
+  const [showAddDebt, setShowAddDebt] = useState(false);
+  const [showAddGoal, setShowAddGoal] = useState(false);
+  const [showAddBudget, setShowAddBudget] = useState(false);
+
+  // computed
+  const netWorth = VaultDataService.computeNetWorth(accounts);
+  const rangedTxs = filterByRange(transactions, timeRange);
+  const totalIncome   = rangedTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const totalExpenses = rangedTxs.filter(isRealExpense).reduce((s, t) => s + t.amount, 0);
+  const totalDebt = VaultDataService.computeTotalDebt(debts);
+
+  const handleUpdateCategory = useCallback(async (id: string, category: string) => {
+    await VaultDataService.updateTransaction(id, { category });
+    setTransactions(prev => prev.map(t => t.id === id ? { ...t, category } : t));
+  }, []);
+
+  // ── load data ────────────────────────────────────────────────────────────
+  const loadAll = useCallback(async () => {
+    setIsLoading(true);
+    const [accs, rawTxs, budgetCats, debtList, goalList, ruleList, subList] = await Promise.all([
+      VaultDataService.fetchAccounts(),
+      VaultDataService.fetchTransactions(500),
+      VaultDataService.fetchBudgetCategories(),
+      VaultDataService.fetchDebts(),
+      VaultDataService.fetchSavingsGoals(),
+      VaultDataService.fetchRules(),
+      VaultDataService.fetchSubscriptions(),
+    ]);
+
+    // Apply user-defined rules to transactions (client-side)
+    const txs = VaultDataService.applyRules(rawTxs, ruleList);
+
+    const spending = VaultDataService.computeMonthlySpending(txs);
+    const spendingLower = Object.fromEntries(
+      Object.entries(spending).map(([k, v]) => [k.toLowerCase().replace(/[_\s]+/g, ''), v])
+    );
+    setBudgets(budgetCats.map(b => ({
+      ...b,
+      spent: spendingLower[b.name.toLowerCase().replace(/[_\s]+/g, '')] || 0,
+    })));
+    setAccounts(accs);
+    setTransactions(txs);
+    setDebts(debtList);
+    setGoals(goalList);
+    setRules(ruleList);
+    setSubscriptions(subList);
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  // ── sync ─────────────────────────────────────────────────────────────────
+  const handleSync = async () => {
+    setIsSyncing(true);
+    setSyncMessage('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const jwt = session?.access_token;
+
+      const res = await fetch('/api/teller/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+        },
+        body: JSON.stringify({}),
+      });
+      const result = await res.json();
+
+      if (result.synced !== undefined) {
+        setSyncMessage(`Synced ${result.synced} transactions`);
+        await loadAll();
+      }
+    } catch (err) {
+      console.error('Sync error:', err);
+      setSyncMessage('Sync failed');
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setSyncMessage(''), 3000);
+    }
+  };
+
+  const tabs: { id: VaultTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'overview',       label: 'Overview',       icon: <Wallet className="w-4 h-4" /> },
+    { id: 'transactions',   label: 'Transactions',   icon: <ArrowUpRight className="w-4 h-4" /> },
+    { id: 'budget',         label: 'Budget',         icon: <Target className="w-4 h-4" /> },
+    { id: 'debt',           label: 'Debt',           icon: <TrendingDown className="w-4 h-4" /> },
+    { id: 'goals',          label: 'Goals',          icon: <PiggyBank className="w-4 h-4" /> },
+    { id: 'subscriptions',  label: 'Subscriptions',  icon: <Repeat className="w-4 h-4" /> },
+  ];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold flex items-center gap-2">
+            <Wallet className="w-6 h-6 text-emerald-500" /> Vault
+          </h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Your personal finance hub</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {syncMessage && (
+            <span className="text-xs text-muted-foreground animate-pulse">{syncMessage}</span>
+          )}
+          <button
+            onClick={handleSync}
+            disabled={isSyncing}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border hover:bg-secondary transition-colors text-sm"
+          >
+            <RefreshCw className={cn("w-4 h-4", isSyncing && "animate-spin")} />
+            <span className="hidden sm:inline">Sync</span>
+          </button>
+          <TellerConnectButton onSuccess={() => { loadAll(); handleSync(); }} />
+        </div>
+      </div>
+
+      {/* Net Worth Banner */}
+      <div className="rounded-2xl bg-gradient-to-br from-emerald-500/10 via-blue-500/5 to-purple-500/10 border border-border p-6">
+        <p className="text-sm text-muted-foreground mb-1">Net Worth</p>
+        <p className={cn(
+          "font-mono text-4xl font-bold tracking-tight",
+          netWorth >= 0 ? "text-foreground" : "text-red-500"
+        )}>
+          {fmtFull(netWorth)}
+        </p>
+        <div className="flex flex-wrap gap-6 mt-4">
+          <div>
+            <p className="text-xs text-muted-foreground">{TIME_RANGE_LABELS[timeRange]} Income</p>
+            <p className="font-mono text-lg font-semibold text-emerald-500">+{fmtFull(totalIncome)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">{TIME_RANGE_LABELS[timeRange]} Spent</p>
+            <p className="font-mono text-lg font-semibold text-red-400">-{fmtFull(totalExpenses)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Savings Rate</p>
+            <p className={cn("font-mono text-lg font-semibold", totalIncome > 0 && (totalIncome - totalExpenses) / totalIncome >= 0.2 ? "text-emerald-500" : "text-amber-400")}>
+              {totalIncome > 0 ? `${Math.round(((totalIncome - totalExpenses) / totalIncome) * 100)}%` : '—'}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Total Debt</p>
+            <p className="font-mono text-lg font-semibold text-amber-500">{fmtFull(totalDebt)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Accounts</p>
+            <p className="text-lg font-semibold">{accounts.length}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs + Time Range */}
+      <div className="flex flex-wrap items-center gap-2 justify-between">
+        <div className="flex gap-1 p-1 bg-secondary/50 rounded-xl overflow-x-auto">
+          {tabs.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all",
+                tab === t.id
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {t.icon} {t.label}
+            </button>
+          ))}
+        </div>
+        {(tab === 'overview' || tab === 'transactions') && (
+          <div className="flex gap-1 p-1 bg-secondary/50 rounded-xl">
+            {(Object.keys(TIME_RANGE_LABELS) as TimeRange[]).map(r => (
+              <button key={r} onClick={() => setTimeRange(r)}
+                className={cn("px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all",
+                  timeRange === r ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}>
+                {TIME_RANGE_LABELS[r]}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Tab Content */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={tab}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.15 }}
+        >
+          {tab === 'overview' && (
+            <OverviewTab
+              accounts={accounts}
+              transactions={rangedTxs}
+              allTransactions={transactions}
+              timeRange={timeRange}
+              budgets={budgets}
+              debts={debts}
+              goals={goals}
+              subscriptions={subscriptions}
+              onAddAccount={() => setShowAddAccount(true)}
+              onDeleteAccount={async id => { await VaultDataService.deleteAccount(id); loadAll(); }}
+              onUpdateCategory={handleUpdateCategory}
+              onTxClick={setSelectedTx}
+            />
+          )}
+          {tab === 'transactions' && (
+            <TransactionsTab
+              transactions={rangedTxs}
+              accounts={accounts}
+              rules={rules}
+              onAdd={() => setShowAddTransaction(true)}
+              onDelete={async id => { await VaultDataService.deleteTransaction(id); loadAll(); }}
+              onUpdateCategory={handleUpdateCategory}
+              onTxClick={setSelectedTx}
+              onSaveRule={async (pattern, category) => { await VaultDataService.saveRule(pattern, category); loadAll(); }}
+              onDeleteRule={async id => { await VaultDataService.deleteRule(id); loadAll(); }}
+              onApplyRules={async () => {
+                const r = await VaultDataService.fetchRules();
+                const count = await VaultDataService.applyRulesToDb(r);
+                setSyncMessage(`Applied rules to ${count} transactions`);
+                loadAll();
+                setTimeout(() => setSyncMessage(''), 3000);
+              }}
+            />
+          )}
+          {tab === 'budget' && (
+            <BudgetTab
+              budgets={budgets}
+              onAdd={() => setShowAddBudget(true)}
+              onDelete={async id => { await VaultDataService.deleteBudgetCategory(id); loadAll(); }}
+              onUpdate={async (id, updates) => { await VaultDataService.updateBudgetCategory(id, updates); loadAll(); }}
+            />
+          )}
+          {tab === 'debt' && (
+            <DebtTab
+              debts={debts}
+              onAdd={() => setShowAddDebt(true)}
+              onDelete={async id => { await VaultDataService.deleteDebt(id); loadAll(); }}
+              onUpdate={async (id, updates) => { await VaultDataService.updateDebt(id, updates); loadAll(); }}
+              onImport={async rows => { await Promise.all(rows.map(r => VaultDataService.saveDebt(r))); loadAll(); }}
+            />
+          )}
+          {tab === 'goals' && (
+            <GoalsTab
+              goals={goals}
+              onAdd={() => setShowAddGoal(true)}
+              onDelete={async id => { await VaultDataService.deleteSavingsGoal(id); loadAll(); }}
+              onUpdate={async (id, updates) => { await VaultDataService.updateSavingsGoal(id, updates); loadAll(); }}
+            />
+          )}
+          {tab === 'subscriptions' && (
+            <SubscriptionsTab
+              transactions={transactions}
+              subscriptions={subscriptions}
+              onSave={async s => { await VaultDataService.saveSubscription(s); loadAll(); }}
+              onUpdate={async (id, u) => { await VaultDataService.updateSubscription(id, u); loadAll(); }}
+              onDelete={async id => { await VaultDataService.deleteSubscription(id); loadAll(); }}
+            />
+          )}
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Modals */}
+      <AnimatePresence>
+        {showAddAccount     && <AddAccountModal    onClose={() => setShowAddAccount(false)}    onSave={async a => { await VaultDataService.saveAccount(a); setShowAddAccount(false); loadAll(); }} />}
+        {showAddTransaction && <AddTransactionModal accounts={accounts} onClose={() => setShowAddTransaction(false)} onSave={async t => { await VaultDataService.saveTransaction(t); setShowAddTransaction(false); loadAll(); }} />}
+        {showAddDebt        && <AddDebtModal        onClose={() => setShowAddDebt(false)}       onSave={async d => { await VaultDataService.saveDebt(d); setShowAddDebt(false); loadAll(); }} />}
+        {showAddGoal        && <AddGoalModal        onClose={() => setShowAddGoal(false)}       onSave={async g => { await VaultDataService.saveSavingsGoal(g); setShowAddGoal(false); loadAll(); }} />}
+        {showAddBudget      && <AddBudgetModal      onClose={() => setShowAddBudget(false)}     onSave={async b => { await VaultDataService.saveBudgetCategory(b); setShowAddBudget(false); loadAll(); }} />}
+        {selectedTx && (
+          <TransactionDetailModal
+            tx={selectedTx}
+            onClose={() => setSelectedTx(null)}
+            onUpdateCategory={async (id, cat) => { await handleUpdateCategory(id, cat); setSelectedTx(prev => prev ? { ...prev, category: cat } : null); }}
+            onCreateRule={async (pattern, cat) => { await VaultDataService.saveRule(pattern, cat); loadAll(); setSelectedTx(null); }}
+            onDelete={async id => { await VaultDataService.deleteTransaction(id); setSelectedTx(null); loadAll(); }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ── HEALTH SCORE ──────────────────────────────────────────────────────────────
+function computeHealthScore(
+  transactions: VaultTransaction[],
+  budgets: BudgetCategory[],
+  debts: DebtEntry[],
+  goals: SavingsGoal[],
+): { score: number; breakdown: { label: string; pts: number; max: number; note: string }[] } {
+  const monthTxs = filterByRange(transactions, 'month');
+  const income = monthTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const expenses = monthTxs.filter(isRealExpense).reduce((s, t) => s + t.amount, 0);
+
+  // 1. Savings rate (30 pts) — 20%+ savings = full points
+  const savingsRate = income > 0 ? (income - expenses) / income : 0;
+  const savingsPts = Math.round(Math.min(30, Math.max(0, savingsRate * 150)));
+
+  // 2. Budget health (25 pts) — % of categories under limit
+  const budgetPts = budgets.length === 0 ? 12
+    : Math.round((budgets.filter(b => (b.spent || 0) <= b.monthlyLimit).length / budgets.length) * 25);
+
+  // 3. Debt load (25 pts) — lower debt-to-annual-income = better
+  const totalDebtBal = debts.reduce((s, d) => s + d.balance, 0);
+  const annualIncome = income * 12;
+  const dti = annualIncome > 0 ? totalDebtBal / annualIncome : (totalDebtBal > 0 ? 1 : 0);
+  const debtPts = debts.length === 0 ? 25 : Math.round(Math.max(0, 25 - dti * 25));
+
+  // 4. Goal progress (20 pts) — average % across all goals
+  const goalPts = goals.length === 0 ? 10
+    : Math.round((goals.reduce((s, g) => s + Math.min(1, g.currentAmount / (g.targetAmount || 1)), 0) / goals.length) * 20);
+
+  const score = Math.min(100, savingsPts + budgetPts + debtPts + goalPts);
+  return {
+    score,
+    breakdown: [
+      { label: 'Savings Rate', pts: savingsPts, max: 30, note: income > 0 ? `${Math.round(savingsRate * 100)}% saved this month` : 'No income data' },
+      { label: 'Budget Health', pts: budgetPts, max: 25, note: budgets.length > 0 ? `${budgets.filter(b => (b.spent || 0) <= b.monthlyLimit).length}/${budgets.length} on track` : 'No budgets set' },
+      { label: 'Debt Load', pts: debtPts, max: 25, note: debts.length > 0 ? `DTI: ${Math.round(dti * 100)}%` : 'No debts tracked' },
+      { label: 'Goal Progress', pts: goalPts, max: 20, note: goals.length > 0 ? `${goals.filter(g => g.currentAmount >= g.targetAmount).length}/${goals.length} complete` : 'No goals set' },
+    ],
+  };
+}
+
+const COMPONENT_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+
+const HEALTH_TIPS: Record<string, string> = {
+  'Savings Rate': 'Aim to save 20%+ of income. Cut top spending categories first.',
+  'Budget Health': 'Set limits for each category and stick to them monthly.',
+  'Debt Load': 'Pay more than minimums on high-interest debt to reduce load.',
+  'Goal Progress': 'Automate a fixed transfer to savings goals each payday.',
+};
+
+function HealthScorePanel({ score, breakdown }: {
+  score: number;
+  breakdown: { label: string; pts: number; max: number; note: string }[];
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const r = 38;
+  const circ = 2 * Math.PI * r;
+  const filled = (score / 100) * circ;
+  const scoreColor = score >= 80 ? '#10b981' : score >= 60 ? '#3b82f6' : score >= 40 ? '#f59e0b' : '#ef4444';
+  const grade = score >= 90 ? 'A+' : score >= 80 ? 'A' : score >= 70 ? 'B' : score >= 60 ? 'C' : score >= 50 ? 'D' : 'F';
+  const label = score >= 80 ? 'Excellent' : score >= 60 ? 'Good' : score >= 40 ? 'Fair' : 'Needs Work';
+
+  return (
+    <div className="p-4 rounded-2xl bg-card border border-border/50 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-sm">Financial Health</h3>
+        <button onClick={() => setExpanded(p => !p)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+          {expanded ? 'Hide tips ↑' : 'Show tips ↓'}
+        </button>
+      </div>
+      <div className="flex items-center gap-5">
+        <div className="relative flex-shrink-0">
+          <svg width="96" height="96" className="-rotate-90">
+            <circle cx="48" cy="48" r={r} fill="none" stroke="hsl(var(--secondary))" strokeWidth="8" />
+            <circle cx="48" cy="48" r={r} fill="none" stroke={scoreColor} strokeWidth="8"
+              strokeDasharray={`${filled} ${circ - filled}`} strokeLinecap="round"
+              style={{ transition: 'stroke-dasharray 0.6s ease' }} />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="font-mono text-xl font-bold leading-none" style={{ color: scoreColor }}>{grade}</span>
+            <span className="font-mono text-[11px] font-medium" style={{ color: scoreColor }}>{score}</span>
+            <span className="text-[9px] text-muted-foreground">/100</span>
+          </div>
+        </div>
+        <div className="flex-1 space-y-2">
+          <p className="font-semibold text-sm" style={{ color: scoreColor }}>{label}</p>
+          {breakdown.map((b, i) => {
+            const pct = (b.pts / b.max) * 100;
+            const barColor = pct >= 80 ? '#10b981' : pct >= 50 ? COMPONENT_COLORS[i] : pct >= 25 ? '#f59e0b' : '#ef4444';
+            return (
+              <div key={b.label}>
+                <div className="flex justify-between text-xs mb-0.5">
+                  <span className="text-muted-foreground">{b.label}</span>
+                  <span className="font-medium text-xs">{b.pts}/{b.max} · {b.note}</span>
+                </div>
+                <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${pct}%`, backgroundColor: barColor }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {expanded && (
+        <div className="space-y-2 pt-2 border-t border-border/40">
+          {breakdown.filter(b => b.pts < b.max).map((b, i) => (
+            <div key={b.label} className="flex items-start gap-2 text-xs">
+              <span style={{ color: COMPONENT_COLORS[i] }} className="flex-shrink-0 mt-0.5">↑</span>
+              <div>
+                <span className="font-medium">{b.label}:</span>{' '}
+                <span className="text-muted-foreground">{HEALTH_TIPS[b.label]}</span>
+              </div>
+            </div>
+          ))}
+          {breakdown.every(b => b.pts === b.max) && (
+            <p className="text-xs text-emerald-500">All components maxed — great work!</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CashFlowPanel({ accounts, transactions, subscriptions }: {
+  accounts: VaultAccount[];
+  transactions: VaultTransaction[];
+  subscriptions: Subscription[];
+}) {
+  const liquidBalance = accounts
+    .filter(a => a.type === 'checking' || a.type === 'savings' || a.type === 'cash')
+    .reduce((s, a) => s + a.balance, 0);
+
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const dayOfMonth = now.getDate();
+  const daysLeft = daysInMonth - dayOfMonth;
+
+  const expenses = transactions.filter(t => t.type === 'expense');
+  const avgDailyExpense = dayOfMonth > 0 && expenses.length > 0
+    ? expenses.reduce((s, t) => s + t.amount, 0) / dayOfMonth
+    : 0;
+
+  const projectedRemaining = avgDailyExpense * daysLeft;
+  const activeSubMonthly = subscriptions.filter(s => s.isActive).reduce((s, sub) => s + toMonthly(sub.amount, sub.frequency), 0);
+  const eomForecast = liquidBalance - projectedRemaining;
+
+  return (
+    <div className="p-4 rounded-2xl bg-card border border-border/50">
+      <h3 className="font-semibold text-sm mb-3">Cash Flow Forecast</h3>
+      <div className="space-y-2.5">
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Liquid Balance</span>
+          <span className="font-semibold">{fmtFull(liquidBalance)}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Avg Daily Spend</span>
+          <span className="font-medium text-red-400">{fmtFull(avgDailyExpense)}/day</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Projected ({daysLeft}d left)</span>
+          <span className="font-medium text-amber-400">-{fmtFull(projectedRemaining)}</span>
+        </div>
+        {activeSubMonthly > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Subscriptions/mo</span>
+            <span className="font-medium text-red-400">-{fmtFull(activeSubMonthly)}</span>
+          </div>
+        )}
+        <div className="h-px bg-border/40" />
+        <div className="flex justify-between text-sm font-semibold">
+          <span>End of Month Est.</span>
+          <span className={eomForecast >= 0 ? 'text-emerald-500' : 'text-red-400'}>{fmtFull(eomForecast)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const VAULT_AI_MODELS = [
+  // Google Gemini
+  { id: 'gemini-2.0-flash',             label: 'Gemini 2.0 Flash' },
+  { id: 'gemini-1.5-flash',             label: 'Gemini 1.5 Flash' },
+  { id: 'gemini-1.5-pro',               label: 'Gemini 1.5 Pro' },
+  // OpenAI
+  { id: 'gpt-4o-mini',                  label: 'GPT-4o Mini' },
+  { id: 'gpt-4o',                       label: 'GPT-4o' },
+  // Anthropic
+  { id: 'claude-3-5-haiku-20241022',    label: 'Claude 3.5 Haiku' },
+  { id: 'claude-3-5-sonnet-20241022',   label: 'Claude 3.5 Sonnet' },
+];
+
+const VAULT_QUICK_PROMPTS = [
+  'Give me 4 financial insights this month',
+  'Where am I overspending?',
+  'How can I pay off my debt faster?',
+  'Am I on track with my savings goals?',
+  'What subscriptions should I cut?',
+];
+
+function buildVaultSystemPrompt(
+  transactions: VaultTransaction[],
+  budgets: BudgetCategory[],
+  debts: DebtEntry[],
+  goals: SavingsGoal[],
+  subscriptions: Subscription[],
+  accounts: VaultAccount[],
+): string {
+  const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const expenses = transactions.filter(isRealExpense).reduce((s, t) => s + t.amount, 0);
+  const catMap: Record<string, number> = {};
+  transactions.filter(isRealExpense).forEach(t => {
+    catMap[t.category || 'Other'] = (catMap[t.category || 'Other'] || 0) + t.amount;
+  });
+  const topCats = Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 6)
+    .map(([k, v]) => `${k}: $${v.toFixed(0)}`).join(', ');
+  const accountSummary = accounts.map(a => `${a.name} (${a.type}): $${a.balance.toFixed(2)}`).join(', ');
+  const budgetSummary = budgets.map(b => `${b.name}: $${(b.spent || 0).toFixed(0)}/$${b.monthlyLimit} ${(b.spent || 0) > b.monthlyLimit ? '[OVER]' : '[ok]'}`).join(', ');
+  const debtSummary = debts.map(d => `${d.name}: $${d.balance.toFixed(0)} @ ${d.interestRate}% APR, min $${d.minimumPayment}/mo`).join(', ');
+  const goalSummary = goals.map(g => `${g.name}: $${g.currentAmount}/$${g.targetAmount} (${Math.round((g.currentAmount / (g.targetAmount || 1)) * 100)}%)`).join(', ');
+  const subSummary = subscriptions.filter(s => s.isActive).map(s => `${s.name}: $${s.amount}/${s.frequency}`).join(', ');
+
+  return `You are Kings's personal finance advisor with full access to their financial data. Be specific, direct, and use exact numbers from their data. Keep responses concise.
+
+TODAY: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+
+ACCOUNTS: ${accountSummary || 'None linked'}
+THIS MONTH: Income $${income.toFixed(0)}, Spending $${expenses.toFixed(0)}, Savings rate ${income > 0 ? Math.round(((income - expenses) / income) * 100) : 0}%
+TOP SPENDING CATEGORIES: ${topCats || 'No data'}
+BUDGETS: ${budgetSummary || 'None set'}
+DEBTS: ${debtSummary || 'None tracked'}
+SAVINGS GOALS: ${goalSummary || 'None set'}
+ACTIVE SUBSCRIPTIONS: ${subSummary || 'None tracked'}`;
+}
+
+type VaultChatMsg = { role: 'user' | 'assistant'; content: string; timestamp: string; isError?: boolean };
+
+const MD_COMPONENTS: React.ComponentProps<typeof ReactMarkdown>['components'] = {
+  p:          ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+  strong:     ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+  em:         ({ children }) => <em className="italic">{children}</em>,
+  ul:         ({ children }) => <ul className="mt-1 mb-2 space-y-1 pl-1">{children}</ul>,
+  ol:         ({ children }) => <ol className="mt-1 mb-2 space-y-1 pl-1">{children}</ol>,
+  li:         ({ children }) => (
+    <li className="flex items-start gap-1.5">
+      <span className="text-primary flex-shrink-0 mt-1 text-[8px] select-none">●</span>
+      <span>{children}</span>
+    </li>
+  ),
+  h1:         ({ children }) => <p className="font-bold text-foreground text-sm mb-1">{children}</p>,
+  h2:         ({ children }) => <p className="font-semibold text-foreground mb-1">{children}</p>,
+  h3:         ({ children }) => <p className="font-medium text-foreground mb-0.5">{children}</p>,
+  code:       ({ children }) => <code className="bg-background rounded px-1 py-0.5 font-mono text-[10px]">{children}</code>,
+  blockquote: ({ children }) => <div className="border-l-2 border-primary/40 pl-2 text-muted-foreground italic">{children}</div>,
+};
+
+function VaultAIChat({ transactions, budgets, debts, goals, subscriptions, accounts }: {
+  transactions: VaultTransaction[];
+  budgets: BudgetCategory[];
+  debts: DebtEntry[];
+  goals: SavingsGoal[];
+  subscriptions: Subscription[];
+  accounts: VaultAccount[];
+}) {
+  const [messages, setMessages] = useState<VaultChatMsg[]>([]);
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [model, setModel] = useState('gemini-2.0-flash');
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<{ id: string; title: string; updated_at: string; messages: VaultChatMsg[] }[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  // Load most recent chat on mount
+  useEffect(() => {
+    VaultDataService.fetchVaultChats().then(chats => {
+      if (chats.length > 0) {
+        const latest = chats[0];
+        setHistory(chats as any);
+        setChatId(latest.id);
+        setMessages((latest.messages || []) as VaultChatMsg[]);
+        setModel(latest.model || 'gemini-2.0-flash');
+      }
+    });
+  }, []);
+
+  const scrollToBottom = () =>
+    setTimeout(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }), 50);
+
+  const persistChat = useCallback(async (
+    msgs: VaultChatMsg[], currentId: string | null, currentModel: string
+  ) => {
+    const firstUser = msgs.find(m => m.role === 'user')?.content || 'Financial Chat';
+    const title = firstUser.length > 50 ? firstUser.slice(0, 50) + '…' : firstUser;
+    const newId = await VaultDataService.saveVaultChat(currentId, msgs as any, title, currentModel);
+    if (!currentId && newId) setChatId(newId);
+  }, []);
+
+  const callApi = useCallback(async (msgs: VaultChatMsg[], retryModel?: string) => {
+    const activeModel = retryModel || model;
+    setIsLoading(true);
+    try {
+      const systemPrompt = buildVaultSystemPrompt(transactions, budgets, debts, goals, subscriptions, accounts);
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'system', content: systemPrompt }, ...msgs.map(m => ({ role: m.role, content: m.content }))],
+          model: activeModel,
+        }),
+      });
+      const data = await res.json();
+      const content = data.message || 'No response received.';
+      const isError = !data.message || content.toLowerCase().startsWith('error') || content.includes('having trouble');
+      const reply: VaultChatMsg = { role: 'assistant', content, timestamp: new Date().toISOString(), isError };
+      const updated = [...msgs, reply];
+      setMessages(updated);
+      await persistChat(updated, chatId, activeModel);
+      return updated;
+    } catch {
+      const reply: VaultChatMsg = { role: 'assistant', content: 'Connection failed. Check your API key in Settings or try a different model.', timestamp: new Date().toISOString(), isError: true };
+      setMessages(prev => [...prev, reply]);
+    } finally {
+      setIsLoading(false);
+      scrollToBottom();
+    }
+    return msgs;
+  }, [model, chatId, transactions, budgets, debts, goals, subscriptions, accounts, persistChat]);
+
+  const send = useCallback(async (userMsg?: string) => {
+    const msg = (userMsg || input).trim();
+    if (!msg || isLoading) return;
+    setInput('');
+    const userEntry: VaultChatMsg = { role: 'user', content: msg, timestamp: new Date().toISOString() };
+    const withUser = [...messages, userEntry];
+    setMessages(withUser);
+    scrollToBottom();
+    await callApi(withUser);
+  }, [input, messages, isLoading, callApi]);
+
+  const retry = useCallback(async () => {
+    // Re-send from the last user message
+    const lastUserIdx = [...messages].reverse().findIndex(m => m.role === 'user');
+    if (lastUserIdx === -1) return;
+    const idx = messages.length - 1 - lastUserIdx;
+    const withoutLast = messages.slice(0, idx + 1);
+    setMessages(withoutLast);
+    await callApi(withoutLast);
+  }, [messages, callApi]);
+
+  const newChat = useCallback(() => {
+    setMessages([]);
+    setChatId(null);
+    setShowHistory(false);
+  }, []);
+
+  const loadChat = useCallback((chat: { id: string; messages: VaultChatMsg[]; model: string }) => {
+    setChatId(chat.id);
+    setMessages(chat.messages || []);
+    setModel(chat.model || 'gemini-2.0-flash');
+    setShowHistory(false);
+    scrollToBottom();
+  }, []);
+
+  const openHistory = useCallback(async () => {
+    setLoadingHistory(true);
+    const chats = await VaultDataService.fetchVaultChats();
+    setHistory(chats as any);
+    setLoadingHistory(false);
+    setShowHistory(true);
+  }, []);
+
+  const deleteChat = useCallback(async (id: string) => {
+    await VaultDataService.deleteVaultChat(id);
+    setHistory(prev => prev.filter(c => c.id !== id));
+    if (chatId === id) newChat();
+  }, [chatId, newChat]);
+
+  const lastMsg = messages[messages.length - 1];
+  const showRetry = lastMsg?.isError && !isLoading;
+
+  return (
+    <div className="p-4 rounded-2xl bg-card border border-border/50 space-y-3">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-sm">AI Finance Advisor</h3>
+        <div className="flex items-center gap-2">
+          <button onClick={openHistory} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+            History
+          </button>
+          <button onClick={newChat} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+            New Chat
+          </button>
+          <select
+            value={model}
+            onChange={e => setModel(e.target.value)}
+            className="text-xs px-2 py-1 rounded-lg border border-border bg-background focus:outline-none"
+          >
+            {VAULT_AI_MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* History panel */}
+      {showHistory && (
+        <div className="rounded-xl border border-border/50 bg-secondary/30 overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-border/40">
+            <p className="text-xs font-medium">Past Conversations</p>
+            <button onClick={() => setShowHistory(false)} className="text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {loadingHistory ? (
+              <p className="text-xs text-muted-foreground p-3">Loading...</p>
+            ) : history.length === 0 ? (
+              <p className="text-xs text-muted-foreground p-3">No saved conversations yet.</p>
+            ) : history.map(c => (
+              <div key={c.id} className="flex items-center justify-between px-3 py-2 hover:bg-secondary/50 transition-colors group">
+                <button className="flex-1 text-left min-w-0" onClick={() => loadChat(c as any)}>
+                  <p className="text-xs font-medium truncate">{c.title}</p>
+                  <p className="text-[10px] text-muted-foreground">{new Date(c.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                </button>
+                <button onClick={() => deleteChat(c.id)} className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-red-400 transition-all ml-2">
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Quick prompts */}
+      {messages.length === 0 && !showHistory && (
+        <div className="flex flex-wrap gap-1.5">
+          {VAULT_QUICK_PROMPTS.map(q => (
+            <button key={q} onClick={() => send(q)} disabled={isLoading}
+              className="text-xs px-2.5 py-1.5 rounded-lg bg-secondary hover:bg-secondary/70 text-muted-foreground hover:text-foreground transition-colors">
+              {q}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Messages */}
+      {messages.length > 0 && (
+        <div ref={scrollRef} className="space-y-2 max-h-80 overflow-y-auto pr-1">
+          {messages.map((m, i) => (
+            <div key={i} className={cn(
+              "text-xs rounded-2xl px-3 py-2.5 leading-relaxed",
+              m.role === 'user' ? "bg-primary/10 text-foreground ml-6" : "bg-secondary/50 text-foreground mr-6",
+              m.isError && "border border-red-500/30 bg-red-500/5"
+            )}>
+              {m.role === 'user' ? m.content : (
+                <ReactMarkdown components={MD_COMPONENTS}>{m.content}</ReactMarkdown>
+              )}
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground px-3 py-2 mr-6 bg-secondary/50 rounded-2xl">
+              <div className="flex gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+              <span>Analyzing your finances...</span>
+            </div>
+          )}
+          {showRetry && (
+            <div className="flex items-center gap-2 px-3">
+              <button onClick={retry}
+                className="text-xs px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition-colors font-medium flex items-center gap-1">
+                <RefreshCw className="w-3 h-3" /> Retry
+              </button>
+              <span className="text-[10px] text-muted-foreground">Response failed — try a different model or retry</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Input */}
+      <div className="flex gap-2">
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+          placeholder="Ask about your finances..."
+          disabled={isLoading}
+          className="flex-1 text-xs px-3 py-2 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary/50 disabled:opacity-60"
+        />
+        <button onClick={() => send()} disabled={!input.trim() || isLoading}
+          className="text-xs px-3 py-2 rounded-xl bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity">
+          Send
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── OVERVIEW TAB ──────────────────────────────────────────────────────────────
+function OverviewTab({ accounts, transactions, allTransactions, timeRange, budgets, debts, goals, subscriptions, onAddAccount, onDeleteAccount, onUpdateCategory, onTxClick }: {
+  accounts: VaultAccount[];
+  transactions: VaultTransaction[];
+  allTransactions: VaultTransaction[];
+  timeRange: TimeRange;
+  budgets: BudgetCategory[];
+  debts: DebtEntry[];
+  goals: SavingsGoal[];
+  subscriptions: Subscription[];
+  onAddAccount: () => void;
+  onDeleteAccount: (id: string) => void;
+  onUpdateCategory: (id: string, category: string) => void;
+  onTxClick: (tx: VaultTransaction) => void;
+}) {
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const recent = (categoryFilter
+    ? transactions.filter(t => t.category === categoryFilter)
+    : transactions
+  ).slice(0, 8);
+
+  // Spending by category from ranged transactions (exclude transfers)
+  const categoryMap: Record<string, number> = {};
+  transactions.filter(isRealExpense).forEach(t => {
+    categoryMap[t.category || 'Other'] = (categoryMap[t.category || 'Other'] || 0) + t.amount;
+  });
+  const categoryData = Object.entries(categoryMap)
+    .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
+    .sort((a, b) => b.value - a.value);
+
+  // Monthly income vs expense — last 6 months
+  const now = new Date();
+  const monthlyData: { month: string; income: number; expenses: number }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const label = d.toLocaleDateString('en-US', { month: 'short' });
+    const monthTxs = allTransactions.filter(t => {
+      const td = new Date(t.date);
+      return td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear();
+    });
+    monthlyData.push({
+      month: label,
+      income: Math.round(monthTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)),
+      expenses: Math.round(monthTxs.filter(isRealExpense).reduce((s, t) => s + t.amount, 0)),
+    });
+  }
+
+  // Daily spending trend for current month (exclude transfers)
+  const currentMonthExpenses = allTransactions.filter(t => {
+    const td = new Date(t.date);
+    return td.getMonth() === now.getMonth() && td.getFullYear() === now.getFullYear() && isRealExpense(t);
+  });
+  const dailyMap: Record<number, number> = {};
+  currentMonthExpenses.forEach(t => {
+    const day = new Date(t.date).getDate();
+    dailyMap[day] = (dailyMap[day] || 0) + t.amount;
+  });
+  let cumulative = 0;
+  const trendData = Array.from({ length: now.getDate() }, (_, i) => {
+    const day = i + 1;
+    const amount = dailyMap[day] || 0;
+    cumulative += amount;
+    return { day, amount: Math.round(amount * 100) / 100, cumulative: Math.round(cumulative * 100) / 100 };
+  });
+
+  // Top merchants from ranged transactions (exclude transfers)
+  const merchantMap: Record<string, number> = {};
+  transactions.filter(t => isRealExpense(t) && (t.merchant || t.description)).forEach(t => {
+    const key = t.merchant || t.description;
+    merchantMap[key] = (merchantMap[key] || 0) + t.amount;
+  });
+  const merchantData = Object.entries(merchantMap)
+    .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8);
+
+  const hasChartData = categoryData.length > 0 || monthlyData.some(m => m.income > 0 || m.expenses > 0);
+  const { score, breakdown } = computeHealthScore(allTransactions, budgets, debts, goals);
+
+  return (
+    <div className="space-y-6">
+      {/* Health Score + Cash Flow */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <HealthScorePanel score={score} breakdown={breakdown} />
+        <CashFlowPanel accounts={accounts} transactions={transactions} subscriptions={subscriptions} />
+      </div>
+
+      {/* AI Finance Advisor */}
+      <VaultAIChat
+        transactions={transactions}
+        budgets={budgets}
+        debts={debts}
+        goals={goals}
+        subscriptions={subscriptions}
+        accounts={accounts}
+      />
+
+      {/* Charts (lazy-loaded, no SSR) */}
+      {hasChartData && (
+        <VaultCharts
+          categoryData={categoryData}
+          monthlyData={monthlyData}
+          trendData={trendData}
+          merchantData={merchantData}
+          activeCategoryFilter={categoryFilter}
+          onCategoryClick={cat => setCategoryFilter(prev => prev === cat ? null : cat)}
+        />
+      )}
+
+      {/* Accounts + Recent Activity */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold">Accounts</h2>
+            <button onClick={onAddAccount} className="text-xs text-primary flex items-center gap-1 hover:underline">
+              <Plus className="w-3 h-3" /> Add manually
+            </button>
+          </div>
+          {accounts.length === 0
+            ? <EmptyState icon={<Landmark className="w-8 h-8" />} label="No accounts yet" sub="Link your bank above or add manually" />
+            : accounts.map(acc => <AccountCard key={acc.id} account={acc} onDelete={() => onDeleteAccount(acc.id)} />)
+          }
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold">
+              {categoryFilter ? `${categoryFilter} transactions` : 'Recent Activity'}
+            </h2>
+            {categoryFilter && (
+              <button onClick={() => setCategoryFilter(null)} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+                <X className="w-3 h-3" /> Clear filter
+              </button>
+            )}
+          </div>
+          {recent.length === 0
+            ? <EmptyState icon={<ArrowUpRight className="w-8 h-8" />} label="No transactions" sub="Sync your bank or add manually" />
+            : recent.map(tx => (
+                <div key={tx.id} className="p-3 rounded-xl bg-card border border-border/50 hover:border-border cursor-pointer transition-colors" onClick={() => onTxClick(tx)}>
+                  <TxRow tx={tx} onUpdateCategory={onUpdateCategory} />
+                </div>
+              ))
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── TRANSACTIONS TAB ──────────────────────────────────────────────────────────
+function TransactionsTab({ transactions, accounts, rules, onAdd, onDelete, onUpdateCategory, onTxClick, onSaveRule, onDeleteRule, onApplyRules }: {
+  transactions: VaultTransaction[];
+  accounts: VaultAccount[];
+  rules: TransactionRule[];
+  onAdd: () => void;
+  onDelete: (id: string) => void;
+  onUpdateCategory: (id: string, category: string) => void;
+  onTxClick: (tx: VaultTransaction) => void;
+  onSaveRule: (pattern: string, category: string) => void;
+  onDeleteRule: (id: string) => void;
+  onApplyRules: () => void;
+}) {
+  const [filter, setFilter] = useState<'all' | 'income' | 'expense' | 'transfer'>('all');
+  const [accountFilter, setAccountFilter] = useState<string>('all');
+  const [search, setSearch] = useState('');
+  const [showRules, setShowRules] = useState(false);
+  const [newPattern, setNewPattern] = useState('');
+  const [newCategory, setNewCategory] = useState('Food & Drink');
+  const [recurringOnly, setRecurringOnly] = useState(false);
+  const [hideTransfers, setHideTransfers] = useState(true);
+
+  const filtered = transactions
+    .filter(t => filter === 'all' ? true : filter === 'transfer' ? (t.type === 'transfer' || t.category === 'Transfer') : t.type === filter)
+    .filter(t => !hideTransfers || filter === 'transfer' || (t.type !== 'transfer' && t.category !== 'Transfer'))
+    .filter(t => accountFilter === 'all' || t.accountId === accountFilter || t.accountName === accounts.find(a => a.id === accountFilter)?.name)
+    .filter(t => !recurringOnly || isRecurringTx(t))
+    .filter(t => !search || t.description?.toLowerCase().includes(search.toLowerCase()) || t.merchant?.toLowerCase().includes(search.toLowerCase()) || t.category?.toLowerCase().includes(search.toLowerCase()));
+
+  const uncategorized = transactions.filter(t => !t.category || t.category === 'Other').length;
+  const recurringCount = transactions.filter(isRecurringTx).length;
+
+  return (
+    <div className="space-y-4">
+      {/* Rules panel */}
+      {showRules && (
+        <div className="p-4 rounded-2xl bg-card border border-border/50 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-sm">Auto-categorization Rules</p>
+              <p className="text-xs text-muted-foreground">Merchant/description contains → assign category</p>
+            </div>
+            <button onClick={onApplyRules} className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90">
+              Apply to all transactions
+            </button>
+          </div>
+          {/* Add new rule */}
+          <div className="flex gap-2">
+            <input
+              value={newPattern}
+              onChange={e => setNewPattern(e.target.value)}
+              placeholder="e.g. Netflix, Chipotle, Amazon..."
+              className="flex-1 text-xs px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
+            />
+            <select
+              value={newCategory}
+              onChange={e => setNewCategory(e.target.value)}
+              className="text-xs px-2 py-2 rounded-lg border border-border bg-background focus:outline-none"
+            >
+              {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+            </select>
+            <button
+              onClick={() => { if (newPattern.trim()) { onSaveRule(newPattern.trim(), newCategory); setNewPattern(''); } }}
+              className="text-xs px-3 py-2 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600"
+            >
+              Add
+            </button>
+          </div>
+          {rules.length > 0 && (
+            <div className="space-y-1.5">
+              {rules.map(r => (
+                <div key={r.id} className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-secondary/50">
+                  <span><span className="font-medium">"{r.pattern}"</span> → <span className="text-primary">{r.category}</span></span>
+                  <button onClick={() => onDeleteRule(r.id)} className="text-muted-foreground hover:text-red-400 transition-colors ml-2">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 justify-between">
+        <div className="flex flex-wrap gap-2">
+          <div className="flex gap-1 p-1 bg-secondary/50 rounded-lg">
+            {(['all', 'income', 'expense', 'transfer'] as const).map(f => (
+              <button key={f} onClick={() => setFilter(f)}
+                className={cn("px-3 py-1 rounded-md text-sm capitalize transition-all",
+                  filter === f ? "bg-background shadow-sm font-medium" : "text-muted-foreground"
+                )}>
+                {f}
+              </button>
+            ))}
+          </div>
+          {accounts.length > 1 && (
+            <select
+              value={accountFilter}
+              onChange={e => setAccountFilter(e.target.value)}
+              className="px-3 py-1.5 rounded-lg text-sm bg-secondary/50 border-0 text-muted-foreground focus:outline-none focus:ring-1 focus:ring-border"
+            >
+              <option value="all">All accounts</option>
+              {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          )}
+          <input
+            type="text"
+            placeholder="Search..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="px-3 py-1.5 rounded-lg text-sm bg-secondary/50 border-0 placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-border w-36"
+          />
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setRecurringOnly(p => !p)}
+            className={cn("flex items-center gap-1 px-3 py-2 rounded-xl border text-sm transition-colors",
+              recurringOnly ? "border-blue-500 text-blue-500 bg-blue-500/5" : "border-border hover:bg-secondary"
+            )}
+            title="Show only recurring payments"
+          >
+            <Repeat className="w-3.5 h-3.5" />
+            Recurring {recurringCount > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-500">{recurringCount}</span>}
+          </button>
+          <button
+            onClick={() => setHideTransfers(p => !p)}
+            className={cn("flex items-center gap-1 px-3 py-2 rounded-xl border text-sm transition-colors",
+              !hideTransfers ? "border-amber-500 text-amber-500 bg-amber-500/5" : "border-border hover:bg-secondary"
+            )}
+            title="Toggle transfers visibility (Zelle, Venmo, etc.)"
+          >
+            {hideTransfers ? 'Show' : 'Hide'} Transfers
+          </button>
+          <button
+            onClick={() => setShowRules(p => !p)}
+            className={cn("flex items-center gap-1 px-3 py-2 rounded-xl border text-sm transition-colors",
+              showRules ? "border-primary text-primary" : "border-border hover:bg-secondary"
+            )}
+          >
+            Rules {uncategorized > 0 && <span className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{uncategorized}</span>}
+          </button>
+          <button onClick={onAdd} className="flex items-center gap-1 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+            <Plus className="w-4 h-4" /> Add
+          </button>
+        </div>
+      </div>
+
+      {filtered.length === 0
+        ? <EmptyState icon={<ArrowUpRight className="w-8 h-8" />} label="No transactions" sub="Sync your bank or add one manually" />
+        : (
+          <div className="space-y-2">
+            {filtered.map(tx => (
+              <div
+                key={tx.id}
+                className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50 hover:border-border transition-colors group cursor-pointer"
+                onClick={() => onTxClick(tx)}
+              >
+                <TxRow tx={tx} onUpdateCategory={onUpdateCategory} />
+                <button onClick={e => { e.stopPropagation(); onDelete(tx.id); }} className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-all ml-2 flex-shrink-0">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )
+      }
+    </div>
+  );
+}
+
+// ── BUDGET TAB ────────────────────────────────────────────────────────────────
+function BudgetTab({ budgets, onAdd, onDelete, onUpdate }: {
+  budgets: BudgetCategory[];
+  onAdd: () => void;
+  onDelete: (id: string) => void;
+  onUpdate: (id: string, updates: Partial<BudgetCategory>) => void;
+}) {
+  const totalBudgeted = budgets.reduce((s, b) => s + b.monthlyLimit, 0);
+  const totalSpent = budgets.reduce((s, b) => s + (b.spent || 0), 0);
+  const overallPct = pct(totalSpent, totalBudgeted);
+  const isOverBudget = totalSpent > totalBudgeted;
+  const [editingBudget, setEditingBudget] = useState<BudgetCategory | null>(null);
+
+  // Month pacing: what % of the month has passed
+  const today = new Date();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const dayOfMonth = today.getDate();
+  const monthPacingPct = Math.round((dayOfMonth / daysInMonth) * 100);
+  const onTrackCount = budgets.filter(b => pct(b.spent || 0, b.monthlyLimit) <= monthPacingPct + 10).length;
+
+  return (
+    <div className="space-y-4">
+      {editingBudget && (
+        <EditBudgetModal
+          budget={editingBudget}
+          onClose={() => setEditingBudget(null)}
+          onSave={updates => { onUpdate(editingBudget.id, updates); setEditingBudget(null); }}
+          onDelete={() => { onDelete(editingBudget.id); setEditingBudget(null); }}
+        />
+      )}
+      {/* Budget Summary Banner */}
+      <div className="p-4 rounded-2xl bg-card border border-border/50">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-sm text-muted-foreground">Monthly Budget</p>
+            <p className="font-mono text-2xl font-bold">
+              <span className={isOverBudget ? 'text-red-400' : 'text-foreground'}>{fmtFull(totalSpent)}</span>
+              <span className="text-muted-foreground text-base font-normal"> / {fmtFull(totalBudgeted)}</span>
+            </p>
+          </div>
+          <div className="text-right">
+            <p className={cn("font-mono text-2xl font-bold", isOverBudget ? "text-red-400" : "text-emerald-500")}>
+              {overallPct}%
+            </p>
+            <p className="text-xs text-muted-foreground">{isOverBudget ? 'over budget' : 'used'}</p>
+          </div>
+        </div>
+        <div className="relative h-3 bg-secondary rounded-full overflow-hidden">
+          <div
+            className={cn("h-full rounded-full transition-all duration-500", isOverBudget ? "bg-red-500" : "bg-emerald-500")}
+            style={{ width: `${Math.min(100, overallPct)}%` }}
+          />
+          {/* Month pacing marker */}
+          <div className="absolute top-0 bottom-0 w-0.5 bg-foreground/40" style={{ left: `${monthPacingPct}%` }} />
+        </div>
+        <div className="flex justify-between text-xs text-muted-foreground mt-2">
+          <span>Day {dayOfMonth} of {daysInMonth} · {monthPacingPct}% through month</span>
+          {totalBudgeted > 0 && !isOverBudget
+            ? <span>{fmtFull(totalBudgeted - totalSpent)} remaining</span>
+            : totalBudgeted > 0 && <span className="text-red-400">{fmtFull(totalSpent - totalBudgeted)} over</span>
+          }
+        </div>
+        {budgets.length > 0 && (
+          <p className="text-xs mt-1">
+            <span className="text-emerald-500 font-medium">{onTrackCount}/{budgets.length}</span>
+            <span className="text-muted-foreground"> categories on pace</span>
+          </p>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-muted-foreground font-medium">Categories <span className="text-xs">(click to edit)</span></p>
+          <BudgetInfoTip />
+        </div>
+        <button onClick={onAdd} className="flex items-center gap-1 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+          <Plus className="w-4 h-4" /> Category
+        </button>
+      </div>
+
+      {budgets.length === 0
+        ? <EmptyState icon={<Target className="w-8 h-8" />} label="No budget categories" sub="Add categories to track your spending limits" action="Add Category" onAction={onAdd} />
+        : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {budgets.map(b => {
+              const spent = b.spent || 0;
+              const over = spent > b.monthlyLimit;
+              const progress = pct(spent, b.monthlyLimit);
+              const overpacing = !over && progress > monthPacingPct + 10;
+              return (
+                <div
+                  key={b.id}
+                  className="p-4 rounded-xl bg-card border border-border/50 hover:border-border cursor-pointer transition-all group"
+                  onClick={() => setEditingBudget(b)}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{b.emoji}</span>
+                      <span className="font-medium text-sm">{b.name}</span>
+                    </div>
+                    <Pencil className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all" />
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground mb-2">
+                    <span>{fmtFull(spent)} spent</span>
+                    <span className={over ? 'text-red-400 font-medium' : ''}>{fmtFull(b.monthlyLimit)} limit</span>
+                  </div>
+                  <div className="relative h-2 bg-secondary rounded-full overflow-hidden">
+                    <div
+                      className={cn("h-full rounded-full transition-all", over ? "bg-red-500" : overpacing ? "bg-amber-500" : "")}
+                      style={{ width: `${Math.min(100, progress)}%`, backgroundColor: over ? undefined : overpacing ? undefined : b.color }}
+                    />
+                    <div className="absolute top-0 bottom-0 w-0.5 bg-foreground/30" style={{ left: `${Math.min(99, monthPacingPct)}%` }} />
+                  </div>
+                  {over ? (
+                    <p className="text-xs text-red-400 mt-1.5 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> Over by {fmtFull(spent - b.monthlyLimit)}
+                    </p>
+                  ) : overpacing ? (
+                    <p className="text-xs text-amber-500 mt-1.5">Spending ahead of pace</p>
+                  ) : (
+                    <p className="text-xs text-emerald-500 mt-1.5">{fmtFull(b.monthlyLimit - spent)} left</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )
+      }
+    </div>
+  );
+}
+
+// ── DEBT TAB ──────────────────────────────────────────────────────────────────
+function debtPayoffProjection(balance: number, rate: number, minPayment: number): { months: number; totalInterest: number } | null {
+  if (minPayment <= 0 || balance <= 0) return null;
+  const monthlyRate = rate / 100 / 12;
+  if (monthlyRate === 0) {
+    const months = Math.ceil(balance / minPayment);
+    return { months, totalInterest: 0 };
+  }
+  const monthlyInterest = balance * monthlyRate;
+  if (minPayment <= monthlyInterest) return null; // Never pays off
+  const months = Math.ceil(-Math.log(1 - (monthlyRate * balance) / minPayment) / Math.log(1 + monthlyRate));
+  let rem = balance, totalInterest = 0;
+  for (let i = 0; i < months && rem > 0; i++) {
+    const interest = rem * monthlyRate;
+    totalInterest += interest;
+    rem = rem + interest - minPayment;
+  }
+  return { months, totalInterest: Math.max(0, totalInterest) };
+}
+
+function DebtTab({ debts, onAdd, onDelete, onUpdate, onImport }: {
+  debts: DebtEntry[];
+  onAdd: () => void;
+  onDelete: (id: string) => void;
+  onUpdate: (id: string, updates: Partial<DebtEntry>) => void;
+  onImport: (rows: Omit<DebtEntry, 'id'>[]) => void;
+}) {
+  const totalDebt = debts.reduce((s, d) => s + d.balance, 0);
+  const totalOriginal = debts.reduce((s, d) => s + d.originalBalance, 0);
+  const overallPct = pct(totalOriginal - totalDebt, totalOriginal);
+  const [showImport, setShowImport] = useState(false);
+  const [editingDebt, setEditingDebt] = useState<DebtEntry | null>(null);
+
+  return (
+    <div className="space-y-4">
+      {showImport && (
+        <DebtCsvImportModal
+          onClose={() => setShowImport(false)}
+          onImport={rows => { onImport(rows); setShowImport(false); }}
+        />
+      )}
+      {editingDebt && (
+        <EditDebtModal
+          debt={editingDebt}
+          onClose={() => setEditingDebt(null)}
+          onSave={updates => { onUpdate(editingDebt.id, updates); setEditingDebt(null); }}
+          onDelete={() => { onDelete(editingDebt.id); setEditingDebt(null); }}
+        />
+      )}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-muted-foreground">Total Debt Remaining</p>
+          <p className="font-mono text-2xl font-bold text-red-400">{fmtFull(totalDebt)}</p>
+          {totalOriginal > 0 && (
+            <p className="text-xs text-muted-foreground mt-0.5">{overallPct}% paid off overall</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowImport(true)} className="flex items-center gap-1 px-3 py-2 rounded-xl border border-border text-sm hover:bg-secondary transition-colors">
+            <Upload className="w-4 h-4" /> Import CSV
+          </button>
+          <button onClick={onAdd} className="flex items-center gap-1 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+            <Plus className="w-4 h-4" /> Add Debt
+          </button>
+        </div>
+      </div>
+
+      {debts.length === 0
+        ? <EmptyState icon={<TrendingDown className="w-8 h-8" />} label="No debts tracked" sub="Add your debts to see payoff progress" action="Add Debt" onAction={onAdd} />
+        : (
+          <div className="space-y-3">
+            {debts.map(debt => {
+              const paid = debt.originalBalance - debt.balance;
+              const progress = pct(paid, debt.originalBalance);
+              const projection = debtPayoffProjection(debt.balance, debt.interestRate, debt.minimumPayment);
+              const monthlyInterest = debt.balance * (debt.interestRate / 100) / 12;
+              return (
+                <div
+                  key={debt.id}
+                  className="p-4 rounded-xl bg-card border border-border/50 hover:border-border cursor-pointer transition-all group"
+                  onClick={() => setEditingDebt(debt)}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="font-medium">{debt.name}</p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {debt.type.replace('_', ' ')} · {debt.interestRate}% APR
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="font-mono font-bold text-red-400">{fmtFull(debt.balance)}</p>
+                        <p className="text-xs text-muted-foreground">of {fmtFull(debt.originalBalance)}</p>
+                      </div>
+                      <Pencil className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all" />
+                    </div>
+                  </div>
+                  <div className="h-2 bg-secondary rounded-full overflow-hidden mb-2">
+                    <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${progress}%`, backgroundColor: debt.color || '#10b981' }} />
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{progress}% paid off · {fmtFull(paid)} cleared</span>
+                    <span>Min. {fmtFull(debt.minimumPayment)}/mo</span>
+                  </div>
+                  {projection && (
+                    <div className="flex items-center gap-3 mt-2 pt-2 border-t border-border/40 text-xs">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <CalendarClock className="w-3 h-3" />
+                        {projection.months < 120
+                          ? `Payoff in ~${projection.months} mo`
+                          : `${Math.round(projection.months / 12)} yrs`}
+                      </span>
+                      {projection.totalInterest > 0 && (
+                        <span className="text-amber-500">{fmtFull(projection.totalInterest)} in interest</span>
+                      )}
+                      {monthlyInterest > 0 && (
+                        <span className="text-muted-foreground">{fmtFull(monthlyInterest)}/mo interest</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )
+      }
+    </div>
+  );
+}
+
+// ── GOALS TAB ─────────────────────────────────────────────────────────────────
+function GoalsTab({ goals, onAdd, onDelete, onUpdate }: {
+  goals: SavingsGoal[];
+  onAdd: () => void;
+  onDelete: (id: string) => void;
+  onUpdate: (id: string, updates: Partial<SavingsGoal>) => void;
+}) {
+  const [editingGoal, setEditingGoal] = useState<SavingsGoal | null>(null);
+
+  return (
+    <div className="space-y-4">
+      {editingGoal && (
+        <EditGoalModal
+          goal={editingGoal}
+          onClose={() => setEditingGoal(null)}
+          onSave={updates => { onUpdate(editingGoal.id, updates); setEditingGoal(null); }}
+          onDelete={() => { onDelete(editingGoal.id); setEditingGoal(null); }}
+        />
+      )}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {goals.length} goal{goals.length !== 1 ? 's' : ''} ·{' '}
+          {fmtFull(goals.reduce((s, g) => s + g.currentAmount, 0))} saved total
+        </p>
+        <button onClick={onAdd} className="flex items-center gap-1 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+          <Plus className="w-4 h-4" /> Add Goal
+        </button>
+      </div>
+
+      {goals.length === 0
+        ? <EmptyState icon={<PiggyBank className="w-8 h-8" />} label="No savings goals" sub="Set a goal and track your progress" action="Add Goal" onAction={onAdd} />
+        : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {goals.map(goal => {
+              const progress = pct(goal.currentAmount, goal.targetAmount);
+              const done = goal.currentAmount >= goal.targetAmount;
+              const remaining = goal.targetAmount - goal.currentAmount;
+              const deadlineDate = goal.deadline ? new Date(goal.deadline) : null;
+              const monthsLeft = deadlineDate
+                ? Math.max(1, Math.round((deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30)))
+                : null;
+              const monthlyNeeded = monthsLeft && remaining > 0 ? remaining / monthsLeft : null;
+              return (
+                <div
+                  key={goal.id}
+                  className="p-4 rounded-xl bg-card border border-border/50 hover:border-border cursor-pointer transition-all group"
+                  onClick={() => setEditingGoal(goal)}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">{goal.emoji}</span>
+                      <div>
+                        <p className="font-medium text-sm">{goal.name}</p>
+                        {goal.deadline && (
+                          <p className="text-xs text-muted-foreground">
+                            by {new Date(goal.deadline).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                            {monthsLeft && <span className="ml-1">({monthsLeft} mo left)</span>}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <Pencil className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all" />
+                  </div>
+
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="font-semibold">{fmtFull(goal.currentAmount)}</span>
+                    <span className="text-muted-foreground">{fmtFull(goal.targetAmount)}</span>
+                  </div>
+                  <div className="h-2 bg-secondary rounded-full overflow-hidden mb-2">
+                    <div
+                      className={cn("h-full rounded-full transition-all", done ? "bg-emerald-500" : "")}
+                      style={{ width: `${progress}%`, backgroundColor: done ? undefined : goal.color }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">{progress}% · {fmtFull(remaining)} to go</span>
+                    {done ? (
+                      <span className="text-emerald-500 flex items-center gap-1">
+                        <Check className="w-3 h-3" /> Complete!
+                      </span>
+                    ) : monthlyNeeded ? (
+                      <span className="text-primary">{fmtFull(monthlyNeeded)}/mo needed</span>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
+      }
+    </div>
+  );
+}
+
+// ── SHARED COMPONENTS ─────────────────────────────────────────────────────────
+function AccountCard({ account, onDelete }: { account: VaultAccount; onDelete: () => void }) {
+  const isLiability = account.type === 'credit' || account.type === 'loan';
+  return (
+    <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50 hover:border-border transition-colors group">
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+          style={{ backgroundColor: account.color }}>
+          {ACCOUNT_ICONS[account.type]}
+        </div>
+        <div>
+          <p className="font-medium text-sm">{account.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {account.institution}{account.mask ? ` ··${account.mask}` : ''}
+            {account.isTellerLinked && <span className="ml-1 text-emerald-500">· Linked</span>}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <p className={cn("font-semibold", isLiability ? "text-red-400" : "text-foreground")}>
+          {isLiability ? '-' : ''}{fmtFull(account.balance)}
+        </p>
+        <button onClick={onDelete} className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-all">
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TxRow({ tx, onUpdateCategory }: { tx: VaultTransaction; onUpdateCategory?: (id: string, cat: string) => void }) {
+  const isIncome = tx.type === 'income';
+  const [showCatPicker, setShowCatPicker] = useState(false);
+  const needsCategory = !tx.category || tx.category === 'Other';
+
+  return (
+    <div className="flex items-center justify-between w-full">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
+          isIncome ? "bg-emerald-500/10" : "bg-red-500/10"
+        )}>
+          {isIncome
+            ? <ArrowDownRight className="w-4 h-4 text-emerald-500" />
+            : <ArrowUpRight className="w-4 h-4 text-red-400" />
+          }
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium truncate">{tx.merchant || tx.description}</p>
+          <div className="flex items-center gap-1 flex-wrap">
+            {needsCategory && onUpdateCategory ? (
+              <div className="relative">
+                <button
+                  onClick={() => setShowCatPicker(p => !p)}
+                  className="text-xs text-amber-500 hover:text-amber-400 flex items-center gap-0.5 transition-colors"
+                >
+                  + Add category
+                </button>
+                {showCatPicker && (
+                  <div className="absolute left-0 top-5 z-20 bg-card border border-border rounded-xl shadow-xl p-2 grid grid-cols-2 gap-1 w-56">
+                    {CATEGORIES.map(cat => (
+                      <button key={cat} onClick={() => { onUpdateCategory(tx.id, cat); setShowCatPicker(false); }}
+                        className="text-xs px-2 py-1.5 rounded-lg hover:bg-secondary text-left transition-colors truncate">
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => onUpdateCategory && setShowCatPicker(p => !p)}
+                className={cn("text-xs text-muted-foreground", onUpdateCategory && "hover:text-foreground cursor-pointer")}
+              >
+                {tx.category}
+              </button>
+            )}
+            <span className="text-xs text-muted-foreground">
+              · {new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {tx.isPending && <span className="ml-1 text-amber-500">· Pending</span>}
+            </span>
+            {!needsCategory && onUpdateCategory && showCatPicker && (
+              <div className="absolute left-0 top-5 z-20 bg-card border border-border rounded-xl shadow-xl p-2 grid grid-cols-2 gap-1 w-56">
+                {CATEGORIES.map(cat => (
+                  <button key={cat} onClick={() => { onUpdateCategory(tx.id, cat); setShowCatPicker(false); }}
+                    className="text-xs px-2 py-1.5 rounded-lg hover:bg-secondary text-left transition-colors truncate">
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      <p className={cn("font-semibold text-sm flex-shrink-0 ml-3", isIncome ? "text-emerald-500" : "text-foreground")}>
+        {isIncome ? '+' : '-'}{fmtFull(tx.amount)}
+      </p>
+    </div>
+  );
+}
+
+function BudgetInfoTip() {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setShow(p => !p)}
+        className="w-4 h-4 rounded-full bg-secondary text-muted-foreground text-[10px] font-bold flex items-center justify-center hover:bg-primary/20 hover:text-primary transition-colors"
+      >
+        ?
+      </button>
+      {show && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setShow(false)} />
+          <div className="absolute left-0 top-6 z-50 w-72 p-3 rounded-xl bg-card border border-border shadow-xl text-xs space-y-2">
+            <p className="font-semibold">How budgets work</p>
+            <p className="text-muted-foreground">
+              A budget sets a <span className="text-foreground font-medium">monthly spending limit</span> per category.
+              Transactions you categorize (e.g. "Food & Drink") automatically count toward that budget.
+            </p>
+            <p className="text-muted-foreground">
+              The <span className="text-foreground font-medium">tick mark</span> on the bar shows where you <em>should</em> be today if spending evenly through the month.
+              Red = over limit. Amber = ahead of pace.
+            </p>
+            <p className="text-muted-foreground border-t border-border/40 pt-2">
+              💡 For <span className="text-foreground font-medium">saving toward something</span> (vacation, new laptop, emergency fund) — use the <span className="text-primary font-medium">Goals</span> tab instead.
+            </p>
+            <button onClick={() => setShow(false)} className="text-xs text-primary hover:underline">Got it</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function EmptyState({ icon, label, sub, action, onAction }: {
+  icon: React.ReactNode; label: string; sub: string; action?: string; onAction?: () => void;
+}) {
+  return (
+    <div className="text-center py-12 text-muted-foreground">
+      <div className="flex justify-center mb-3 opacity-30">{icon}</div>
+      <p className="font-medium text-foreground">{label}</p>
+      <p className="text-sm mt-1">{sub}</p>
+      {action && onAction && (
+        <button onClick={onAction} className="mt-4 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+          {action}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── SUBSCRIPTIONS TAB ─────────────────────────────────────────────────────────
+const FREQ_COLOR: Record<string, string> = {
+  monthly: '#3b82f6', weekly: '#10b981', 'bi-weekly': '#8b5cf6',
+  quarterly: '#f59e0b', annual: '#6b7280',
+};
+
+function toMonthly(amount: number, freq: string): number {
+  if (freq === 'monthly')    return amount;
+  if (freq === 'weekly')     return amount * 4.33;
+  if (freq === 'bi-weekly')  return amount * 2.17;
+  if (freq === 'quarterly')  return amount / 3;
+  if (freq === 'annual')     return amount / 12;
+  return amount;
+}
+
+function SubscriptionsTab({ transactions, subscriptions, onSave, onUpdate, onDelete }: {
+  transactions: VaultTransaction[];
+  subscriptions: Subscription[];
+  onSave: (s: Omit<Subscription, 'id'>) => void;
+  onUpdate: (id: string, updates: Partial<Subscription>) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [editingSub, setEditingSub] = useState<Subscription | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [activeTab, setActiveTab] = useState<'saved' | 'detected'>('saved');
+
+  interface DetectedItem {
+    merchant: string; amount: number; frequency: string; estimatedMonthly: number;
+    lastDate: Date; category?: string; count?: number;
+    knownName?: string; knownEmoji?: string; knownColor?: string;
+    emoji?: string; color?: string;
+  }
+
+  // Auto-detected from transaction history + known sub matching
+  const detected: DetectedItem[] = detectRecurring(transactions).map(r => {
+    const known = matchKnownSub(r.merchant);
+    return { ...r, knownName: known?.name, knownEmoji: known?.emoji, knownColor: known?.color };
+  });
+
+  // Enhance detected: also scan all transactions against known subscription list
+  const knownMatches: DetectedItem[] = [];
+  for (const known of KNOWN_SUBS) {
+    const matching = transactions.filter(t =>
+      t.type === 'expense' &&
+      known.keywords.some(kw => (t.merchant || t.description || '').toLowerCase().includes(kw))
+    );
+    if (matching.length >= 1) {
+      const sorted = [...matching].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const avgAmount = matching.reduce((s, t) => s + t.amount, 0) / matching.length;
+      if (!detected.find(d => d.merchant.toLowerCase().includes(known.keywords[0]))) {
+        knownMatches.push({
+          merchant: known.name, emoji: known.emoji, amount: avgAmount,
+          frequency: 'monthly', estimatedMonthly: avgAmount,
+          knownName: known.name, knownEmoji: known.emoji, knownColor: known.color,
+          lastDate: new Date(sorted[0].date), color: known.color, category: known.category,
+        });
+      }
+    }
+  }
+
+  // Also catch "RECURRING PAYMENT AUTHORIZED" style transactions that weren't detected by interval
+  const recurringKeywordMatches: DetectedItem[] = [];
+  const seenMerchants = new Set([
+    ...detected.map(d => d.merchant.toLowerCase()),
+    ...knownMatches.map(d => d.merchant.toLowerCase()),
+  ]);
+  transactions
+    .filter(t => t.type === 'expense' && isRecurringTx(t))
+    .forEach(t => {
+      const key = (t.merchant || t.description || '').toLowerCase().slice(0, 30);
+      if (!seenMerchants.has(key)) {
+        seenMerchants.add(key);
+        const known = matchKnownSub(t.merchant || t.description || '');
+        recurringKeywordMatches.push({
+          merchant: known?.name || t.merchant || t.description || 'Unknown',
+          emoji: known?.emoji, amount: t.amount,
+          frequency: 'monthly', estimatedMonthly: t.amount,
+          knownName: known?.name, knownEmoji: known?.emoji, knownColor: known?.color,
+          lastDate: new Date(t.date), color: known?.color, category: t.category || known?.category,
+          count: 1,
+        });
+      }
+    });
+
+  const allDetected = [...detected, ...knownMatches, ...recurringKeywordMatches]
+    .sort((a, b) => b.estimatedMonthly - a.estimatedMonthly);
+
+  const savedMonthly = subscriptions.filter(s => s.isActive).reduce((s, sub) => s + toMonthly(sub.amount, sub.frequency), 0);
+  const savedAnnual = savedMonthly * 12;
+
+  return (
+    <div className="space-y-4">
+      {(editingSub || showAdd) && (
+        <EditSubscriptionModal
+          subscription={editingSub}
+          onClose={() => { setEditingSub(null); setShowAdd(false); }}
+          onSave={sub => { onSave(sub); setShowAdd(false); }}
+          onUpdate={(id, u) => { onUpdate(id, u); setEditingSub(null); }}
+          onDelete={id => { onDelete(id); setEditingSub(null); }}
+        />
+      )}
+
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="p-4 rounded-xl bg-card border border-border/50 text-center">
+          <p className="text-xs text-muted-foreground mb-1">Tracked</p>
+          <p className="font-mono text-2xl font-bold">{subscriptions.filter(s => s.isActive).length}</p>
+          <p className="text-xs text-muted-foreground">active subs</p>
+        </div>
+        <div className="p-4 rounded-xl bg-card border border-border/50 text-center">
+          <p className="text-xs text-muted-foreground mb-1">Monthly</p>
+          <p className="font-mono text-2xl font-bold text-red-400">{fmtFull(savedMonthly)}</p>
+          <p className="text-xs text-muted-foreground">per month</p>
+        </div>
+        <div className="p-4 rounded-xl bg-card border border-border/50 text-center">
+          <p className="text-xs text-muted-foreground mb-1">Annual</p>
+          <p className="font-mono text-2xl font-bold text-amber-500">{fmtFull(savedAnnual)}</p>
+          <p className="text-xs text-muted-foreground">per year</p>
+        </div>
+      </div>
+
+      {/* Tabs + Add */}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1 p-1 bg-secondary/50 rounded-xl">
+          {(['saved', 'detected'] as const).map(t => (
+            <button key={t} onClick={() => setActiveTab(t)}
+              className={cn("px-3 py-1.5 rounded-lg text-sm capitalize transition-all",
+                activeTab === t ? "bg-background shadow-sm font-medium" : "text-muted-foreground"
+              )}>
+              {t === 'saved' ? `My Subs (${subscriptions.length})` : `Detected (${allDetected.length})`}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => setShowAdd(true)} className="flex items-center gap-1 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+          <Plus className="w-4 h-4" /> Add
+        </button>
+      </div>
+
+      {activeTab === 'saved' && (
+        subscriptions.length === 0
+          ? <EmptyState icon={<Repeat className="w-8 h-8" />} label="No subscriptions tracked" sub="Add your subscriptions manually or confirm detected ones" action="Add Subscription" onAction={() => setShowAdd(true)} />
+          : (
+            <div className="space-y-2">
+              {subscriptions.map(sub => (
+                <div
+                  key={sub.id}
+                  className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50 hover:border-border cursor-pointer transition-colors group"
+                  onClick={() => setEditingSub(sub)}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg" style={{ backgroundColor: (sub.color || '#6b7280') + '20' }}>
+                      {sub.emoji || '💳'}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm truncate">{sub.name}</p>
+                        {!sub.isActive && <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">Inactive</span>}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="capitalize px-1.5 py-0.5 rounded-md" style={{ backgroundColor: (FREQ_COLOR[sub.frequency] || '#6b7280') + '20', color: FREQ_COLOR[sub.frequency] || '#6b7280' }}>
+                          {sub.frequency}
+                        </span>
+                        <span>{sub.category}</span>
+                        {sub.nextBillingDate && <span>· next {new Date(sub.nextBillingDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0 ml-3">
+                    <p className="font-semibold text-sm">{fmtFull(sub.amount)}</p>
+                    {sub.frequency !== 'monthly' && (
+                      <p className="text-xs text-muted-foreground">~{fmtFull(toMonthly(sub.amount, sub.frequency))}/mo</p>
+                    )}
+                    <Pencil className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 ml-auto mt-0.5" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+      )}
+
+      {activeTab === 'detected' && (
+        allDetected.length === 0
+          ? <EmptyState icon={<Repeat className="w-8 h-8" />} label="No recurring charges detected" sub="Sync more transactions to detect subscriptions" />
+          : (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">Auto-detected · click "Confirm" to add to your tracked subscriptions</p>
+              {allDetected.map((r, i) => {
+                const alreadySaved = subscriptions.some(s =>
+                  s.name.toLowerCase().includes((r as any).knownName?.toLowerCase() || '') ||
+                  (s.merchantPattern && r.merchant?.toLowerCase().includes(s.merchantPattern.toLowerCase()))
+                );
+                return (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg"
+                        style={{ backgroundColor: ((r as any).knownColor || FREQ_COLOR[r.frequency] || '#6b7280') + '20' }}>
+                        {(r as any).knownEmoji || (r as any).emoji || '🔄'}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{(r as any).knownName || r.merchant}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="capitalize px-1.5 py-0.5 rounded-md" style={{ backgroundColor: (FREQ_COLOR[r.frequency] || '#6b7280') + '20', color: FREQ_COLOR[r.frequency] || '#6b7280' }}>
+                            {r.frequency}
+                          </span>
+                          {(r as any).category && <span>{(r as any).category}</span>}
+                          {'count' in r && <span>· {(r as any).count} charges</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                      <div className="text-right">
+                        <p className="font-semibold text-sm">{fmtFull(r.amount)}</p>
+                        {r.frequency !== 'monthly' && (
+                          <p className="text-xs text-muted-foreground">~{fmtFull(r.estimatedMonthly)}/mo</p>
+                        )}
+                      </div>
+                      {!alreadySaved && (
+                        <button
+                          onClick={() => onSave({
+                            name: (r as any).knownName || r.merchant,
+                            emoji: (r as any).knownEmoji || (r as any).emoji || '💳',
+                            amount: r.amount,
+                            frequency: r.frequency as SubscriptionFrequency,
+                            category: (r as any).category || (r as any).knownCategory || 'Entertainment',
+                            color: (r as any).knownColor || FREQ_COLOR[r.frequency] || '#6b7280',
+                            isActive: true,
+                            merchantPattern: r.merchant,
+                            autoDetected: true,
+                          })}
+                          className="text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-colors font-medium"
+                        >
+                          Confirm
+                        </button>
+                      )}
+                      {alreadySaved && <span className="text-xs text-muted-foreground px-2">✓ Saved</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+      )}
+    </div>
+  );
+}
+
+// ── TRANSACTION DETAIL MODAL ──────────────────────────────────────────────────
+function TransactionDetailModal({ tx, onClose, onUpdateCategory, onCreateRule, onDelete }: {
+  tx: VaultTransaction;
+  onClose: () => void;
+  onUpdateCategory: (id: string, category: string) => void;
+  onCreateRule: (pattern: string, category: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [category, setCategory] = useState(tx.category || 'Other');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [makeRule, setMakeRule] = useState(false);
+  const rulePattern = tx.merchant || tx.description || '';
+  const isIncome = tx.type === 'income';
+
+  return (
+    <ModalShell title="Transaction Details" onClose={onClose}>
+      <div className="flex items-center gap-4 p-3 rounded-xl bg-secondary/30">
+        <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
+          isIncome ? "bg-emerald-500/10" : "bg-red-500/10"
+        )}>
+          {isIncome ? <ArrowDownRight className="w-6 h-6 text-emerald-500" /> : <ArrowUpRight className="w-6 h-6 text-red-400" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-lg">{isIncome ? '+' : '-'}{fmtFull(tx.amount)}</p>
+          <p className="font-medium truncate">{tx.merchant || tx.description}</p>
+          {tx.merchant && tx.description && tx.merchant !== tx.description && (
+            <p className="text-xs text-muted-foreground truncate">{tx.description}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div className="p-3 rounded-xl bg-secondary/30">
+          <p className="text-xs text-muted-foreground mb-1">Date</p>
+          <p className="font-medium">{new Date(tx.date).toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}</p>
+        </div>
+        <div className="p-3 rounded-xl bg-secondary/30">
+          <p className="text-xs text-muted-foreground mb-1">Account</p>
+          <p className="font-medium truncate">{tx.accountName || '—'}</p>
+        </div>
+        <div className="p-3 rounded-xl bg-secondary/30">
+          <p className="text-xs text-muted-foreground mb-1">Type</p>
+          <p className="font-medium capitalize">{tx.type}</p>
+        </div>
+        <div className="p-3 rounded-xl bg-secondary/30">
+          <p className="text-xs text-muted-foreground mb-1">Status</p>
+          <p className="font-medium">{tx.isPending ? '⏳ Pending' : '✓ Cleared'}</p>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Category</label>
+        <select
+          value={category}
+          onChange={e => setCategory(e.target.value)}
+          className={selectCls}
+        >
+          {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+        </select>
+        <div className="flex gap-2">
+          <button
+            onClick={() => onUpdateCategory(tx.id, category)}
+            className="flex-1 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
+          >
+            Save Category
+          </button>
+          {rulePattern && (
+            <button
+              onClick={() => setMakeRule(p => !p)}
+              className={cn("px-3 py-2 rounded-xl border text-sm transition-colors",
+                makeRule ? "border-primary text-primary" : "border-border hover:bg-secondary"
+              )}
+              title="Always categorize this merchant this way"
+            >
+              Auto-rule
+            </button>
+          )}
+        </div>
+        {makeRule && rulePattern && (
+          <div className="p-3 rounded-xl bg-secondary/30 text-xs space-y-2">
+            <p>Always categorize <span className="font-semibold">"{rulePattern}"</span> as <span className="text-primary font-semibold">{category}</span>?</p>
+            <button
+              onClick={() => { onCreateRule(rulePattern, category); }}
+              className="px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600"
+            >
+              Create Rule
+            </button>
+          </div>
+        )}
+      </div>
+
+      {confirmDelete ? (
+        <div className="flex gap-2">
+          <button onClick={() => onDelete(tx.id)} className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium">Confirm Delete</button>
+          <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2 rounded-xl border border-border text-sm hover:bg-secondary">Cancel</button>
+        </div>
+      ) : (
+        <button onClick={() => setConfirmDelete(true)} className="w-full py-2 rounded-xl border border-border text-sm text-muted-foreground hover:text-red-400 hover:border-red-400/50 transition-colors">
+          Delete Transaction
+        </button>
+      )}
+    </ModalShell>
+  );
+}
+
+// ── EDIT SUBSCRIPTION MODAL ───────────────────────────────────────────────────
+function EditSubscriptionModal({ subscription, onClose, onSave, onUpdate, onDelete }: {
+  subscription: Subscription | null;
+  onClose: () => void;
+  onSave: (s: Omit<Subscription, 'id'>) => void;
+  onUpdate: (id: string, updates: Partial<Subscription>) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [name, setName] = useState(subscription?.name || '');
+  const [emoji, setEmoji] = useState(subscription?.emoji || '💳');
+  const [amount, setAmount] = useState(String(subscription?.amount || ''));
+  const [frequency, setFrequency] = useState<SubscriptionFrequency>(subscription?.frequency || 'monthly');
+  const [category, setCategory] = useState(subscription?.category || 'Entertainment');
+  const [isActive, setIsActive] = useState(subscription?.isActive ?? true);
+  const [nextBilling, setNextBilling] = useState(subscription?.nextBillingDate ? new Date(subscription.nextBillingDate).toISOString().split('T')[0] : '');
+  const [notes, setNotes] = useState(subscription?.notes || '');
+  const COLORS = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6b7280'];
+  const [color, setColor] = useState(subscription?.color || COLORS[0]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const isEdit = !!subscription;
+  const monthly = toMonthly(parseFloat(amount) || 0, frequency);
+
+  const handleSave = () => {
+    const sub = {
+      name, emoji, amount: parseFloat(amount) || 0, frequency, category, color, isActive,
+      nextBillingDate: nextBilling ? new Date(nextBilling) : undefined,
+      notes: notes || undefined,
+      autoDetected: false,
+    };
+    if (isEdit) onUpdate(subscription.id, sub);
+    else onSave(sub);
+  };
+
+  return (
+    <ModalShell title={isEdit ? 'Edit Subscription' : 'Add Subscription'} onClose={onClose}>
+      <div className="flex gap-3">
+        <Field label="Emoji">
+          <input className={cn(inputCls, "w-16 text-center text-xl")} value={emoji} onChange={e => setEmoji(e.target.value)} />
+        </Field>
+        <div className="flex-1">
+          <Field label="Name">
+            <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Netflix, Gym, Adobe" />
+          </Field>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Amount ($)">
+          <input className={inputCls} type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" />
+        </Field>
+        <Field label="Frequency">
+          <select className={selectCls} value={frequency} onChange={e => setFrequency(e.target.value as SubscriptionFrequency)}>
+            <option value="monthly">Monthly</option>
+            <option value="weekly">Weekly</option>
+            <option value="bi-weekly">Bi-weekly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="annual">Annual</option>
+          </select>
+        </Field>
+      </div>
+
+      {frequency !== 'monthly' && parseFloat(amount) > 0 && (
+        <p className="text-xs text-muted-foreground bg-secondary/50 rounded-xl px-3 py-2">
+          ~{fmtFull(monthly)}/mo · {fmtFull(monthly * 12)}/year
+        </p>
+      )}
+
+      <Field label="Category">
+        <select className={selectCls} value={category} onChange={e => setCategory(e.target.value)}>
+          {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+        </select>
+      </Field>
+
+      <Field label="Next Billing Date (optional)">
+        <input className={inputCls} type="date" value={nextBilling} onChange={e => setNextBilling(e.target.value)} />
+      </Field>
+
+      <Field label="Notes (optional)">
+        <input className={inputCls} value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. Family plan, can cancel anytime" />
+      </Field>
+
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium">Active</label>
+        <button
+          onClick={() => setIsActive(p => !p)}
+          className={cn("relative w-11 h-6 rounded-full transition-colors", isActive ? "bg-emerald-500" : "bg-secondary")}
+        >
+          <div className={cn("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", isActive ? "left-6" : "left-1")} />
+        </button>
+      </div>
+
+      <Field label="Color">
+        <div className="flex gap-2">
+          {COLORS.map(c => (
+            <button key={c} onClick={() => setColor(c)} className={cn("w-7 h-7 rounded-full border-2 transition-all", color === c ? "border-foreground scale-110" : "border-transparent")} style={{ backgroundColor: c }} />
+          ))}
+        </div>
+      </Field>
+
+      <button onClick={handleSave} disabled={!name || !amount} className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50">
+        {isEdit ? 'Save Changes' : 'Add Subscription'}
+      </button>
+
+      {isEdit && (
+        confirmDelete ? (
+          <div className="flex gap-2">
+            <button onClick={() => onDelete(subscription.id)} className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium">Confirm Delete</button>
+            <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2 rounded-xl border border-border text-sm hover:bg-secondary">Cancel</button>
+          </div>
+        ) : (
+          <button onClick={() => setConfirmDelete(true)} className="w-full py-2 rounded-xl border border-border text-sm text-muted-foreground hover:text-red-400 hover:border-red-400/50 transition-colors">
+            Delete Subscription
+          </button>
+        )
+      )}
+    </ModalShell>
+  );
+}
+
+// ── MODALS ────────────────────────────────────────────────────────────────────
+function ModalShell({ title, onClose, children }: {
+  title: string; onClose: () => void; children: React.ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <motion.div
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 40 }}
+        className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
+      >
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <h3 className="font-semibold">{title}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-5 space-y-4">{children}</div>
+      </motion.div>
+    </div>
+  );
+}
+
+const inputCls = "w-full px-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50";
+const selectCls = "w-full px-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50";
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-sm font-medium">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function AddAccountModal({ onClose, onSave }: {
+  onClose: () => void;
+  onSave: (a: Omit<VaultAccount, 'id' | 'createdAt'>) => void;
+}) {
+  const [name, setName] = useState('');
+  const [type, setType] = useState<AccountType>('checking');
+  const [balance, setBalance] = useState('');
+  const [institution, setInstitution] = useState('');
+
+  return (
+    <ModalShell title="Add Account" onClose={onClose}>
+      <Field label="Account Name">
+        <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Chase Checking" />
+      </Field>
+      <Field label="Type">
+        <select className={selectCls} value={type} onChange={e => setType(e.target.value as AccountType)}>
+          {(['checking', 'savings', 'credit', 'loan', 'investment', 'cash'] as AccountType[]).map(t => (
+            <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Current Balance ($)">
+        <input className={inputCls} type="number" value={balance} onChange={e => setBalance(e.target.value)} placeholder="0.00" />
+      </Field>
+      <Field label="Institution (optional)">
+        <input className={inputCls} value={institution} onChange={e => setInstitution(e.target.value)} placeholder="e.g. Chase Bank" />
+      </Field>
+      <button
+        onClick={() => onSave({ name, type, balance: parseFloat(balance) || 0, institution, currency: 'USD', isTellerLinked: false, color: ACCOUNT_COLORS[type] })}
+        disabled={!name || !balance}
+        className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+      >
+        Save Account
+      </button>
+    </ModalShell>
+  );
+}
+
+function AddTransactionModal({ accounts, onClose, onSave }: {
+  accounts: VaultAccount[];
+  onClose: () => void;
+  onSave: (t: Omit<VaultTransaction, 'id'>) => void;
+}) {
+  const [description, setDescription] = useState('');
+  const [amount, setAmount] = useState('');
+  const [type, setType] = useState<TransactionType>('expense');
+  const [category, setCategory] = useState('Food & Drink');
+  const [accountId, setAccountId] = useState(accounts[0]?.id || '');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const CATS = ['Food & Drink', 'Shopping', 'Transport', 'Housing', 'Entertainment', 'Health', 'Income', 'Transfer', 'Other'];
+
+  return (
+    <ModalShell title="Add Transaction" onClose={onClose}>
+      <Field label="Description">
+        <input className={inputCls} value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. Chipotle" />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Amount ($)">
+          <input className={inputCls} type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" />
+        </Field>
+        <Field label="Type">
+          <select className={selectCls} value={type} onChange={e => setType(e.target.value as TransactionType)}>
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+            <option value="transfer">Transfer</option>
+          </select>
+        </Field>
+      </div>
+      <Field label="Category">
+        <select className={selectCls} value={category} onChange={e => setCategory(e.target.value)}>
+          {CATS.map(c => <option key={c}>{c}</option>)}
+        </select>
+      </Field>
+      {accounts.length > 0 && (
+        <Field label="Account">
+          <select className={selectCls} value={accountId} onChange={e => setAccountId(e.target.value)}>
+            {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+        </Field>
+      )}
+      <Field label="Date">
+        <input className={inputCls} type="date" value={date} onChange={e => setDate(e.target.value)} />
+      </Field>
+      <button
+        onClick={() => onSave({ description, amount: parseFloat(amount) || 0, type, category, accountId, date: new Date(date), isPending: false })}
+        disabled={!description || !amount}
+        className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+      >
+        Save Transaction
+      </button>
+    </ModalShell>
+  );
+}
+
+// ── CSV IMPORT ────────────────────────────────────────────────────────────────
+function parseDebtCsv(text: string): Omit<DebtEntry, 'id'>[] {
+  const lines = text.trim().split('\n').filter(l => l.trim());
+  if (lines.length < 2) return [];
+
+  // Normalize header names
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z0-9]/g, '_'));
+
+  const col = (row: string[], names: string[]): string => {
+    for (const name of names) {
+      const idx = headers.findIndex(h => h.includes(name));
+      if (idx >= 0 && row[idx]?.trim()) return row[idx].trim().replace(/[$,"%]/g, '');
+    }
+    return '';
+  };
+
+  const DEBT_COLORS: Record<string, string> = {
+    credit_card: '#ef4444', student_loan: '#f59e0b', personal_loan: '#8b5cf6', medical: '#3b82f6', other: '#6b7280',
+  };
+
+  const guessType = (name: string, typeRaw: string): DebtEntry['type'] => {
+    const s = (name + ' ' + typeRaw).toLowerCase();
+    if (s.includes('student') || s.includes('loan') && s.includes('edu')) return 'student_loan';
+    if (s.includes('credit') || s.includes('card')) return 'credit_card';
+    if (s.includes('personal')) return 'personal_loan';
+    if (s.includes('medical') || s.includes('hospital') || s.includes('health')) return 'medical';
+    return 'other';
+  };
+
+  return lines.slice(1).map(line => {
+    const row = line.split(',');
+    const name    = col(row, ['name', 'description', 'loan_name', 'account', 'creditor', 'debt']) || 'Unnamed Debt';
+    const balance = parseFloat(col(row, ['current_balance', 'balance', 'outstanding', 'amount', 'remaining'])) || 0;
+    const orig    = parseFloat(col(row, ['original_balance', 'original', 'principal', 'loan_amount'])) || balance;
+    const rate    = parseFloat(col(row, ['interest_rate', 'rate', 'apr', 'interest'])) || 0;
+    const minPay  = parseFloat(col(row, ['minimum_payment', 'min_payment', 'payment', 'monthly'])) || 0;
+    const typeRaw = col(row, ['type', 'loan_type', 'account_type', 'category']);
+    const type    = guessType(name, typeRaw);
+    return { name, balance, originalBalance: orig, interestRate: rate, minimumPayment: minPay, type, color: DEBT_COLORS[type] };
+  }).filter(d => d.balance > 0);
+}
+
+function DebtCsvImportModal({ onClose, onImport }: {
+  onClose: () => void;
+  onImport: (rows: Omit<DebtEntry, 'id'>[]) => void;
+}) {
+  const [rows, setRows] = useState<Omit<DebtEntry, 'id'>[]>([]);
+  const [error, setError] = useState('');
+  const [fileName, setFileName] = useState('');
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const parsed = parseDebtCsv(ev.target?.result as string);
+        if (parsed.length === 0) { setError('No valid debt rows found. Check your CSV format.'); setRows([]); }
+        else { setRows(parsed); setError(''); }
+      } catch { setError('Failed to parse CSV.'); }
+    };
+    reader.readAsText(file);
+  };
+
+  return (
+    <ModalShell title="Import Debts from CSV" onClose={onClose}>
+      <div className="space-y-4">
+        {/* Instructions */}
+        <div className="p-3 rounded-xl bg-secondary/50 text-xs text-muted-foreground space-y-1">
+          <p className="font-medium text-foreground flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Expected columns (any order, flexible names):</p>
+          <p><span className="text-foreground">Name</span> · <span className="text-foreground">Balance</span> · Original Balance · <span className="text-foreground">Interest Rate</span> · Min Payment · Type</p>
+          <p className="text-muted-foreground/70">Works with exports from MOHELA, Navient, SoFi, and most bank CSV exports.</p>
+        </div>
+
+        {/* File picker */}
+        <label className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all">
+          <Upload className="w-6 h-6 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">{fileName || 'Click to select a .csv file'}</span>
+          <input type="file" accept=".csv" className="hidden" onChange={handleFile} />
+        </label>
+
+        {error && <p className="text-xs text-red-400">{error}</p>}
+
+        {/* Preview */}
+        {rows.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground font-medium">{rows.length} debt{rows.length !== 1 ? 's' : ''} found — preview:</p>
+            <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+              {rows.map((r, i) => (
+                <div key={i} className="flex items-center justify-between p-2.5 rounded-xl bg-card border border-border/50 text-xs">
+                  <div>
+                    <p className="font-medium">{r.name}</p>
+                    <p className="text-muted-foreground capitalize">{r.type.replace('_', ' ')} · {r.interestRate}% APR</p>
+                  </div>
+                  <p className="font-semibold text-red-400">{fmtFull(r.balance)}</p>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => onImport(rows)}
+              className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90"
+            >
+              Import {rows.length} Debt{rows.length !== 1 ? 's' : ''}
+            </button>
+          </div>
+        )}
+      </div>
+    </ModalShell>
+  );
+}
+
+const DEBT_PRESETS: { label: string; type: DebtEntry['type']; placeholder: string }[] = [
+  { label: '💳 Credit Card',  type: 'credit_card',  placeholder: 'e.g. Chase Sapphire' },
+  { label: '🎓 Student Loan', type: 'student_loan', placeholder: 'e.g. Federal Loan — Direct Subsidized' },
+  { label: '🏦 Personal Loan',type: 'personal_loan',placeholder: 'e.g. SoFi Personal Loan' },
+  { label: '🏥 Medical',      type: 'medical',       placeholder: 'e.g. Hospital Bill' },
+  { label: '📦 Other',        type: 'other',         placeholder: 'e.g. Family loan' },
+];
+
+function AddDebtModal({ onClose, onSave }: {
+  onClose: () => void;
+  onSave: (d: Omit<DebtEntry, 'id'>) => void;
+}) {
+  const [name, setName] = useState('');
+  const [balance, setBalance] = useState('');
+  const [originalBalance, setOriginalBalance] = useState('');
+  const [interestRate, setInterestRate] = useState('');
+  const [minimumPayment, setMinimumPayment] = useState('');
+  const [targetDate, setTargetDate] = useState('');
+  const [type, setType] = useState<DebtEntry['type']>('credit_card');
+
+  const DEBT_COLORS: Record<DebtEntry['type'], string> = {
+    credit_card: '#ef4444', student_loan: '#f59e0b', personal_loan: '#8b5cf6', medical: '#3b82f6', other: '#6b7280',
+  };
+
+  const balNum = parseFloat(balance) || 0;
+  const rateNum = parseFloat(interestRate) || 0;
+  const monthlyInterest = balNum > 0 && rateNum > 0 ? (balNum * (rateNum / 100)) / 12 : 0;
+  const selectedPreset = DEBT_PRESETS.find(p => p.type === type);
+
+  return (
+    <ModalShell title="Add Debt" onClose={onClose}>
+      {/* Type quick-pick */}
+      <div className="grid grid-cols-5 gap-1">
+        {DEBT_PRESETS.map(p => (
+          <button key={p.type} onClick={() => setType(p.type)}
+            className={cn("py-2 px-1 rounded-xl text-[10px] font-medium text-center transition-all border",
+              type === p.type ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-border/80"
+            )}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      <Field label="Name">
+        <input className={inputCls} value={name} onChange={e => setName(e.target.value)}
+          placeholder={selectedPreset?.placeholder || 'Debt name'} />
+      </Field>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Current Balance ($)">
+          <input className={inputCls} type="number" value={balance} onChange={e => setBalance(e.target.value)} placeholder="0.00" />
+        </Field>
+        <Field label="Original Balance ($)">
+          <input className={inputCls} type="number" value={originalBalance} onChange={e => setOriginalBalance(e.target.value)} placeholder="Same as current" />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Interest Rate (%)">
+          <input className={inputCls} type="number" step="0.01" value={interestRate} onChange={e => setInterestRate(e.target.value)} placeholder="e.g. 6.5" />
+        </Field>
+        <Field label="Min. Monthly Payment ($)">
+          <input className={inputCls} type="number" value={minimumPayment} onChange={e => setMinimumPayment(e.target.value)} placeholder="0.00" />
+        </Field>
+      </div>
+
+      {monthlyInterest > 0 && (
+        <div className="flex items-center gap-2 text-xs text-amber-500 bg-amber-500/10 rounded-xl px-3 py-2">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>~{fmtFull(monthlyInterest)}/mo in interest at {rateNum}% APR</span>
+        </div>
+      )}
+
+      <Field label="Target Payoff Date (optional)">
+        <input className={inputCls} type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} />
+      </Field>
+
+      <button
+        onClick={() => onSave({
+          name, type,
+          balance: balNum,
+          originalBalance: parseFloat(originalBalance || balance) || balNum,
+          interestRate: rateNum,
+          minimumPayment: parseFloat(minimumPayment) || 0,
+          targetDate: targetDate ? new Date(targetDate) : undefined,
+          color: DEBT_COLORS[type],
+        })}
+        disabled={!name || !balance}
+        className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+      >
+        Save Debt
+      </button>
+    </ModalShell>
+  );
+}
+
+const GOAL_PRESETS = [
+  { emoji: '🏠', name: 'House Down Payment' },
+  { emoji: '🚗', name: 'New Car' },
+  { emoji: '🌴', name: 'Vacation' },
+  { emoji: '🛡️', name: 'Emergency Fund' },
+  { emoji: '💻', name: 'New Laptop' },
+  { emoji: '🎓', name: 'Tuition' },
+  { emoji: '💍', name: 'Ring / Wedding' },
+  { emoji: '🚀', name: 'Investments' },
+];
+
+function AddGoalModal({ onClose, onSave }: {
+  onClose: () => void;
+  onSave: (g: Omit<SavingsGoal, 'id'>) => void;
+}) {
+  const [name, setName] = useState('');
+  const [emoji, setEmoji] = useState('🎯');
+  const [targetAmount, setTargetAmount] = useState('');
+  const [currentAmount, setCurrentAmount] = useState('0');
+  const [deadline, setDeadline] = useState('');
+  const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899'];
+  const [color, setColor] = useState(COLORS[0]);
+
+  const target = parseFloat(targetAmount) || 0;
+  const current = parseFloat(currentAmount) || 0;
+  const remaining = target - current;
+  const deadlineDate = deadline ? new Date(deadline) : null;
+  const monthsLeft = deadlineDate ? Math.max(1, Math.round((deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30))) : null;
+  const monthlyNeeded = monthsLeft && remaining > 0 ? remaining / monthsLeft : null;
+
+  return (
+    <ModalShell title="Add Savings Goal" onClose={onClose}>
+      {/* Quick presets */}
+      <div>
+        <p className="text-xs text-muted-foreground mb-2">Quick presets</p>
+        <div className="grid grid-cols-4 gap-1.5">
+          {GOAL_PRESETS.map(p => (
+            <button key={p.name} onClick={() => { setEmoji(p.emoji); setName(p.name); }}
+              className="flex flex-col items-center gap-1 p-2 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all text-center">
+              <span className="text-lg">{p.emoji}</span>
+              <span className="text-[9px] text-muted-foreground leading-tight">{p.name.split(' ')[0]}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <Field label="Emoji">
+          <input className={cn(inputCls, "w-16 text-center text-xl")} value={emoji} onChange={e => setEmoji(e.target.value)} />
+        </Field>
+        <div className="flex-1">
+          <Field label="Goal Name">
+            <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Emergency Fund" />
+          </Field>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Target ($)">
+          <input className={inputCls} type="number" value={targetAmount} onChange={e => setTargetAmount(e.target.value)} placeholder="0.00" />
+        </Field>
+        <Field label="Already Saved ($)">
+          <input className={inputCls} type="number" value={currentAmount} onChange={e => setCurrentAmount(e.target.value)} placeholder="0.00" />
+        </Field>
+      </div>
+
+      <Field label="Target Date (optional)">
+        <input className={inputCls} type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
+      </Field>
+
+      {monthlyNeeded && monthlyNeeded > 0 && (
+        <div className="text-xs text-emerald-500 bg-emerald-500/10 rounded-xl px-3 py-2">
+          Save ~{fmtFull(monthlyNeeded)}/mo to hit your goal in {monthsLeft} month{monthsLeft !== 1 ? 's' : ''}
+        </div>
+      )}
+
+      <Field label="Color">
+        <div className="flex gap-2">
+          {COLORS.map(c => (
+            <button key={c} onClick={() => setColor(c)} className={cn("w-7 h-7 rounded-full border-2 transition-all", color === c ? "border-foreground scale-110" : "border-transparent")} style={{ backgroundColor: c }} />
+          ))}
+        </div>
+      </Field>
+
+      <button
+        onClick={() => onSave({ name, emoji, targetAmount: target, currentAmount: current, deadline: deadline ? new Date(deadline) : undefined, color })}
+        disabled={!name || !targetAmount}
+        className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+      >
+        Save Goal
+      </button>
+    </ModalShell>
+  );
+}
+
+const BUDGET_PRESETS = [
+  { emoji: '🍔', name: 'Food & Drink',      color: '#f59e0b', limit: 400 },
+  { emoji: '🛒', name: 'Groceries',          color: '#10b981', limit: 300 },
+  { emoji: '🚗', name: 'Transportation',     color: '#3b82f6', limit: 200 },
+  { emoji: '🎮', name: 'Entertainment',      color: '#8b5cf6', limit: 150 },
+  { emoji: '🏠', name: 'Housing',            color: '#6b7280', limit: 1500 },
+  { emoji: '💊', name: 'Medical',            color: '#ef4444', limit: 100 },
+  { emoji: '👗', name: 'Shopping',           color: '#ec4899', limit: 200 },
+  { emoji: '📱', name: 'Bills & Utilities',  color: '#06b6d4', limit: 200 },
+];
+
+function AddBudgetModal({ onClose, onSave }: {
+  onClose: () => void;
+  onSave: (b: Omit<BudgetCategory, 'id' | 'spent'>) => void;
+}) {
+  const [name, setName] = useState('');
+  const [emoji, setEmoji] = useState('💰');
+  const [monthlyLimit, setMonthlyLimit] = useState('');
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+  const [color, setColor] = useState(COLORS[0]);
+
+  return (
+    <ModalShell title="Add Budget Category" onClose={onClose}>
+      {/* Quick presets */}
+      <div>
+        <p className="text-xs text-muted-foreground mb-2">Quick presets</p>
+        <div className="grid grid-cols-4 gap-1.5">
+          {BUDGET_PRESETS.map(p => (
+            <button key={p.name} onClick={() => { setEmoji(p.emoji); setName(p.name); setColor(p.color); setMonthlyLimit(String(p.limit)); }}
+              className="flex flex-col items-center gap-1 p-2 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all text-center">
+              <span className="text-lg">{p.emoji}</span>
+              <span className="text-[9px] text-muted-foreground leading-tight">{p.name.split(' ')[0]}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <Field label="Emoji">
+          <input className={cn(inputCls, "w-16 text-center text-xl")} value={emoji} onChange={e => setEmoji(e.target.value)} />
+        </Field>
+        <div className="flex-1">
+          <Field label="Category Name">
+            <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Food & Drink" />
+          </Field>
+        </div>
+      </div>
+
+      <Field label="Monthly Limit ($)">
+        <input className={inputCls} type="number" value={monthlyLimit} onChange={e => setMonthlyLimit(e.target.value)} placeholder="0.00" />
+      </Field>
+
+      <Field label="Color">
+        <div className="flex gap-2">
+          {COLORS.map(c => (
+            <button key={c} onClick={() => setColor(c)} className={cn("w-7 h-7 rounded-full border-2 transition-all", color === c ? "border-foreground scale-110" : "border-transparent")} style={{ backgroundColor: c }} />
+          ))}
+        </div>
+      </Field>
+
+      <button
+        onClick={() => onSave({ name, emoji, monthlyLimit: parseFloat(monthlyLimit) || 0, color })}
+        disabled={!name || !monthlyLimit}
+        className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+      >
+        Save Category
+      </button>
+    </ModalShell>
+  );
+}
+
+// ── EDIT MODALS ───────────────────────────────────────────────────────────────
+
+function EditDebtModal({ debt, onClose, onSave, onDelete }: {
+  debt: DebtEntry;
+  onClose: () => void;
+  onSave: (updates: Partial<DebtEntry>) => void;
+  onDelete: () => void;
+}) {
+  const [name, setName] = useState(debt.name);
+  const [balance, setBalance] = useState(String(debt.balance));
+  const [originalBalance, setOriginalBalance] = useState(String(debt.originalBalance));
+  const [interestRate, setInterestRate] = useState(String(debt.interestRate));
+  const [minimumPayment, setMinimumPayment] = useState(String(debt.minimumPayment));
+  const [targetDate, setTargetDate] = useState(debt.targetDate ? debt.targetDate.toISOString().split('T')[0] : '');
+  const [type, setType] = useState<DebtEntry['type']>(debt.type);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const DEBT_COLORS: Record<DebtEntry['type'], string> = {
+    credit_card: '#ef4444', student_loan: '#f59e0b', personal_loan: '#8b5cf6', medical: '#3b82f6', other: '#6b7280',
+  };
+
+  const balNum = parseFloat(balance) || 0;
+  const rateNum = parseFloat(interestRate) || 0;
+  const monthlyInterest = balNum > 0 && rateNum > 0 ? (balNum * (rateNum / 100)) / 12 : 0;
+  const projection = debtPayoffProjection(balNum, rateNum, parseFloat(minimumPayment) || 0);
+
+  return (
+    <ModalShell title="Edit Debt" onClose={onClose}>
+      <div className="grid grid-cols-5 gap-1">
+        {DEBT_PRESETS.map(p => (
+          <button key={p.type} onClick={() => setType(p.type)}
+            className={cn("py-2 px-1 rounded-xl text-[10px] font-medium text-center transition-all border",
+              type === p.type ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-border/80"
+            )}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      <Field label="Name">
+        <input className={inputCls} value={name} onChange={e => setName(e.target.value)} />
+      </Field>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Current Balance ($)">
+          <input className={inputCls} type="number" value={balance} onChange={e => setBalance(e.target.value)} />
+        </Field>
+        <Field label="Original Balance ($)">
+          <input className={inputCls} type="number" value={originalBalance} onChange={e => setOriginalBalance(e.target.value)} />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Interest Rate (%)">
+          <input className={inputCls} type="number" step="0.01" value={interestRate} onChange={e => setInterestRate(e.target.value)} />
+        </Field>
+        <Field label="Min. Payment ($)">
+          <input className={inputCls} type="number" value={minimumPayment} onChange={e => setMinimumPayment(e.target.value)} />
+        </Field>
+      </div>
+
+      {monthlyInterest > 0 && (
+        <div className="flex items-center gap-2 text-xs text-amber-500 bg-amber-500/10 rounded-xl px-3 py-2">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>~{fmtFull(monthlyInterest)}/mo in interest at {rateNum}% APR</span>
+        </div>
+      )}
+
+      {projection && (
+        <div className="flex items-center gap-2 text-xs text-blue-400 bg-blue-500/10 rounded-xl px-3 py-2">
+          <CalendarClock className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>
+            Payoff in ~{projection.months} months · {fmtFull(projection.totalInterest)} total interest
+          </span>
+        </div>
+      )}
+
+      <Field label="Target Payoff Date (optional)">
+        <input className={inputCls} type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} />
+      </Field>
+
+      <button
+        onClick={() => onSave({
+          name, type,
+          balance: balNum,
+          originalBalance: parseFloat(originalBalance) || balNum,
+          interestRate: rateNum,
+          minimumPayment: parseFloat(minimumPayment) || 0,
+          targetDate: targetDate ? new Date(targetDate) : undefined,
+          color: DEBT_COLORS[type],
+        })}
+        disabled={!name || !balance}
+        className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+      >
+        Save Changes
+      </button>
+
+      {confirmDelete ? (
+        <div className="flex gap-2">
+          <button onClick={onDelete} className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600">
+            Confirm Delete
+          </button>
+          <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2 rounded-xl border border-border text-sm hover:bg-secondary">
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <button onClick={() => setConfirmDelete(true)} className="w-full py-2 rounded-xl border border-border text-sm text-muted-foreground hover:text-red-400 hover:border-red-400/50 transition-colors">
+          Delete Debt
+        </button>
+      )}
+    </ModalShell>
+  );
+}
+
+function EditBudgetModal({ budget, onClose, onSave, onDelete }: {
+  budget: BudgetCategory;
+  onClose: () => void;
+  onSave: (updates: Partial<BudgetCategory>) => void;
+  onDelete: () => void;
+}) {
+  const [name, setName] = useState(budget.name);
+  const [emoji, setEmoji] = useState(budget.emoji || '💰');
+  const [monthlyLimit, setMonthlyLimit] = useState(String(budget.monthlyLimit));
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+  const [color, setColor] = useState(budget.color || COLORS[0]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  return (
+    <ModalShell title="Edit Budget Category" onClose={onClose}>
+      <div className="flex gap-3">
+        <Field label="Emoji">
+          <input className={cn(inputCls, "w-16 text-center text-xl")} value={emoji} onChange={e => setEmoji(e.target.value)} />
+        </Field>
+        <div className="flex-1">
+          <Field label="Category Name">
+            <input className={inputCls} value={name} onChange={e => setName(e.target.value)} />
+          </Field>
+        </div>
+      </div>
+
+      <Field label="Monthly Limit ($)">
+        <input className={inputCls} type="number" value={monthlyLimit} onChange={e => setMonthlyLimit(e.target.value)} />
+      </Field>
+
+      <Field label="Color">
+        <div className="flex gap-2">
+          {COLORS.map(c => (
+            <button key={c} onClick={() => setColor(c)} className={cn("w-7 h-7 rounded-full border-2 transition-all", color === c ? "border-foreground scale-110" : "border-transparent")} style={{ backgroundColor: c }} />
+          ))}
+        </div>
+      </Field>
+
+      <button
+        onClick={() => onSave({ name, emoji, monthlyLimit: parseFloat(monthlyLimit) || 0, color })}
+        disabled={!name || !monthlyLimit}
+        className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+      >
+        Save Changes
+      </button>
+
+      {confirmDelete ? (
+        <div className="flex gap-2">
+          <button onClick={onDelete} className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600">Confirm Delete</button>
+          <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2 rounded-xl border border-border text-sm hover:bg-secondary">Cancel</button>
+        </div>
+      ) : (
+        <button onClick={() => setConfirmDelete(true)} className="w-full py-2 rounded-xl border border-border text-sm text-muted-foreground hover:text-red-400 hover:border-red-400/50 transition-colors">
+          Delete Category
+        </button>
+      )}
+    </ModalShell>
+  );
+}
+
+function EditGoalModal({ goal, onClose, onSave, onDelete }: {
+  goal: SavingsGoal;
+  onClose: () => void;
+  onSave: (updates: Partial<SavingsGoal>) => void;
+  onDelete: () => void;
+}) {
+  const [name, setName] = useState(goal.name);
+  const [emoji, setEmoji] = useState(goal.emoji || '🎯');
+  const [targetAmount, setTargetAmount] = useState(String(goal.targetAmount));
+  const [currentAmount, setCurrentAmount] = useState(String(goal.currentAmount));
+  const [deadline, setDeadline] = useState(goal.deadline ? new Date(goal.deadline).toISOString().split('T')[0] : '');
+  const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899'];
+  const [color, setColor] = useState(goal.color || COLORS[0]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const target = parseFloat(targetAmount) || 0;
+  const current = parseFloat(currentAmount) || 0;
+  const remaining = target - current;
+  const deadlineDate = deadline ? new Date(deadline) : null;
+  const monthsLeft = deadlineDate ? Math.max(1, Math.round((deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30))) : null;
+  const monthlyNeeded = monthsLeft && remaining > 0 ? remaining / monthsLeft : null;
+
+  return (
+    <ModalShell title="Edit Savings Goal" onClose={onClose}>
+      <div className="flex gap-3">
+        <Field label="Emoji">
+          <input className={cn(inputCls, "w-16 text-center text-xl")} value={emoji} onChange={e => setEmoji(e.target.value)} />
+        </Field>
+        <div className="flex-1">
+          <Field label="Goal Name">
+            <input className={inputCls} value={name} onChange={e => setName(e.target.value)} />
+          </Field>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Target ($)">
+          <input className={inputCls} type="number" value={targetAmount} onChange={e => setTargetAmount(e.target.value)} />
+        </Field>
+        <Field label="Already Saved ($)">
+          <input className={inputCls} type="number" value={currentAmount} onChange={e => setCurrentAmount(e.target.value)} />
+        </Field>
+      </div>
+
+      <Field label="Target Date (optional)">
+        <input className={inputCls} type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
+      </Field>
+
+      {monthlyNeeded && monthlyNeeded > 0 && (
+        <div className="text-xs text-emerald-500 bg-emerald-500/10 rounded-xl px-3 py-2">
+          Save ~{fmtFull(monthlyNeeded)}/mo to hit your goal in {monthsLeft} month{monthsLeft !== 1 ? 's' : ''}
+        </div>
+      )}
+
+      <Field label="Color">
+        <div className="flex gap-2">
+          {COLORS.map(c => (
+            <button key={c} onClick={() => setColor(c)} className={cn("w-7 h-7 rounded-full border-2 transition-all", color === c ? "border-foreground scale-110" : "border-transparent")} style={{ backgroundColor: c }} />
+          ))}
+        </div>
+      </Field>
+
+      <button
+        onClick={() => onSave({ name, emoji, targetAmount: target, currentAmount: current, deadline: deadline ? new Date(deadline) : undefined, color })}
+        disabled={!name || !targetAmount}
+        className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+      >
+        Save Changes
+      </button>
+
+      {confirmDelete ? (
+        <div className="flex gap-2">
+          <button onClick={onDelete} className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600">Confirm Delete</button>
+          <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2 rounded-xl border border-border text-sm hover:bg-secondary">Cancel</button>
+        </div>
+      ) : (
+        <button onClick={() => setConfirmDelete(true)} className="w-full py-2 rounded-xl border border-border text-sm text-muted-foreground hover:text-red-400 hover:border-red-400/50 transition-colors">
+          Delete Goal
+        </button>
+      )}
+    </ModalShell>
+  );
+}

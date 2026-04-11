@@ -5,10 +5,10 @@ import { getCurrentUser } from '@/lib/auth'
 // GET /api/blog/posts/[id] - Get a single blog post by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id
+    const { id } = await params
     
     const { data, error } = await supabase
       .from('blog_posts')
@@ -39,10 +39,10 @@ export async function GET(
 // PATCH /api/blog/posts/[id] - Update a blog post (protected)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id
+    const { id } = await params
     const body = await request.json()
     
     // Check authentication (skip for draft auto-saves)
@@ -94,7 +94,7 @@ export async function PATCH(
 // DELETE /api/blog/posts/[id] - Delete a blog post (protected)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -105,8 +105,8 @@ export async function DELETE(
         { status: 401 }
       )
     }
-    
-    const id = params.id
+
+    const { id } = await params
     
     const { error } = await supabase
       .from('blog_posts')

@@ -136,7 +136,7 @@ const portableTextComponents: PortableTextComponents = {
       </div>
     ),
     callout: ({ value }) => {
-      const styles: Record<string, { bg: string; border: string; titleColor: string }> = {
+      const styles: Record<string, { headerBg: string; contentBg: string; borderColor: string; titleColor: string }> = {
         info: {
           headerBg: 'bg-blue-500 dark:bg-blue-600',
           contentBg: 'bg-blue-50 dark:bg-blue-900/10',

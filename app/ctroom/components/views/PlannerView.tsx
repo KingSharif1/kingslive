@@ -1,50 +1,105 @@
-/**
- * PlannerView - Mission Control Center
- * Evolution of TasksView with Focus on Missions & Systems
- */
-import React, { useState, useRef, useEffect } from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import {
-    CheckCircle2, Calendar as CalendarIcon, Plus, MoreHorizontal,
-    List, ChevronLeft, ChevronRight, Sun, Sunrise, Inbox, Filter,
-    Flag, CalendarDays, ChevronDown, Repeat, Flame, Edit2, Trash2, Copy,
-    Archive, Briefcase, Clock, AlertTriangle
+    CheckCircle2, Plus, Inbox, Sun, CalendarDays, ChevronLeft,
+    ChevronRight, Flame, Repeat, MoreHorizontal, Edit2,
+    Trash2, Archive, Copy, Zap, Trophy, Target, Clock,
+    ChevronDown, ChevronUp, TrendingUp, FileText, BookOpen, Send, X
 } from 'lucide-react';
 import {
-    format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay,
-    addMonths, subMonths, isToday, isTomorrow, startOfWeek, endOfWeek,
-    addDays, isAfter, isPast
+    format, isToday, isTomorrow, isPast, isAfter, isSameDay,
+    addDays, subDays, startOfWeek, endOfWeek, eachDayOfInterval,
+    startOfMonth, endOfMonth, addMonths, subMonths
 } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { ActionItem, Mission, System } from '../../types/';
-import { motion, AnimatePresence } from 'framer-motion';
+import { ActionItem, ActionItemPriority, DailyLog, Mission, System } from '../../types/';
 import { CtroomDataService } from '../../services/ctroomDataService';
-import { WorkSystemPanel } from '../planner/WorkSystemPanel'; // Import Panel
+import { motion, AnimatePresence } from 'framer-motion';
 
-// Confetti effect reused
-const ConfettiExplosion = ({ x, y }: { x: number, y: number }) => (
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const XP_MAP: Record<ActionItemPriority, number> = {
+    low: 5, medium: 10, high: 20, critical: 35
+};
+
+function loadStreak(): { count: number; lastDate: string } {
+    try {
+        const raw = localStorage.getItem('planner-streak');
+        return raw ? JSON.parse(raw) : { count: 0, lastDate: '' };
+    } catch { return { count: 0, lastDate: '' }; }
+}
+
+function calcStreak(items: ActionItem[]): number {
+    const { count, lastDate } = loadStreak();
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+    const completedToday = items.some(i => i.status === 'done' && isToday(i.date));
+    if (completedToday) {
+        if (lastDate === todayStr) return count;
+        const newCount = lastDate === yesterdayStr ? count + 1 : 1;
+        localStorage.setItem('planner-streak', JSON.stringify({ count: newCount, lastDate: todayStr }));
+        return newCount;
+    }
+    if (lastDate === yesterdayStr || lastDate === todayStr) return count;
+    return 0;
+}
+
+function calcTodayXP(items: ActionItem[]): number {
+    return items
+        .filter(i => i.status === 'done' && isToday(i.date))
+        .reduce((sum, i) => sum + (XP_MAP[i.priority] || 10), 0);
+}
+
+function parseTimeInput(input: string): number {
+    const c = input.trim().toLowerCase();
+    const hm = c.match(/^(\d+)h\s*(\d+)m?$/);
+    if (hm) return parseInt(hm[1]) * 60 + parseInt(hm[2]);
+    const h = c.match(/^(\d+(?:\.\d+)?)h$/);
+    if (h) return Math.round(parseFloat(h[1]) * 60);
+    const m = c.match(/^(\d+)m$/);
+    if (m) return parseInt(m[1]);
+    const n = c.match(/^(\d+)$/);
+    if (n) return parseInt(n[1]);
+    return 0;
+}
+
+function formatMinutes(mins: number): string {
+    if (!mins) return '';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h > 0 && m > 0) return `${h}h ${m}m`;
+    if (h > 0) return `${h}h`;
+    return `${m}m`;
+}
+
+// ─── Confetti ─────────────────────────────────────────────────────────────────
+
+const Confetti = ({ x, y }: { x: number; y: number }) => (
     <div className="fixed pointer-events-none z-50" style={{ left: x, top: y }}>
-        {[...Array(12)].map((_, i) => (
+        {[...Array(14)].map((_, i) => (
             <motion.div
                 key={i}
                 initial={{ opacity: 1, scale: 0, x: 0, y: 0 }}
-                animate={{
-                    opacity: 0,
-                    scale: 1,
-                    x: (Math.random() - 0.5) * 150,
-                    y: (Math.random() - 0.5) * 150,
-                    rotate: Math.random() * 360
-                }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
+                animate={{ opacity: 0, scale: 1.2, x: (Math.random() - 0.5) * 160, y: (Math.random() - 0.5) * 160, rotate: Math.random() * 360 }}
+                transition={{ duration: 0.65, ease: 'easeOut' }}
                 className="absolute w-2 h-2 rounded-full"
-                style={{ backgroundColor: ['#e34432', '#4772fa', '#ffb000', '#10b981'][i % 4] }}
+                style={{ backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i % 5] }}
             />
         ))}
     </div>
 );
 
-type ViewMode = 'list' | 'calendar';
-type CalendarZoom = 'month' | 'week' | 'day';
-type NavFilter = 'inbox' | 'today' | 'upcoming' | 'filters' | string;
+// ─── Priority config ──────────────────────────────────────────────────────────
+
+const PRIORITY_CFG: Record<ActionItemPriority, { dot: string; label: string }> = {
+    low:      { dot: 'bg-zinc-400',   label: 'Low'      },
+    medium:   { dot: 'bg-blue-400',   label: 'Medium'   },
+    high:     { dot: 'bg-orange-400', label: 'High'     },
+    critical: { dot: 'bg-red-500',    label: 'Critical' },
+};
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PlannerViewProps {
     actionItems: ActionItem[];
@@ -59,845 +114,973 @@ interface PlannerViewProps {
     onAddOvertime?: (date: Date, hours: number) => void;
     onUpdateSystem?: (system: System) => void;
 }
+
+type NavFilter = 'today' | 'inbox' | 'upcoming' | 'completed' | string;
+type CalView = 'week' | 'month';
+type PlannerTab = 'tasks' | 'log' | 'reflection';
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 export const PlannerView = ({
-    actionItems, missions, systems,
-    toggleItemStatus, openItemModal, onDeleteItem,
-    onArchiveItem, onDuplicateItem, onEditItem, onAddOvertime, onUpdateSystem
+    actionItems, missions,
+    toggleItemStatus, openItemModal, onDeleteItem, onArchiveItem, onDuplicateItem, onEditItem
 }: PlannerViewProps) => {
-    const [viewMode, setViewMode] = useState<ViewMode>('list'); // Calendar might be better default?
-    const [calendarZoom, setCalendarZoom] = useState<CalendarZoom>('week'); // Default to Week for Planner
-    const [currentDate, setCurrentDate] = useState(new Date());
-    const [selectedNav, setSelectedNav] = useState<NavFilter>('today');
-    const [confettiPos, setConfettiPos] = useState<{ x: number, y: number } | null>(null);
-    const [expandedSections, setExpandedSections] = useState<string[]>(['today', 'tomorrow', 'work', 'completed']);
-    const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-    const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
-    const [showOtInput, setShowOtInput] = useState(false);
-    const [otHours, setOtHours] = useState(1);
-    const [editingWorkSystem, setEditingWorkSystem] = useState(false);
-    const [workStart, setWorkStart] = useState("09:00");
-    const [workEnd, setWorkEnd] = useState("17:00");
-    const [isWorkPanelOpen, setIsWorkPanelOpen] = useState(false);
 
-    // Helpers
-    const getWeekDays = (date: Date) => {
-        const workSys = systems.find(s => s.type === 'work');
-        const startDay = (workSys?.schedule.weekStartDay ?? 1) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+    // ── Existing state ──
+    const [nav, setNav] = useState<NavFilter>('today');
+    const [confetti, setConfetti] = useState<{ x: number; y: number } | null>(null);
+    const [menuId, setMenuId] = useState<string | null>(null);
+    const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
+    const [showCal, setShowCal] = useState(false);
+    const [calView, setCalView] = useState<CalView>('week');
+    const [calDate, setCalDate] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [collapsedSections, setCollapsedSections] = useState<string[]>([]);
+    const [streak, setStreak] = useState(0);
+    const [showDoneToday, setShowDoneToday] = useState(false);
 
-        return eachDayOfInterval({
-            start: startOfWeek(date, { weekStartsOn: startDay }),
-            end: endOfWeek(date, { weekStartsOn: startDay })
-        });
+    // ── Log / Reflection state ──
+    const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
+    const [plannerTab, setPlannerTab] = useState<PlannerTab>('tasks');
+    const [logInput, setLogInput] = useState('');
+    const [logProject, setLogProject] = useState('');
+    const [logTime, setLogTime] = useState('');
+    const [reflectionInput, setReflectionInput] = useState('');
+    const [reflectionId, setReflectionId] = useState<string | null>(null);
+    const [logSaving, setLogSaving] = useState(false);
+
+    // ── Effects ──
+    useEffect(() => { setStreak(calcStreak(actionItems)); }, [actionItems]);
+
+    useEffect(() => {
+        const handler = () => { setMenuId(null); setMenuPos(null); };
+        document.addEventListener('click', handler);
+        return () => document.removeEventListener('click', handler);
+    }, []);
+
+    useEffect(() => { loadLogsForDate(); }, [selectedDate]);
+
+    const loadLogsForDate = async () => {
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const logs = await CtroomDataService.fetchDailyLogs(dateStr);
+        setDailyLogs(logs);
+        const ref = logs.find(l => l.type === 'reflection');
+        if (ref) { setReflectionInput(ref.content); setReflectionId(ref.id); }
+        else { setReflectionInput(''); setReflectionId(null); }
     };
 
-    // Touch handling
-    const calendarRef = useRef<HTMLDivElement>(null);
-    const lastTouchDistance = useRef<number | null>(null);
+    // ── Gamification ──
+    const todayXP = actionItems.filter(i => i.status === 'done' && isSameDay(i.date, selectedDate)).reduce((sum, i) => sum + (XP_MAP[i.priority] || 10), 0);
+    const todayTotal = actionItems.filter(i => isSameDay(i.date, selectedDate) || (isPast(i.date) && i.status !== 'done' && isSameDay(selectedDate, new Date()))).length;
+    const todayDone = actionItems.filter(i => i.status === 'done' && isSameDay(i.date, selectedDate)).length;
+    const winTheDay = todayTotal > 0 && todayDone >= todayTotal;
+    const completionPct = todayTotal > 0 ? Math.round((todayDone / todayTotal) * 100) : 0;
 
-    const handleTouchStart = (e: React.TouchEvent) => {
-        if (e.touches.length === 2) {
-            const dx = e.touches[0].clientX - e.touches[1].clientX;
-            const dy = e.touches[0].clientY - e.touches[1].clientY;
-            lastTouchDistance.current = Math.sqrt(dx * dx + dy * dy);
+    // ── Log metrics ──
+    const todayLogEntries = dailyLogs.filter(l => l.type === 'log');
+    const totalLoggedMinutes = todayLogEntries.reduce((s, l) => s + (l.timeSpentMinutes || 0), 0);
+    const timeLoggedStr = totalLoggedMinutes === 0 ? '0h' : formatMinutes(totalLoggedMinutes);
+
+    // ── Filtering ──
+    const getFiltered = () => {
+        switch (nav) {
+            case 'inbox':     return actionItems.filter(i => i.status !== 'done' && !i.missionId);
+            case 'today':     return actionItems.filter(i => isSameDay(i.date, selectedDate) || (isPast(i.date) && i.status !== 'done'));
+            case 'upcoming':  return actionItems.filter(i => i.status !== 'done' && isAfter(i.date, new Date()) && !isSameDay(i.date, selectedDate));
+            case 'completed': return actionItems.filter(i => i.status === 'done');
+            default:          return actionItems.filter(i => i.missionId === nav);
         }
     };
+    const filtered = getFiltered();
+    const overdue  = filtered.filter(i => i.status !== 'done' && isPast(i.date) && !isSameDay(i.date, selectedDate));
+    const today    = filtered.filter(i => i.status !== 'done' && isSameDay(i.date, selectedDate));
+    const tomorrow = filtered.filter(i => i.status !== 'done' && isSameDay(i.date, addDays(selectedDate, 1)));
+    const later    = filtered.filter(i => i.status !== 'done' && isAfter(i.date, addDays(selectedDate, 1)));
+    const done     = filtered.filter(i => i.status === 'done' && isSameDay(i.date, selectedDate));
+    const priorityOrder: Record<ActionItemPriority, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+    const byPriority = (a: ActionItem, b: ActionItem) =>
+        (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2);
 
-    const handleTouchMove = (e: React.TouchEvent) => {
-        if (e.touches.length === 2 && lastTouchDistance.current) {
-            const dx = e.touches[0].clientX - e.touches[1].clientX;
-            const dy = e.touches[0].clientY - e.touches[1].clientY;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            const delta = distance - lastTouchDistance.current;
+    // ── Calendar ──
+    const weekDays  = eachDayOfInterval({ start: startOfWeek(calDate, { weekStartsOn: 1 }), end: endOfWeek(calDate, { weekStartsOn: 1 }) });
+    const monthDays = eachDayOfInterval({ start: startOfMonth(calDate), end: endOfMonth(calDate) });
+    const getItemsForDay = (day: Date) => actionItems.filter(i => isSameDay(i.date, day));
 
-            if (Math.abs(delta) > 50) {
-                if (delta > 0) { // Zoom in
-                    if (calendarZoom === 'month') setCalendarZoom('week');
-                    else if (calendarZoom === 'week') setCalendarZoom('day');
-                } else { // Zoom out
-                    if (calendarZoom === 'day') setCalendarZoom('week');
-                    else if (calendarZoom === 'week') setCalendarZoom('month');
-                }
-                lastTouchDistance.current = distance;
-            }
-        }
-    };
-
+    // ── Handlers ──
     const handleCheck = (e: React.MouseEvent, id: string) => {
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        setConfettiPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        setConfetti({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
         toggleItemStatus(id);
-        setTimeout(() => setConfettiPos(null), 800);
+        setTimeout(() => setConfetti(null), 800);
     };
 
-    const handleDayClick = (day: Date) => {
-        setCurrentDate(day);
-        if (calendarZoom === 'month') setCalendarZoom('week');
-        else if (calendarZoom === 'week') setCalendarZoom('day');
+    const openMenu = (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        setMenuPos({ top: r.bottom + 4, left: r.right - 176 });
+        setMenuId(id);
     };
 
-    const handleSaveSystem = () => {
-        if (!onUpdateSystem) return;
+    const toggleSection = (key: string) =>
+        setCollapsedSections(prev => prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key]);
 
-        // Find existing work system or create default
-        const workSys = systems.find(s => s.type === 'work') || {
-            id: 'sys_work',
-            name: 'Work',
-            type: 'work',
-            color: '#3b82f6',
-            isActive: true,
-            schedule: { days: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '17:00' }
-        };
-
-        const updatedSystem: System = {
-            ...workSys,
-            schedule: {
-                ...workSys.schedule!,
-                startTime: workStart,
-                endTime: workEnd
-            }
-        };
-
-        onUpdateSystem(updatedSystem);
-        setEditingWorkSystem(false);
-    };
-
-    const handleApplyOT = () => {
-        if (onAddOvertime) {
-            onAddOvertime(currentDate, otHours);
-            setShowOtInput(false);
+    const navCount = (id: NavFilter): number => {
+        switch (id) {
+            case 'inbox':     return actionItems.filter(i => i.status !== 'done' && !i.missionId).length;
+            case 'today':     return actionItems.filter(i => (isToday(i.date) || isPast(i.date)) && i.status !== 'done').length;
+            case 'upcoming':  return actionItems.filter(i => i.status !== 'done' && isAfter(i.date, new Date()) && !isToday(i.date)).length;
+            case 'completed': return actionItems.filter(i => i.status === 'done').length;
+            default:          return actionItems.filter(i => i.missionId === id && i.status !== 'done').length;
         }
     };
 
-    // --- Filtering ---
-    const getFilteredItems = () => {
-        switch (selectedNav) {
-            case 'inbox':
-                // Items with no mission and no system
-                return actionItems.filter(t => t.status !== 'done' && !t.missionId && !t.systemId);
-            case 'today':
-                return actionItems.filter(t => t.status !== 'done' && (isToday(t.date) || isPast(t.date)));
-            case 'upcoming':
-                return actionItems.filter(t => t.status !== 'done' && isAfter(t.date, new Date()));
-            case 'completed':
-                return actionItems.filter(t => t.status === 'done');
-            case 'completed-today':
-                return actionItems.filter(t => t.status === 'done' && isToday(t.date));
-            case 'filters':
-                return actionItems;
-            default:
-                // Mission Filter
-                return actionItems.filter(t => t.status !== 'done' && t.missionId === selectedNav);
-        }
-    };
-
-    // --- Grouping ---
-    const groupItemsByDate = () => {
-        const filtered = getFilteredItems();
-        const today: ActionItem[] = [];
-        const tomorrow: ActionItem[] = [];
-        const later: ActionItem[] = [];
-        const overdue: ActionItem[] = [];
-        const completed: ActionItem[] = [];
-
-        filtered.forEach(item => {
-            if (item.status === 'done') completed.push(item);
-            else if (isPast(item.date) && !isToday(item.date)) overdue.push(item);
-            else if (isToday(item.date)) today.push(item);
-            else if (isTomorrow(item.date)) tomorrow.push(item);
-            else later.push(item);
+    // ── Log handlers ──
+    const handleAddLog = async () => {
+        if (!logInput.trim()) return;
+        setLogSaving(true);
+        const mins = logTime.trim() ? parseTimeInput(logTime) : undefined;
+        const saved = await CtroomDataService.saveDailyLog({
+            date: format(selectedDate, 'yyyy-MM-dd'),
+            content: logInput.trim(),
+            type: 'log',
+            projectId: logProject || undefined,
+            timeSpentMinutes: mins || undefined,
         });
-
-        return { overdue, completed, today, tomorrow, later };
-    };
-
-    const grouped = groupItemsByDate();
-    const getItemsForDay = (day: Date) => actionItems.filter(item => isSameDay(item.date, day));
-
-    // Nav Counts
-    const getNavCount = (navId: string) => {
-        const pending = actionItems.filter(t => t.status !== 'done');
-        const done = actionItems.filter(t => t.status === 'done');
-        switch (navId) {
-            case 'inbox': return pending.filter(t => !t.missionId && !t.systemId).length;
-            case 'today': return pending.filter(t => isToday(t.date) || isPast(t.date)).length;
-            case 'upcoming': return pending.filter(t => isAfter(t.date, new Date())).length;
-            case 'completed': return done.length;
-            default: return pending.filter(t => t.missionId === navId).length;
+        if (saved) {
+            setDailyLogs(prev => [saved, ...prev]);
+            setLogInput('');
+            setLogTime('');
+            setLogProject('');
         }
+        setLogSaving(false);
     };
 
-    const NAV_ITEMS = [
-        { id: 'inbox', icon: Inbox, label: 'Inbox' },
-        { id: 'today', icon: Sun, label: 'Today' },
-        { id: 'upcoming', icon: CalendarDays, label: 'Upcoming' },
-        { id: 'completed', icon: CheckCircle2, label: 'Completed' },
-    ];
-
-    const getViewTitle = () => {
-        const navItem = NAV_ITEMS.find(n => n.id === selectedNav);
-        if (navItem) return navItem.label;
-        const mission = missions.find(m => m.id === selectedNav);
-        return mission?.name || 'Planner';
+    const handleDeleteLog = async (id: string) => {
+        const ok = await CtroomDataService.deleteDailyLog(id);
+        if (ok) setDailyLogs(prev => prev.filter(l => l.id !== id));
     };
 
-    // --- Sub-Components ---
+    const handleEditLog = async (id: string, content: string) => {
+        const ok = await CtroomDataService.updateDailyLog(id, { content });
+        if (ok) setDailyLogs(prev => prev.map(l => l.id === id ? { ...l, content } : l));
+    };
 
-    // Action Item Row
-    const ActionItemRow = ({ item }: { item: ActionItem }) => {
-        const mission = missions.find(m => m.id === item.missionId);
+    const handleSaveReflection = async () => {
+        if (!reflectionInput.trim()) return;
+        setLogSaving(true);
+        if (reflectionId) {
+            const ok = await CtroomDataService.updateDailyLog(reflectionId, { content: reflectionInput });
+            if (ok) setDailyLogs(prev => prev.map(l => l.id === reflectionId ? { ...l, content: reflectionInput } : l));
+        } else {
+            const saved = await CtroomDataService.saveDailyLog({
+                date: format(selectedDate, 'yyyy-MM-dd'),
+                content: reflectionInput.trim(),
+                type: 'reflection',
+            });
+            if (saved) { setDailyLogs(prev => [saved, ...prev]); setReflectionId(saved.id); }
+        }
+        setLogSaving(false);
+    };
 
-        return (
-            <div className="group flex items-start gap-3 py-3 px-3 hover:bg-secondary/30 rounded-xl transition-colors cursor-pointer relative">
-                <button
-                    onClick={(e) => handleCheck(e, item.id)}
-                    className={cn(
-                        "mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0",
-                        item.status === 'done'
-                            ? "bg-primary border-primary text-primary-foreground"
-                            : item.priority === 'critical' || item.priority === 'high'
-                                ? "border-red-500 hover:bg-red-500/10"
-                                : "border-muted-foreground/40 hover:border-primary hover:bg-primary/10"
-                    )}
-                >
-                    {item.status === 'done' && <CheckCircle2 className="w-3 h-3" />}
-                </button>
+    // ─── Render ───────────────────────────────────────────────────────────────
+    return (
+        <div className="h-full flex overflow-hidden font-inter">
+            {confetti && <Confetti x={confetti.x} y={confetti.y} />}
 
-                <div className="flex-1 min-w-0">
-                    <div className={cn(
-                        "text-sm font-medium leading-snug",
-                        item.status === 'done' && "line-through text-muted-foreground"
-                    )}>
-                        {item.title}
+            {/* Context Menu */}
+            <AnimatePresence>
+                {menuId && menuPos && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 100 }}
+                        className="w-44 bg-card border border-border rounded-xl shadow-2xl overflow-hidden"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {[
+                            { icon: Edit2,   label: 'Edit',      action: () => { const i = actionItems.find(x => x.id === menuId); if (i) onEditItem(i); setMenuId(null); } },
+                            { icon: Copy,    label: 'Duplicate', action: () => { const i = actionItems.find(x => x.id === menuId); if (i) onDuplicateItem(i); setMenuId(null); } },
+                            { icon: Archive, label: 'Archive',   action: () => { onArchiveItem(menuId!); setMenuId(null); } },
+                        ].map(({ icon: Icon, label, action }) => (
+                            <button key={label} onClick={action} className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-secondary transition-colors text-left">
+                                <Icon size={13} className="text-muted-foreground" /> {label}
+                            </button>
+                        ))}
+                        <div className="border-t border-border" />
+                        <button onClick={() => { onDeleteItem(menuId!); setMenuId(null); }}
+                            className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-400 hover:bg-red-400/10 transition-colors">
+                            <Trash2 size={13} /> Delete
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* ── Left Sidebar ─────────────────────────────────────────────── */}
+            <div className="w-56 flex-shrink-0 border-r border-border flex flex-col bg-card/40 overflow-y-auto">
+
+                {/* Streak + XP */}
+                <div className="p-4 border-b border-border space-y-3">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center",
+                                streak > 0 ? "bg-orange-500/10 text-orange-400" : "bg-secondary text-muted-foreground")}>
+                                <Flame size={16} />
+                            </div>
+                            <div>
+                                <div className="font-mono text-lg font-bold text-foreground leading-none">{streak}</div>
+                                <div className="text-[10px] text-muted-foreground">day streak</div>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <div className="font-mono text-base font-bold text-primary leading-none">{todayXP}</div>
+                            <div className="text-[10px] text-muted-foreground">{isToday(selectedDate) ? 'XP today' : 'XP earned'}</div>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        {/* System/Routine Label */}
-                        {item.systemId && (
-                            <span className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                                <Repeat className="w-3 h-3" />
-                                Routine
+                    <div>
+                        <div className="flex items-center justify-between text-xs mb-1.5">
+                            <span className="text-muted-foreground">{isToday(selectedDate) ? 'Today' : format(selectedDate, 'MMM d')}</span>
+                            <span className={cn("font-mono font-medium", winTheDay ? "text-emerald-400" : "text-foreground")}>
+                                {winTheDay ? '🏆 Won!' : `${todayDone}/${todayTotal}`}
                             </span>
-                        )}
-                        {/* Mission Label */}
-                        {mission && (
-                            <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
-                                style={{ backgroundColor: `${mission.color}15`, color: mission.color }}
-                            >
-                                <span className='w-1.5 h-1.5 rounded-full' style={{ backgroundColor: mission.color }} />
-                                {mission.name}
-                            </span>
-                        )}
-                        {/* Priority */}
-                        {(item.priority === 'high' || item.priority === 'critical') && (
-                            <span className="flex items-center gap-0.5 text-xs text-red-500">
-                                <Flag className="w-3 h-3" /> P1
-                            </span>
-                        )}
-                        {/* Time Block */}
-                        {item.timeBlock && (
-                            <span className="text-xs text-muted-foreground bg-secondary/50 px-1.5 rounded">
-                                {item.timeBlock.startTime} - {item.timeBlock.endTime}
-                            </span>
-                        )}
+                        </div>
+                        <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                            <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${completionPct}%` }}
+                                className={cn("h-full rounded-full", winTheDay ? "bg-emerald-400" : "bg-primary")}
+                            />
+                        </div>
                     </div>
                 </div>
 
-                {/* Actions Menu (Simplified for brevity, similar to TasksView) */}
-                <div className="flex items-center gap-1">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (menuOpenId === item.id) {
-                                setMenuOpenId(null);
-                                setMenuPosition(null);
-                            } else {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setMenuPosition({ top: rect.bottom + 4, left: rect.right - 180 });
-                                setMenuOpenId(item.id);
-                            }
-                        }}
-                        className="p-1.5 hover:bg-secondary rounded-lg text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                        <MoreHorizontal className="w-4 h-4" />
-                    </button>
-                    {/* Menu Implementation needed here eventually */}
-                </div>
-
-                {/* Simplified Dropdown Loop for now */}
-                {menuOpenId === item.id && menuPosition && (
-                    <div className="fixed z-50 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl w-40 p-1"
-                        style={{ top: menuPosition.top, left: menuPosition.left }}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <button className="flex w-full items-center gap-2 px-2 py-1.5 text-xs hover:bg-zinc-800 rounded" onClick={(e) => { e.stopPropagation(); onEditItem(item); setMenuOpenId(null); }}>
-                            <Edit2 size={14} /> Edit
-                        </button>
-                        <button className="flex w-full items-center gap-2 px-2 py-1.5 text-xs hover:bg-zinc-800 rounded" onClick={(e) => { e.stopPropagation(); onDuplicateItem(item); setMenuOpenId(null); }}>
-                            <Copy size={14} /> Duplicate
-                        </button>
-                        <div className="h-px bg-zinc-800 my-1" />
-                        <button className="flex w-full items-center gap-2 px-2 py-1.5 text-xs hover:bg-red-900/20 text-red-500 rounded" onClick={(e) => { e.stopPropagation(); onDeleteItem(item.id); setMenuOpenId(null); }}>
-                            <Trash2 size={14} /> Delete
-                        </button>
+                {/* Date Metrics */}
+                {nav === 'today' && (
+                    <div className="px-4 py-3 border-b border-border">
+                        <div className="font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2.5">
+                            {isToday(selectedDate) ? "Today's Metrics" : format(selectedDate, 'MMM d')} Metrics
+                        </div>
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Clock size={11} className="text-blue-400" />
+                                    <span className="text-xs text-muted-foreground">Time Logged</span>
+                                </div>
+                                <span className="font-mono text-xs text-foreground">{timeLoggedStr}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <CheckCircle2 size={11} className="text-emerald-400" />
+                                    <span className="text-xs text-muted-foreground">To-Do</span>
+                                </div>
+                                <span className={cn("font-mono text-xs", winTheDay ? "text-emerald-400" : "text-foreground")}>
+                                    {todayDone} / {todayTotal}
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 )}
-            </div>
-        );
-    };
 
-    const SectionHeader = ({ id, label, count, icon: Icon }: { id: string, label: string, count: number, icon?: any }) => (
-        <button
-            onClick={() => setExpandedSections(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
-            className="w-full flex items-center gap-2 py-2 px-1 text-sm font-semibold text-foreground hover:bg-secondary/20 rounded-lg transition-colors"
-        >
-            <ChevronDown className={cn("w-4 h-4 transition-transform", !expandedSections.includes(id) && "-rotate-90")} />
-            {Icon && <Icon className="w-4 h-4" />}
-            <span>{label}</span>
-            <span className="text-xs text-muted-foreground ml-auto bg-secondary/50 px-2 py-0.5 rounded-full">{count}</span>
-        </button>
-    );
-
-    return (
-        <div className="h-full flex flex-col md:flex-row animate-in fade-in duration-300 overflow-hidden bg-background/50" onClick={() => setMenuOpenId(null)}>
-            {confettiPos && <ConfettiExplosion x={confettiPos.x} y={confettiPos.y} />}
-
-            {/* Sidebar */}
-            <div className="hidden md:flex flex-col w-60 border-r border-border/40 bg-secondary/5 p-4 flex-shrink-0">
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-lg font-bold">Planner</h2>
-                    <button onClick={openItemModal} className="p-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 shadow-sm">
-                        <Plus className="w-4 h-4" />
+                {/* Add Task */}
+                <div className="p-3 border-b border-border">
+                    <button onClick={openItemModal}
+                        className="w-full flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary border border-primary/20 rounded-xl text-sm font-medium hover:bg-primary/20 transition-colors">
+                        <Plus size={15} /> Add Task
                     </button>
                 </div>
 
-                <nav className="space-y-1">
-                    {NAV_ITEMS.map(item => (
-                        <button
-                            key={item.id}
-                            onClick={() => setSelectedNav(item.id)}
+                {/* Nav */}
+                <div className="p-2 space-y-0.5">
+                    {[
+                        { id: 'today',     icon: Sun,          label: 'Today'    },
+                        { id: 'inbox',     icon: Inbox,        label: 'Inbox'    },
+                        { id: 'upcoming',  icon: CalendarDays, label: 'Upcoming' },
+                        { id: 'completed', icon: CheckCircle2, label: 'Done'     },
+                    ].map(({ id, icon: Icon, label }) => (
+                        <button key={id}
+                            onClick={() => { setNav(id as NavFilter); setShowCal(false); }}
                             className={cn(
-                                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
-                                selectedNav === item.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors",
+                                nav === id ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                            )}>
+                            <span className="flex items-center gap-2"><Icon size={14} /> {label}</span>
+                            {navCount(id) > 0 && (
+                                <span className={cn("font-mono text-[10px] px-1.5 py-0.5 rounded-full",
+                                    nav === id ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground")}>
+                                    {navCount(id)}
+                                </span>
                             )}
-                        >
-                            <item.icon className="w-4 h-4" />
-                            <span className="flex-1 text-left">{item.label}</span>
-                            <span className="text-xs bg-secondary/50 px-2 py-0.5 rounded-full">{getNavCount(item.id)}</span>
                         </button>
                     ))}
-                </nav>
-
-                <div className="mt-6">
-                    <div className="flex items-center justify-between px-3 mb-2">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Missions</span>
-                        <button className="text-muted-foreground hover:text-foreground p-1"><Plus className="w-3.5 h-3.5" /></button>
-                    </div>
-                    <div className="space-y-0.5">
-                        {missions.filter(m => m.status === 'active').map(mission => (
-                            <button
-                                key={mission.id}
-                                onClick={() => setSelectedNav(mission.id)}
-                                className={cn(
-                                    "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors",
-                                    selectedNav === mission.id ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                                )}
-                            >
-                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: mission.color }} />
-                                <span className="flex-1 text-left truncate">{mission.name}</span>
-                                <span className="text-xs opacity-70">{getNavCount(mission.id)}</span>
-                            </button>
-                        ))}
-                    </div>
                 </div>
 
-                {/* Systems Section */}
-                <div className="mt-6">
-                    <div className="flex items-center justify-between px-3 mb-2">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Systems</span>
-                        <button
-                            onClick={() => setIsWorkPanelOpen(true)}
-                            className="text-muted-foreground hover:text-foreground p-1"
-                        >
-                            <Plus className="w-3.5 h-3.5" />
-                        </button>
+                {/* Projects */}
+                {missions.filter(m => m.status === 'active').length > 0 && (
+                    <div className="p-2 pt-0">
+                        <div className="font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 py-2">
+                            Projects
+                        </div>
+                        <div className="space-y-0.5">
+                            {missions.filter(m => m.status === 'active').map(m => (
+                                <button key={m.id}
+                                    onClick={() => { setNav(m.id); setShowCal(false); }}
+                                    className={cn(
+                                        "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors",
+                                        nav === m.id ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                                    )}>
+                                    <span className="flex items-center gap-2 truncate min-w-0">
+                                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: m.color }} />
+                                        <span className="truncate">{m.name}</span>
+                                    </span>
+                                    {navCount(m.id) > 0 && (
+                                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground flex-shrink-0">
+                                            {navCount(m.id)}
+                                        </span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                    <div className="space-y-0.5">
-                        {systems.map(system => (
-                            <button
-                                key={system.id}
-                                onClick={() => {
-                                    if (system.type === 'work') setIsWorkPanelOpen(true);
-                                    // Add handlers for other system types if needed
-                                }}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors text-muted-foreground hover:bg-secondary hover:text-foreground"
-                            >
-                                <div
-                                    className="w-2.5 h-2.5 rounded-full"
-                                    style={{ backgroundColor: system.color || '#3b82f6' }}
-                                />
-                                <span className="flex-1 text-left truncate">{system.name}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                )}
 
-                <div className="mt-auto pt-4 border-t border-border/40">
-                    {/* View Switcher */}
-                    <div className="flex bg-secondary/50 rounded-xl p-1">
-                        <button onClick={() => setViewMode('list')} className={cn("flex-1 px-3 py-2 rounded-lg text-xs font-medium", viewMode === 'list' && "bg-background shadow-sm")}>List</button>
-                        <button onClick={() => setViewMode('calendar')} className={cn("flex-1 px-3 py-2 rounded-lg text-xs font-medium", viewMode === 'calendar' && "bg-background shadow-sm")}>Calendar</button>
-                    </div>
+                {/* Calendar toggle */}
+                <div className="p-2 mt-auto border-t border-border">
+                    <button onClick={() => setShowCal(v => !v)}
+                        className={cn("w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
+                            showCal ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-secondary")}>
+                        <CalendarDays size={14} /> Calendar
+                    </button>
                 </div>
             </div>
 
-            {/* Main */}
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-background">
-                {/* Header (Mobile & Desktop details) */}
-                <div className="flex items-center justify-between p-4 border-b border-border/40">
-                    <div className="flex items-center gap-4">
-                        <div className="md:hidden">
-                            <h2 className="text-xl font-bold">{getViewTitle()}</h2>
-                        </div>
-                        <div className="hidden md:block">
-                            <h1 className="text-2xl font-bold">{getViewTitle()}</h1>
-                            <p className="text-xs text-muted-foreground">{format(new Date(), 'EEEE, MMMM d')}</p>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        {/* OT Button */}
-                        <div className="relative">
-                            <button
-                                onClick={() => setShowOtInput(!showOtInput)}
-                                className="bg-secondary hidden md:flex items-center gap-2 px-3 py-1.5 text-secondary-foreground text-xs font-medium rounded-lg hover:backdrop-blur-lg transition-colors border border-zinc-700/50"
-                            >
-                                <Clock size={14} /> Add OT
-                            </button>
-                            {showOtInput && (
-                                <div className="bg-secondary/70 backdrop-saturate-150 backdrop-blur-lg absolute right-0 top-full mt-2 w-48 border border-zinc-700 rounded-lg p-3 shadow-xl z-50">
-                                    <h4 className="text-xs font-semibold mb-2">Log Overtime (Hours)</h4>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="number"
-                                            value={otHours}
-                                            onChange={(e) => setOtHours(Number(e.target.value))}
-                                            className="w-16 bg-secondary/70 border border-zinc-800 rounded px-2 py-1 text-sm"
-                                            min={0.5}
-                                            step={0.5}
-                                        />
-                                        <button
-                                            onClick={handleApplyOT}
-                                            className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded font-medium"
-                                        >
-                                            Apply
-                                        </button>
-                                    </div>
-                                    <p className="text-[10px] text-zinc-500 mt-2 leading-tight">
-                                        Note: This will push conflicting missions to later times.
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-
-                        <button onClick={openItemModal} className="p-2 bg-primary text-primary-foreground rounded-lg shadow-sm hover:opacity-90">
-                            <Plus className="w-5 h-5" />
-                        </button>
-                    </div>
-                </div>
-
-                {/* ADVANCED WORK PANEL */}
-                {systems.find(s => s.type === 'work') && (
-                    <WorkSystemPanel
-                        isOpen={isWorkPanelOpen}
-                        onClose={() => setIsWorkPanelOpen(false)}
-                        system={systems.find(s => s.type === 'work')!}
-                        onUpdate={(updated) => {
-                            if (onUpdateSystem) onUpdateSystem(updated);
-                        }}
+            {/* ── Main Content ──────────────────────────────────────────────── */}
+            <div className="flex-1 overflow-y-auto">
+                {showCal ? (
+                    <CalendarPanel
+                        calDate={calDate} setCalDate={setCalDate}
+                        calView={calView} setCalView={setCalView}
+                        weekDays={weekDays} monthDays={monthDays}
+                        getItemsForDay={getItemsForDay}
+                        onDayClick={(day) => { setSelectedDate(day); setCalDate(day); setShowCal(false); }}
                     />
-                )}
+                ) : (
+                    <div className="p-6 max-w-3xl mx-auto">
 
-                {/* Edit Work System Modal (Quick Legacy - Optional: Remove or Keep) */}
-                {/* Keeping logic but hiding trigger since we prefer the Panel now, or mapped to same button */}
-                {editingWorkSystem && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                        <div className="bg-card border border-border rounded-xl w-80 shadow-2xl p-5">
-                            <h3 className="text-lg font-semibold mb-4">Edit Work Hours</h3>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="text-xs font-medium text-muted-foreground block mb-1">Start Time</label>
-                                    <input
-                                        type="time"
-                                        value={workStart}
-                                        onChange={(e) => setWorkStart(e.target.value)}
-                                        className="w-full bg-secondary/50 border border-border rounded px-3 py-2 text-sm"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-medium text-muted-foreground block mb-1">End Time</label>
-                                    <input
-                                        type="time"
-                                        value={workEnd}
-                                        onChange={(e) => setWorkEnd(e.target.value)}
-                                        className="w-full bg-secondary/50 border border-border rounded px-3 py-2 text-sm"
-                                    />
-                                </div>
-                                <div className="flex gap-2 pt-2">
-                                    <button
-                                        onClick={() => setEditingWorkSystem(false)}
-                                        className="flex-1 px-3 py-2 text-sm bg-secondary hover:bg-secondary/80 rounded transition-colors"
-                                    >
-                                        Cancel
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <button onClick={() => setSelectedDate(subDays(selectedDate, 1))} 
+                                    className="p-1.5 hover:bg-secondary rounded-lg transition-colors">
+                                    <ChevronLeft size={18} />
+                                </button>
+                                <h2 className="font-display text-2xl text-foreground">{format(selectedDate, 'EEEE, MMM d')}</h2>
+                                <button onClick={() => setSelectedDate(addDays(selectedDate, 1))} 
+                                    className="p-1.5 hover:bg-secondary rounded-lg transition-colors">
+                                    <ChevronRight size={18} />
+                                </button>
+                                {!isToday(selectedDate) && (
+                                    <button onClick={() => setSelectedDate(new Date())} 
+                                        className="px-2.5 py-1 text-xs font-medium border border-border rounded-lg hover:bg-secondary transition-colors">
+                                        Today
                                     </button>
-                                    <button
-                                        onClick={handleSaveSystem}
-                                        className="flex-1 px-3 py-2 text-sm bg-primary text-primary-foreground rounded transition-colors"
-                                    >
-                                        Save
-                                    </button>
-                                </div>
+                                )}
                             </div>
+                            {nav === 'today' && (
+                                <p className="text-sm text-muted-foreground">
+                                    {winTheDay ? 'Day complete. Exceptional work.' :
+                                     todayTotal === 0 ? 'Nothing scheduled. Add a task.' :
+                                     `${todayTotal - todayDone} remaining · `}
+                                    {!winTheDay && todayTotal > 0 && (
+                                        <span className="font-mono">{completionPct}% done</span>
+                                    )}
+                                </p>
+                            )}
+                            {nav === 'today' && todayXP > 0 && (
+                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-xl text-xs font-medium text-primary">
+                                    <Zap size={12} />
+                                    <span className="font-mono">+{todayXP} XP</span>
+                                </div>
+                            )}
                         </div>
+
+                        {/* Tab switcher */}
+                        <div className="flex items-center gap-1 mb-5 bg-card/60 border border-border rounded-xl p-1 w-fit">
+                            {([
+                                { id: 'tasks' as PlannerTab,      icon: CheckCircle2, label: 'Tasks'   },
+                                { id: 'log' as PlannerTab,        icon: FileText,     label: 'Log'     },
+                                { id: 'reflection' as PlannerTab, icon: BookOpen,     label: 'Reflect' },
+                            ]).map(({ id, icon: Icon, label }) => (
+                                <button key={id} onClick={() => setPlannerTab(id)}
+                                    className={cn(
+                                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                        plannerTab === id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                                    )}>
+                                    <Icon size={11} /> {label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* ── Tasks Tab ── */}
+                        {(nav !== 'today' || plannerTab === 'tasks') && (
+                            <div className="space-y-1">
+                                {overdue.length > 0 && (
+                                    <TaskSection label="Overdue" items={[...overdue].sort(byPriority)}
+                                        collapsed={collapsedSections.includes('overdue')} onToggle={() => toggleSection('overdue')}
+                                        labelClass="text-red-400" missions={missions} onCheck={handleCheck} onMenu={openMenu} urgent />
+                                )}
+                                {(nav === 'today' || nav === 'inbox' || missions.some(m => m.id === nav)) && (
+                                    <TaskSection label="Today" items={[...today].sort(byPriority)}
+                                        collapsed={collapsedSections.includes('today')} onToggle={() => toggleSection('today')}
+                                        missions={missions} onCheck={handleCheck} onMenu={openMenu} emptyText="All clear for today." />
+                                )}
+                                {tomorrow.length > 0 && nav !== 'upcoming' && nav !== 'completed' && (
+                                    <TaskSection label="Tomorrow" items={[...tomorrow].sort(byPriority)}
+                                        collapsed={collapsedSections.includes('tomorrow')} onToggle={() => toggleSection('tomorrow')}
+                                        missions={missions} onCheck={handleCheck} onMenu={openMenu} muted />
+                                )}
+                                {later.length > 0 && (nav === 'upcoming' || nav === 'inbox' || missions.some(m => m.id === nav)) && (
+                                    <TaskSection label="Later" items={[...later].sort(byPriority)}
+                                        collapsed={collapsedSections.includes('later')} onToggle={() => toggleSection('later')}
+                                        missions={missions} onCheck={handleCheck} onMenu={openMenu} muted />
+                                )}
+                                {nav === 'upcoming' && (
+                                    <UpcomingGrouped items={filtered} missions={missions} onCheck={handleCheck} onMenu={openMenu} />
+                                )}
+                                {(nav === 'today' || nav === 'completed') && done.length > 0 && (
+                                    <div className="mt-4">
+                                        <button onClick={() => setShowDoneToday(v => !v)}
+                                            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2 px-1">
+                                            {showDoneToday ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                            <span className="font-mono uppercase tracking-widest text-[10px] font-semibold">
+                                                Completed ({done.length})
+                                            </span>
+                                        </button>
+                                        <AnimatePresence>
+                                            {showDoneToday && (
+                                                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                                                    exit={{ opacity: 0, height: 0 }} className="overflow-hidden space-y-1">
+                                                    {done.map(item => (
+                                                        <TaskRow key={item.id} item={item} missions={missions} onCheck={handleCheck} onMenu={openMenu} done />
+                                                    ))}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+                                )}
+                                {filtered.length === 0 && nav !== 'upcoming' && (
+                                    <div className="text-center py-20">
+                                        <div className="w-16 h-16 bg-card border border-border rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                            {winTheDay ? <Trophy size={28} className="text-emerald-400" /> : <Target size={28} className="text-muted-foreground" />}
+                                        </div>
+                                        <p className="font-display text-base text-foreground mb-1">
+                                            {winTheDay ? 'Day won.' : 'Nothing here yet.'}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mb-4">
+                                            {winTheDay ? 'All tasks complete. Rest up.' : 'Add a task to get started.'}
+                                        </p>
+                                        {!winTheDay && (
+                                            <button onClick={openItemModal}
+                                                className="flex items-center gap-1.5 mx-auto px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium">
+                                                <Plus size={14} /> Add Task
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* ── Log Tab ── */}
+                        {plannerTab === 'log' && (
+                            <LogTab
+                                logs={todayLogEntries}
+                                missions={missions}
+                                logInput={logInput}
+                                setLogInput={setLogInput}
+                                logProject={logProject}
+                                setLogProject={setLogProject}
+                                logTime={logTime}
+                                setLogTime={setLogTime}
+                                onAdd={handleAddLog}
+                                onDelete={handleDeleteLog}
+                                onEdit={handleEditLog}
+                                saving={logSaving}
+                            />
+                        )}
+
+                        {/* ── Reflection Tab ── */}
+                        {plannerTab === 'reflection' && (
+                            <ReflectionTab
+                                value={reflectionInput}
+                                onChange={setReflectionInput}
+                                onSave={handleSaveReflection}
+                                saving={logSaving}
+                                savedAt={dailyLogs.find(l => l.type === 'reflection')?.createdAt}
+                            />
+                        )}
                     </div>
                 )}
-
-                <div className="flex-1 overflow-y-auto">
-                    {/* LIST VIEW */}
-                    {viewMode === 'list' && (
-                        <div className="max-w-3xl mx-auto p-4 md:p-6 pb-20">
-                            {/* Overdue */}
-                            {grouped.overdue.length > 0 && (
-                                <div className="mb-6">
-                                    <SectionHeader id="overdue" label="Overdue" count={grouped.overdue.length} icon={AlertTriangle} />
-                                    <AnimatePresence>
-                                        {expandedSections.includes('overdue') && (
-                                            <motion.div
-                                                initial={{ height: 0, opacity: 0 }}
-                                                animate={{ height: "auto", opacity: 1 }}
-                                                exit={{ height: 0, opacity: 0 }}
-                                                transition={{ duration: 0.2 }}
-                                                className="mt-2 bg-red-500/5 border border-red-500/20 rounded-xl overflow-hidden divide-y divide-red-500/10"
-                                            >
-                                                {grouped.overdue.map(item => <ActionItemRow key={item.id} item={item} />)}
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                            )}
-
-                            {/* Today */}
-                            <div className="mb-6">
-                                <SectionHeader id="today" label="Today" count={grouped.today.length} icon={Sun} />
-                                <AnimatePresence>
-                                    {expandedSections.includes('today') && (
-                                        <motion.div
-                                            initial={{ height: 0, opacity: 0 }}
-                                            animate={{ height: "auto", opacity: 1 }}
-                                            exit={{ height: 0, opacity: 0 }}
-                                            transition={{ duration: 0.2 }}
-                                            className="mt-2 bg-card border border-border/50 rounded-xl overflow-hidden divide-y divide-border/30"
-                                        >
-                                            {grouped.today.length > 0 ? grouped.today.map(item => <ActionItemRow key={item.id} item={item} />) : (
-                                                <div className="py-8 text-center text-zinc-500 text-sm">No action items due today.</div>
-                                            )}
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-
-                            {/* Tomorrow */}
-                            {grouped.tomorrow.length > 0 && (
-                                <div className="mb-6">
-                                    <SectionHeader id="tomorrow" label="Tomorrow" count={grouped.tomorrow.length} icon={Sunrise} />
-                                    <AnimatePresence>
-                                        {expandedSections.includes('tomorrow') && (
-                                            <motion.div
-                                                initial={{ height: 0, opacity: 0 }}
-                                                animate={{ height: "auto", opacity: 1 }}
-                                                exit={{ height: 0, opacity: 0 }}
-                                                transition={{ duration: 0.2 }}
-                                                className="mt-2 bg-card border border-border/50 rounded-xl overflow-hidden divide-y divide-border/30"
-                                            >
-                                                {grouped.tomorrow.map(item => <ActionItemRow key={item.id} item={item} />)}
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                            )}
-
-                            {/* Completed */}
-                            <div className="mb-6">
-                                <SectionHeader id="completed" label="Completed" count={grouped.completed.length} icon={CheckCircle2} />
-                                <AnimatePresence>
-                                    {expandedSections.includes('completed') && (
-                                        <motion.div
-                                            initial={{ height: 0, opacity: 0 }}
-                                            animate={{ height: "auto", opacity: 0.6 }}
-                                            exit={{ height: 0, opacity: 0 }}
-                                            className="mt-2 bg-secondary/30 border border-border/50 rounded-xl overflow-hidden divide-y divide-border/30"
-                                        >
-                                            {grouped.completed.length === 0 && (
-                                                <div className="p-4 text-xs text-muted-foreground text-center">No completed items yet.</div>
-                                            )}
-                                            {grouped.completed.map(item => (
-                                                <ActionItemRow key={item.id} item={item} />
-                                            ))}
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* CALENDAR VIEW */}
-                    {viewMode === 'calendar' && (
-                        <div ref={calendarRef} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} className="h-full flex flex-col bg-background">
-                            {/* Calendar Header/Nav */}
-                            <div className="flex items-center justify-between p-4 bg-card border-b border-border sticky top-0 z-20">
-                                <div className="flex items-center gap-2">
-                                    <button onClick={() => setCurrentDate(addDays(currentDate, -1))} className="p-1.5 hover:bg-zinc-800 rounded"><ChevronLeft size={18} /></button>
-                                    <span className="text-sm font-semibold">{format(currentDate, 'MMMM yyyy')}</span>
-                                    <button onClick={() => setCurrentDate(addDays(currentDate, 1))} className="p-1.5 hover:bg-zinc-800 rounded"><ChevronRight size={18} /></button>
-                                </div>
-                                <div className="flex bg-zinc-800 rounded-lg p-0.5">
-                                    {['month', 'week', 'day'].map((z) => (
-                                        <button
-                                            key={z}
-                                            onClick={() => setCalendarZoom(z as CalendarZoom)}
-                                            className={cn("px-3 py-1 text-xs capitalize rounded-md transition-all", calendarZoom === z ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
-                                        >
-                                            {z}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Calendar Body - Simplified Month View Implementation */}
-                            {calendarZoom === 'month' && (
-                                <div className="flex-1 p-2 overflow-y-auto">
-                                    <div className="grid grid-cols-7 gap-1">
-                                        {eachDayOfInterval({
-                                            start: startOfWeek(startOfMonth(currentDate)),
-                                            end: endOfWeek(endOfMonth(currentDate))
-                                        }).map((day, idx) => {
-                                            const dayTasks = getItemsForDay(day);
-                                            const isCurr = day.getMonth() === currentDate.getMonth();
-                                            // Check for work system on this day
-                                            const workSys = systems.find(s => s.type === 'work' && s.schedule?.days.includes(day.getDay()));
-
-                                            return (
-                                                <div key={idx} className={cn("min-h-[100px] bg-secondary/10 border border-border/50 rounded p-1.5 flex flex-col gap-1", !isCurr && "opacity-30")}>
-                                                    <div className={cn("text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full", isToday(day) ? "bg-blue-600 text-white" : "text-zinc-500")}>
-                                                        {format(day, 'd')}
-                                                    </div>
-
-                                                    {/* Work Block Indicator */}
-                                                    {workSys && isCurr && (
-                                                        <div
-                                                            className="text-[10px] px-1 py-0.5 rounded truncate flex items-center gap-1 border"
-                                                            style={{
-                                                                backgroundColor: workSys.color ? `${workSys.color}20` : undefined,
-                                                                color: workSys.color,
-                                                                borderColor: workSys.color ? `${workSys.color}40` : undefined
-                                                            }}
-                                                        >
-                                                            <Briefcase size={8} /> Work
-                                                        </div>
-                                                    )}
-
-                                                    {/* Tasks */}
-                                                    {dayTasks.slice(0, 3).map(t => (
-                                                        <div key={t.id} className={cn(
-                                                            "text-[10px] px-1.5 py-0.5 rounded border-l-2 truncate",
-                                                            t.status === 'done' ? "opacity-40 line-through" : "bg-zinc-800/50 border-zinc-600"
-                                                        )}>
-                                                            {t.title}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Week View Implementation */}
-                            {calendarZoom === 'week' && (
-                                <div
-                                    className="flex-1 overflow-y-auto p-2 scroll-smooth"
-                                    ref={(el) => {
-                                        if (el && !el.dataset.scrolled) {
-                                            // Auto-scroll to work start or 8am
-                                            const workStart = systems.find(s => s.type === 'work')?.schedule.startTime || "09:00";
-                                            const hour = parseInt(workStart);
-                                            // Scroll to hour - 1 for context
-                                            el.scrollTop = Math.max(0, (hour - 1) * 40);
-                                            el.dataset.scrolled = "true";
-                                        }
-                                    }}
-                                >
-                                    <div className="grid grid-cols-8 gap-0 min-w-[800px]">
-                                        {/* Time Column */}
-                                        <div className="col-span-1 pt-8 pr-2 text-xs text-muted-foreground text-right space-y-10">
-                                            <div className="text-[10px] text-red-500 font-mono mb-2">v2.1</div>
-                                            {Array.from({ length: 24 }, (_, i) => i).map(hour => (
-                                                <div key={hour} className="h-10 relative">
-                                                    <span className="absolute -top-2 right-0">
-                                                        {hour === 0 ? '12 AM' : hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
-                                                    </span>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        {/* Days Columns */}
-                                        {getWeekDays(currentDate).map((day, idx) => {
-                                            const isCurr = isSameDay(day, new Date());
-                                            const dayTasks = getItemsForDay(day);
-                                            // Check for work system on this day
-                                            const workSys = systems.find(s => s.type === 'work');
-                                            const isWorkDay = workSys?.schedule?.days.includes(day.getDay());
-
-                                            // Calculate override hours if any
-                                            const dayId = day.getDay();
-                                            const override = workSys?.schedule.overrides?.[dayId];
-                                            const wStart = override?.start || workSys?.schedule.startTime || "09:00";
-                                            const wEnd = override?.end || workSys?.schedule.endTime || "17:00";
-
-                                            return (
-                                                <div key={idx} className={cn("col-span-1 border-l border-border/50 min-h-[600px] relative pt-8", isCurr && "bg-primary/5")}>
-                                                    <div className="text-center mb-4 sticky top-0 bg-background/95 backdrop-blur z-10 py-2 border-b border-border/50 group/header relative">
-                                                        <div className="text-xs uppercase text-muted-foreground">{format(day, 'EEE')}</div>
-                                                        <div className={cn("text-lg font-bold w-8 h-8 mx-auto flex items-center justify-center rounded-full mt-1", isCurr ? "bg-primary text-primary-foreground" : "")}>
-                                                            {format(day, 'd')}
-                                                        </div>
-                                                        {/* Edit Day Schedule Button */}
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setIsWorkPanelOpen(true);
-                                                                // Future: Pre-select day in panel
-                                                            }}
-                                                            className="absolute top-2 right-2 p-1 text-muted-foreground hover:text-primary opacity-0 group-hover/header:opacity-100 transition-opacity"
-                                                        >
-                                                            <Edit2 size={10} />
-                                                        </button>
-                                                    </div>
-
-                                                    {/* Work Blocks (Normal + Spillovers) */}
-                                                    {(() => {
-                                                        const renderBlock = (start: number, end: number, isSpillover = false) => {
-                                                            const chartStart = 0; // Chart starts at 0am (Midnight)
-                                                            const rowHeight = 40;
-
-                                                            // Clamp visual range
-                                                            const visualStart = Math.max(start, chartStart);
-                                                            const visualEnd = end;
-
-                                                            // If shift is entirely before chart starts, don't render (or render at top hint)
-                                                            if (visualEnd <= chartStart) return null;
-
-                                                            return (
-                                                                <div
-                                                                    key={isSpillover ? 'spill' : 'main'}
-                                                                    className={cn(
-                                                                        "absolute left-1 right-1 border rounded p-1 text-[10px] overflow-hidden group/work flex flex-col justify-between z-0",
-                                                                        isSpillover ? "border-t-0 rounded-t-none" : ""
-                                                                    )}
-                                                                    style={{
-                                                                        top: `${(visualStart - chartStart) * rowHeight + 20}px`,
-                                                                        height: `${(visualEnd - visualStart) * rowHeight}px`,
-                                                                        backgroundColor: workSys?.color ? `${workSys.color}${isSpillover ? '20' : '40'}` : undefined,
-                                                                        borderColor: workSys?.color,
-                                                                        color: workSys?.color ? '#fff' : undefined // Ensure text is visible if dark color
-                                                                    }}
-                                                                >
-                                                                    <div className="font-semibold flex items-center gap-1 opacity-70">
-                                                                        <Briefcase size={10} /> {isSpillover ? '(Cont.)' : 'Work'}
-                                                                    </div>
-                                                                    {!isSpillover && (
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                setIsWorkPanelOpen(true);
-                                                                            }}
-                                                                            className="self-center bg-background/80 hover:bg-background border border-border px-2 py-1 rounded text-[9px] opacity-0 group-hover/work:opacity-100 transition-opacity whitespace-nowrap"
-                                                                        >
-                                                                            Config
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                            );
-                                                        };
-
-                                                        const blocks = [];
-
-                                                        // 1. Today's Main Shift
-                                                        if (isWorkDay && workSys) {
-                                                            const s = parseInt(wStart);
-                                                            const e = parseInt(wEnd);
-
-                                                            if (s < e) {
-                                                                // Normal Shift
-                                                                blocks.push(renderBlock(s, e));
-                                                            } else {
-                                                                // Overnight Shift (Part 1: Start -> Midnight)
-                                                                blocks.push(renderBlock(s, 24));
-                                                            }
-                                                        }
-
-                                                        // 2. Yesterday's Spillover
-                                                        // Check if yesterday was a work day and had an overnight shift
-                                                        if (workSys) {
-                                                            const yesterday = addDays(day, -1);
-                                                            const yId = yesterday.getDay();
-                                                            const yIsWork = workSys.schedule.days.includes(yId);
-
-                                                            if (yIsWork) {
-                                                                const yOverride = workSys.schedule.overrides?.[yId];
-                                                                const yStart = parseInt(yOverride?.start || workSys.schedule.startTime || "09:00");
-                                                                const yEnd = parseInt(yOverride?.end || workSys.schedule.endTime || "17:00");
-
-                                                                // If yesterday start > end, it crossed midnight. Render Part 2 (00:00 -> End)
-                                                                if (yStart > yEnd) {
-                                                                    blocks.push(renderBlock(0, yEnd, true));
-                                                                }
-                                                            }
-                                                        }
-
-                                                        return blocks;
-                                                    })()}
-
-                                                    {/* Tasks */}
-                                                    {dayTasks.map(t => {
-                                                        // Simple positioning logic based on timeBlock or index
-                                                        // This is a simplified visual for now
-                                                        return (
-                                                            <div key={t.id} className={cn(
-                                                                "relative mb-2 mx-1 p-2 rounded shadow-sm text-xs border bg-card hover:z-20",
-                                                                t.status === 'done' ? "opacity-50 line-through border-border" : "border-primary/20",
-                                                                !t.timeBlock && "bg-card"
-                                                            )}>
-                                                                <div className="font-medium truncate">{t.title}</div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Placeholder for Day - logic is complex, keeping simple for first iteration */}
-                            {calendarZoom === 'day' && (
-                                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-                                    Day View coming in next iteration. Switch to Month or Week.
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
             </div>
         </div>
     );
 };
+
+// ─── Task Section ─────────────────────────────────────────────────────────────
+
+function TaskSection({ label, items, collapsed, onToggle, labelClass, missions, onCheck, onMenu, urgent, muted, emptyText }: {
+    label: string; items: ActionItem[]; collapsed: boolean; onToggle: () => void;
+    labelClass?: string; missions: Mission[]; urgent?: boolean; muted?: boolean; emptyText?: string;
+    onCheck: (e: React.MouseEvent, id: string) => void;
+    onMenu: (e: React.MouseEvent, id: string) => void;
+}) {
+    return (
+        <div className="mb-5">
+            <button onClick={onToggle}
+                className="flex items-center gap-2 w-full mb-2 px-1 hover:opacity-80 transition-opacity">
+                {collapsed ? <ChevronDown size={12} className="text-muted-foreground" /> : <ChevronUp size={12} className="text-muted-foreground" />}
+                <span className={cn("font-mono text-[10px] font-semibold uppercase tracking-widest", labelClass || "text-muted-foreground")}>
+                    {label}
+                </span>
+                {items.length > 0 && (
+                    <span className="font-mono text-[10px] text-muted-foreground">· {items.length}</span>
+                )}
+            </button>
+            <AnimatePresence>
+                {!collapsed && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }} className="overflow-hidden space-y-1">
+                        {items.length === 0 && emptyText && (
+                            <p className="text-xs text-muted-foreground px-1 py-2">{emptyText}</p>
+                        )}
+                        {items.map(item => (
+                            <TaskRow key={item.id} item={item} missions={missions} onCheck={onCheck} onMenu={onMenu} muted={muted} />
+                        ))}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}
+
+// ─── Task Row ─────────────────────────────────────────────────────────────────
+
+function TaskRow({ item, missions, onCheck, onMenu, done = false, muted = false }: {
+    item: ActionItem; missions: Mission[]; done?: boolean; muted?: boolean;
+    onCheck: (e: React.MouseEvent, id: string) => void;
+    onMenu: (e: React.MouseEvent, id: string) => void;
+}) {
+    const mission = missions.find(m => m.id === item.missionId);
+    const cfg = PRIORITY_CFG[item.priority];
+    const isOverdue = !done && isPast(item.date) && !isToday(item.date);
+
+    return (
+        <motion.div layout initial={{ opacity: 0, y: -4 }} animate={{ opacity: done || muted ? 0.6 : 1, y: 0 }}
+            exit={{ opacity: 0, x: 12 }}
+            className="group flex items-center gap-3 px-3 py-2.5 bg-card border border-border rounded-xl hover:border-primary/20 transition-all">
+            <button onClick={e => onCheck(e, item.id)}
+                className={cn(
+                    "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all",
+                    done ? "bg-primary border-primary text-primary-foreground" :
+                    item.priority === 'critical' ? "border-red-500 hover:bg-red-500/20" :
+                    item.priority === 'high' ? "border-orange-400 hover:bg-orange-400/20" :
+                    "border-muted-foreground/40 hover:border-primary hover:bg-primary/10"
+                )}>
+                {done && <CheckCircle2 size={11} />}
+            </button>
+            <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", cfg.dot)} title={cfg.label} />
+            <div className="flex-1 min-w-0">
+                <span className={cn("text-sm leading-snug", done && "line-through text-muted-foreground")}>
+                    {item.title}
+                </span>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    {mission && (
+                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                            style={{ backgroundColor: `${mission.color}15`, color: mission.color }}>
+                            {mission.name.toUpperCase().slice(0, 10)}
+                        </span>
+                    )}
+                    {item.systemId && (
+                        <span className="font-mono text-[10px] text-emerald-400 flex items-center gap-0.5">
+                            <Repeat size={9} /> Routine
+                        </span>
+                    )}
+                    {isOverdue && (
+                        <span className="font-mono text-[10px] text-red-400">{format(item.date, 'MMM d')}</span>
+                    )}
+                    {!isOverdue && !isToday(item.date) && !done && (
+                        <span className="font-mono text-[10px] text-muted-foreground">{format(item.date, 'MMM d')}</span>
+                    )}
+                    {item.dueTime && (
+                        <span className="font-mono text-[10px] text-muted-foreground flex items-center gap-0.5">
+                            <Clock size={9} /> {item.dueTime}
+                        </span>
+                    )}
+                    {!done && (
+                        <span className="font-mono text-[10px] text-primary/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                            +{XP_MAP[item.priority]}xp
+                        </span>
+                    )}
+                </div>
+            </div>
+            <button onClick={e => onMenu(e, item.id)}
+                className="opacity-0 group-hover:opacity-100 p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary transition-all flex-shrink-0">
+                <MoreHorizontal size={14} />
+            </button>
+        </motion.div>
+    );
+}
+
+// ─── Upcoming Grouped ─────────────────────────────────────────────────────────
+
+function UpcomingGrouped({ items, missions, onCheck, onMenu }: {
+    items: ActionItem[]; missions: Mission[];
+    onCheck: (e: React.MouseEvent, id: string) => void;
+    onMenu: (e: React.MouseEvent, id: string) => void;
+}) {
+    const pending = items.filter(i => i.status !== 'done' && isAfter(i.date, new Date()) && !isToday(i.date));
+    const byDate: Record<string, ActionItem[]> = {};
+    for (const item of pending) {
+        const key = format(item.date, 'yyyy-MM-dd');
+        if (!byDate[key]) byDate[key] = [];
+        byDate[key].push(item);
+    }
+    const sortedDates = Object.keys(byDate).sort();
+
+    if (sortedDates.length === 0)
+        return <p className="text-sm text-muted-foreground text-center py-12">No upcoming tasks.</p>;
+
+    return (
+        <div className="space-y-5">
+            {sortedDates.map(dateKey => {
+                const d = new Date(dateKey);
+                return (
+                    <div key={dateKey}>
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="h-px flex-1 bg-border" />
+                            <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                {isTomorrow(d) ? 'Tomorrow' : format(d, 'EEE, MMM d')}
+                            </span>
+                            <div className="h-px flex-1 bg-border" />
+                        </div>
+                        <div className="space-y-1">
+                            {byDate[dateKey].map(item => (
+                                <TaskRow key={item.id} item={item} missions={missions} onCheck={onCheck} onMenu={onMenu} muted />
+                            ))}
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+// ─── Log Tab ──────────────────────────────────────────────────────────────────
+
+function LogTab({ logs, missions, logInput, setLogInput, logProject, setLogProject, logTime, setLogTime, onAdd, onDelete, onEdit, saving }: {
+    logs: DailyLog[]; missions: Mission[];
+    logInput: string; setLogInput: (v: string) => void;
+    logProject: string; setLogProject: (v: string) => void;
+    logTime: string; setLogTime: (v: string) => void;
+    onAdd: () => void; onDelete: (id: string) => void;
+    onEdit: (id: string, content: string) => void;
+    saving: boolean;
+}) {
+    const [hours, setHours] = useState('0');
+    const [minutes, setMinutes] = useState('0');
+
+    // Sync time picker with logTime state
+    useEffect(() => {
+        if (logTime) {
+            const mins = parseTimeInput(logTime);
+            setHours(Math.floor(mins / 60).toString());
+            setMinutes((mins % 60).toString());
+        }
+    }, [logTime]);
+
+    const handleTimeChange = (h: string, m: string) => {
+        setHours(h);
+        setMinutes(m);
+        const totalMins = parseInt(h || '0') * 60 + parseInt(m || '0');
+        setLogTime(totalMins > 0 ? formatMinutes(totalMins) : '');
+    };
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editDraft, setEditDraft] = useState('');
+
+    const startEdit = (log: DailyLog) => { setEditingId(log.id); setEditDraft(log.content); };
+    const commitEdit = (id: string) => {
+        if (editDraft.trim()) onEdit(id, editDraft.trim());
+        setEditingId(null);
+    };
+
+    return (
+        <div className="space-y-4">
+            {/* Quick entry */}
+            <div className="bg-card border-2 border-border rounded-xl overflow-hidden focus-within:border-primary/40 focus-within:shadow-lg focus-within:shadow-primary/5 transition-all">
+                <textarea
+                    value={logInput}
+                    onChange={e => setLogInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onAdd(); } }}
+                    placeholder="What did you work on? (Shift+Enter for new line, Enter to save)"
+                    rows={3}
+                    className="w-full px-4 pt-3 pb-2 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 resize-none outline-none leading-relaxed"
+                />
+                <div className="flex items-center gap-2 px-3 pb-3 pt-1 border-t border-border/50">
+                    <select value={logProject} onChange={e => setLogProject(e.target.value)}
+                        className="font-mono text-xs px-2 py-1.5 bg-secondary border border-border rounded-lg text-foreground outline-none flex-1 max-w-[140px]">
+                        <option value="">No project</option>
+                        {missions.filter(m => m.status === 'active').map(m => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                        ))}
+                    </select>
+                    <div className="flex items-center gap-1">
+                        <select value={hours} onChange={e => handleTimeChange(e.target.value, minutes)}
+                            className="font-mono text-xs px-2 py-1.5 bg-secondary border border-border rounded-lg text-foreground outline-none w-14">
+                            {[...Array(13)].map((_, i) => (
+                                <option key={i} value={i}>{i}h</option>
+                            ))}
+                        </select>
+                        <select value={minutes} onChange={e => handleTimeChange(hours, e.target.value)}
+                            className="font-mono text-xs px-2 py-1.5 bg-secondary border border-border rounded-lg text-foreground outline-none w-14">
+                            <option value="0">0m</option>
+                            <option value="15">15m</option>
+                            <option value="30">30m</option>
+                            <option value="45">45m</option>
+                        </select>
+                    </div>
+                    <div className="flex items-center gap-2 ml-auto">
+                        <span className="text-[10px] text-muted-foreground font-mono">{logInput.length}/500</span>
+                        <button onClick={onAdd} disabled={!logInput.trim() || saving}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium disabled:opacity-40 hover:opacity-90 transition-all shadow-sm">
+                            {saving ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
+                            Log
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Log list header */}
+            {logs.length > 0 && (
+                <div className="font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-1">
+                    Logs for {format(new Date(logs[0].date), 'EEE, d MMM')} · {logs.length} {logs.length === 1 ? 'entry' : 'entries'}
+                </div>
+            )}
+
+            {/* Log entries */}
+            {logs.length === 0 ? (
+                <div className="text-center py-12">
+                    <FileText size={32} className="text-muted-foreground/20 mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">No logs yet. What did you work on today?</p>
+                    <p className="font-mono text-xs text-muted-foreground/50 mt-1">Press Enter to add quickly.</p>
+                </div>
+            ) : (
+                <AnimatePresence>
+                    <div className="space-y-1">
+                        {logs.map(log => {
+                            const mission = missions.find(m => m.id === log.projectId);
+                            const isEditing = editingId === log.id;
+                            return (
+                                <motion.div key={log.id} layout initial={{ opacity: 0, y: -4 }}
+                                    animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: 12 }}
+                                    className="group flex items-start gap-3 px-4 py-3 bg-card border border-border rounded-xl hover:border-border/80 transition-all">
+                                    <FileText size={13} className="text-blue-400 mt-0.5 flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                        {isEditing ? (
+                                            <textarea
+                                                autoFocus
+                                                value={editDraft}
+                                                onChange={e => setEditDraft(e.target.value)}
+                                                onBlur={() => commitEdit(log.id)}
+                                                onKeyDown={e => {
+                                                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(log.id); }
+                                                    if (e.key === 'Escape') setEditingId(null);
+                                                }}
+                                                rows={2}
+                                                className="w-full bg-transparent text-sm text-foreground resize-none outline-none leading-snug"
+                                            />
+                                        ) : (
+                                            <p className="text-sm text-foreground leading-snug">{log.content}</p>
+                                        )}
+                                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                            {mission && (
+                                                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded font-medium"
+                                                    style={{ backgroundColor: `${mission.color}15`, color: mission.color }}>
+                                                    {mission.name.toUpperCase().slice(0, 10)}
+                                                </span>
+                                            )}
+                                            {log.timeSpentMinutes && (
+                                                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">
+                                                    {formatMinutes(log.timeSpentMinutes)}
+                                                </span>
+                                            )}
+                                            <span className="font-mono text-[10px] text-muted-foreground">
+                                                {format(new Date(log.createdAt), 'HH:mm')}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 mt-0.5">
+                                        <button onClick={() => startEdit(log)}
+                                            className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors">
+                                            <Edit2 size={11} />
+                                        </button>
+                                        <button onClick={() => onDelete(log.id)}
+                                            className="p-1 text-muted-foreground hover:text-red-400 rounded transition-colors">
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                </AnimatePresence>
+            )}
+        </div>
+    );
+}
+
+// ─── Reflection Tab ───────────────────────────────────────────────────────────
+
+function ReflectionTab({ value, onChange, onSave, saving, savedAt }: {
+    value: string; onChange: (v: string) => void;
+    onSave: () => void; saving: boolean; savedAt?: Date;
+}) {
+    return (
+        <div className="max-w-2xl space-y-3">
+            <div className="font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Daily Reflection
+            </div>
+            <div className="bg-card border-2 border-border rounded-xl overflow-hidden focus-within:border-primary/40 focus-within:shadow-lg focus-within:shadow-primary/5 transition-all">
+                <textarea
+                    value={value}
+                    onChange={e => onChange(e.target.value)}
+                    placeholder="How did today go? What did you learn? What would you do differently? (Reflect on wins, challenges, and lessons)"
+                    rows={10}
+                    className="w-full px-4 py-3 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 resize-none outline-none leading-relaxed"
+                />
+                <div className="flex items-center justify-between px-4 pb-3 border-t border-border/50 pt-2">
+                    <div className="flex items-center gap-3">
+                        {savedAt ? (
+                            <span className="font-mono text-[10px] text-muted-foreground">
+                                Saved {format(new Date(savedAt), 'HH:mm')}
+                            </span>
+                        ) : <span />}
+                        <span className="text-[10px] text-muted-foreground font-mono">{value.length} chars</span>
+                    </div>
+                    <button onClick={onSave} disabled={saving || !value.trim()}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium disabled:opacity-40 hover:opacity-90 transition-all shadow-sm">
+                        <BookOpen size={11} />
+                        {saving ? 'Saving...' : 'Save Reflection'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Calendar Panel ───────────────────────────────────────────────────────────
+
+function CalendarPanel({ calDate, setCalDate, calView, setCalView, weekDays, monthDays, getItemsForDay, onDayClick }: {
+    calDate: Date; setCalDate: (d: Date) => void;
+    calView: CalView; setCalView: (v: CalView) => void;
+    weekDays: Date[]; monthDays: Date[];
+    getItemsForDay: (d: Date) => ActionItem[];
+    onDayClick: (d: Date) => void;
+}) {
+    const navigate = (dir: 1 | -1) => {
+        if (calView === 'week') setCalDate(addDays(calDate, dir * 7));
+        else setCalDate(dir === 1 ? addMonths(calDate, 1) : subMonths(calDate, 1));
+    };
+
+    const label = calView === 'week'
+        ? `${format(weekDays[0], 'MMM d')} – ${format(weekDays[6], 'MMM d, yyyy')}`
+        : format(calDate, 'MMMM yyyy');
+
+    return (
+        <div className="p-6 space-y-4">
+            <div className="flex items-center justify-between">
+                <h2 className="font-display text-xl text-foreground">{label}</h2>
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1">
+                        {(['week', 'month'] as CalView[]).map(v => (
+                            <button key={v} onClick={() => setCalView(v)}
+                                className={cn("px-3 py-1 rounded-lg text-xs font-medium transition-colors capitalize",
+                                    calView === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                                {v}
+                            </button>
+                        ))}
+                    </div>
+                    <button onClick={() => navigate(-1)} className="p-2 hover:bg-secondary rounded-lg transition-colors"><ChevronLeft size={15} /></button>
+                    <button onClick={() => setCalDate(new Date())} className="px-3 py-1.5 text-xs font-medium border border-border rounded-lg hover:bg-secondary transition-colors">Today</button>
+                    <button onClick={() => navigate(1)} className="p-2 hover:bg-secondary rounded-lg transition-colors"><ChevronRight size={15} /></button>
+                </div>
+            </div>
+
+            {calView === 'week' && (
+                <div className="grid grid-cols-7 gap-2">
+                    {weekDays.map(day => {
+                        const items = getItemsForDay(day);
+                        return (
+                            <div key={day.toISOString()} onClick={() => onDayClick(day)}
+                                className={cn("min-h-[120px] rounded-xl border p-2 cursor-pointer transition-all hover:border-primary/30",
+                                    isToday(day) ? "border-primary/40 bg-primary/5" : "border-border bg-card/50")}>
+                                <div className="flex flex-col items-center mb-2">
+                                    <span className="font-mono text-[10px] text-muted-foreground uppercase">{format(day, 'EEE')}</span>
+                                    <span className={cn("font-mono text-sm font-bold mt-0.5", isToday(day) ? "text-primary" : "text-foreground")}>
+                                        {format(day, 'd')}
+                                    </span>
+                                </div>
+                                <div className="space-y-1">
+                                    {items.slice(0, 3).map(item => (
+                                        <div key={item.id} className={cn("text-[10px] px-1.5 py-0.5 rounded truncate",
+                                            item.status === 'done' ? "bg-secondary text-muted-foreground line-through" :
+                                            item.priority === 'critical' ? "bg-red-500/15 text-red-400" :
+                                            item.priority === 'high' ? "bg-orange-400/15 text-orange-400" :
+                                            "bg-primary/10 text-primary")}>
+                                            {item.title}
+                                        </div>
+                                    ))}
+                                    {items.length > 3 && (
+                                        <div className="font-mono text-[10px] text-muted-foreground pl-1">+{items.length - 3}</div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {calView === 'month' && (
+                <div>
+                    <div className="grid grid-cols-7 mb-1">
+                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
+                            <div key={d} className="text-center font-mono text-[10px] font-semibold uppercase text-muted-foreground py-1">{d}</div>
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-7 gap-1">
+                        {[...Array((monthDays[0].getDay() + 6) % 7)].map((_, i) => <div key={`b${i}`} />)}
+                        {monthDays.map(day => {
+                            const items = getItemsForDay(day);
+                            return (
+                                <div key={day.toISOString()} onClick={() => onDayClick(day)}
+                                    className={cn("aspect-square rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all hover:bg-secondary p-1",
+                                        isToday(day) && "bg-primary/10 ring-1 ring-primary/30")}>
+                                    <span className={cn("font-mono text-xs font-medium", isToday(day) ? "text-primary" : "text-foreground")}>
+                                        {format(day, 'd')}
+                                    </span>
+                                    {items.length > 0 && (
+                                        <div className="flex gap-0.5 mt-0.5">
+                                            {items.slice(0, 3).map((item, idx) => (
+                                                <div key={idx} className={cn("w-1 h-1 rounded-full",
+                                                    item.status === 'done' ? "bg-emerald-400" :
+                                                    item.priority === 'critical' ? "bg-red-500" :
+                                                    item.priority === 'high' ? "bg-orange-400" : "bg-primary/60")} />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}

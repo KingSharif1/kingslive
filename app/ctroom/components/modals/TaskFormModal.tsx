@@ -11,7 +11,7 @@ import { TaskType, TaskCategory, TaskPriority, HabitFrequency, Project } from '.
 interface TaskFormState {
     title: string;
     description: string;
-    taskType: TaskType;
+    taskType: string; // 'task' | 'habit' (UI values, mapped to ActionItemType on submit)
     category: TaskCategory;
     priority: TaskPriority;
     dueDate: Date;
@@ -29,6 +29,7 @@ interface TaskFormModalProps {
     setTaskForm: React.Dispatch<React.SetStateAction<TaskFormState>>;
     onSubmit: () => void;
     projects: Project[];
+    isEditing?: boolean;
 }
 
 const PRIORITIES: { value: TaskPriority; label: string; color: string }[] = [
@@ -48,7 +49,7 @@ const HABIT_FREQUENCIES: { value: HabitFrequency; label: string; desc: string }[
 const HABIT_DURATIONS = [7, 14, 21, 30, 60, 90, 365];
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export const TaskFormModal = ({ isOpen, onClose, taskForm, setTaskForm, onSubmit, projects }: TaskFormModalProps) => {
+export const TaskFormModal = ({ isOpen, onClose, taskForm, setTaskForm, onSubmit, projects, isEditing }: TaskFormModalProps) => {
     const [showProjectPicker, setShowProjectPicker] = useState(false);
 
     if (!isOpen) return null;
@@ -79,7 +80,7 @@ export const TaskFormModal = ({ isOpen, onClose, taskForm, setTaskForm, onSubmit
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-border/50">
                     <h3 className="font-semibold text-lg">
-                        {taskForm.taskType === 'task' ? 'New Task' : 'New Habit'}
+                        {isEditing ? 'Edit Task' : (taskForm.taskType as string) === 'task' ? 'New Task' : 'New Habit'}
                     </h3>
                     <button onClick={onClose} className="p-2 hover:bg-secondary rounded-full transition-colors">
                         <X className="w-5 h-5 text-muted-foreground" />
@@ -91,7 +92,7 @@ export const TaskFormModal = ({ isOpen, onClose, taskForm, setTaskForm, onSubmit
 
                     {/* Type Toggle */}
                     <div className="flex bg-secondary/50 rounded-xl p-1">
-                        {(['task', 'habit'] as TaskType[]).map(type => (
+                        {(['task', 'habit'] as any[]).map((type: string) => (
                             <button
                                 key={type}
                                 onClick={() => updateField('taskType', type)}
@@ -149,7 +150,7 @@ export const TaskFormModal = ({ isOpen, onClose, taskForm, setTaskForm, onSubmit
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: -10 }}
-                                        className="absolute left-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-xl z-10 overflow-hidden"
+                                        className="absolute left-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-xl z-10 max-h-60 overflow-y-auto"
                                     >
                                         {projects.map(project => (
                                             <button
@@ -317,7 +318,7 @@ export const TaskFormModal = ({ isOpen, onClose, taskForm, setTaskForm, onSubmit
                                     : "bg-secondary text-muted-foreground cursor-not-allowed"
                             )}
                         >
-                            {taskForm.taskType === 'task' ? 'Add Task' : 'Start Habit'}
+                            {isEditing ? 'Save Changes' : taskForm.taskType === 'task' ? 'Add Task' : 'Start Habit'}
                         </button>
                     </div>
                 </div>

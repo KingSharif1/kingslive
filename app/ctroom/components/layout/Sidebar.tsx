@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
     LayoutDashboard,
     MessageSquare,
-    Lightbulb,
-    CheckSquare,
     FileText,
     Settings,
     User,
@@ -12,7 +11,9 @@ import {
     Sun,
     Moon,
     Target,
-    Calendar
+    Calendar,
+    Vault,
+    Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { View, UsageStats, ThemeMode } from '../../types/index';
@@ -45,6 +46,12 @@ export const Sidebar = ({
     apiKeys
 }: SidebarProps) => {
     const [isUsageModalOpen, setIsUsageModalOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    // Prevent hydration mismatch for theme-dependent rendering
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Persist sidebar state
     useEffect(() => {
@@ -58,13 +65,13 @@ export const Sidebar = ({
     };
 
     const navItems = [
-        { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-        { id: 'missions', icon: Target, label: 'Missions' },
-        { id: 'planner', icon: Calendar, label: 'Planner' },
-        { id: 'chat', icon: MessageSquare, label: 'Milo Chat' },
-        { id: 'ideas', icon: Lightbulb, label: 'Ideas' },
-        { id: 'blog', icon: FileText, label: 'Blog' },
-        { id: 'settings', icon: Settings, label: 'Settings' },
+        { id: 'dashboard',  icon: LayoutDashboard, label: 'Dashboard'  },
+        { id: 'dreamboard', icon: Sparkles,         label: 'Dreamboard' },
+        { id: 'missions',   icon: Target,           label: 'Projects'   },
+        { id: 'planner',    icon: Calendar,         label: 'Planner'    },
+        { id: 'chat',       icon: MessageSquare,    label: 'Milo'       },
+        { id: 'vault',      icon: Vault,            label: 'Vault'      },
+        { id: 'blog',       icon: FileText,         label: 'Blog'       },
     ];
 
     return (
@@ -94,13 +101,25 @@ export const Sidebar = ({
                         "flex items-center gap-3 px-2 transition-all duration-300",
                         isCollapsed && "justify-center px-0"
                     )}>
-                        <div className="w-10 h-10 bg-gradient-to-tr from-primary to-primary/80 text-primary-foreground rounded-xl flex items-center justify-center font-bold text-xl shadow-lg flex-shrink-0">
-                            C
-                        </div>
+                        <motion.div
+                            whileHover={{ scale: 1.1, rotate: -6 }}
+                            whileTap={{ scale: 0.88, rotate: 6 }}
+                            transition={{ type: 'spring', stiffness: 500, damping: 14 }}
+                            className="w-10 h-10 bg-gradient-to-tr from-primary to-primary/80 text-primary-foreground rounded-xl flex items-center justify-center shadow-lg flex-shrink-0 cursor-pointer select-none"
+                        >
+                            {/* Crown — Young Serif proportions: classical 3-point, orbed tips */}
+                            <svg viewBox="0 0 22 18" fill="currentColor" className="w-5 h-[1.1rem]">
+                                <path d="M1 15 L4 5.5 L7.5 9.5 L11 1 L14.5 9.5 L18 5.5 L21 15 Z" />
+                                <rect x="0.5" y="15" width="21" height="2.5" rx="1.25" />
+                                <circle cx="4"  cy="5.5" r="1.6" />
+                                <circle cx="11" cy="1"   r="1.6" />
+                                <circle cx="18" cy="5.5" r="1.6" />
+                            </svg>
+                        </motion.div>
                         {!isCollapsed && (
                             <div className="overflow-hidden">
-                                <div className="font-bold text-lg tracking-tight leading-none whitespace-nowrap">Ctroom</div>
-                                <div className="text-xs text-muted-foreground mt-1 whitespace-nowrap">Personal OS v2.1</div>
+                                <div className="font-display text-lg leading-none whitespace-nowrap">Ctroom</div>
+                                <div className="font-mono text-[10px] text-muted-foreground mt-1 whitespace-nowrap uppercase tracking-widest">Personal OS</div>
                             </div>
                         )}
                     </div>
@@ -150,14 +169,16 @@ export const Sidebar = ({
                         )}
                         title={isCollapsed ? (theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode') : undefined}
                     >
-                        {theme === 'dark' ? (
+                        {!mounted ? (
+                            <div className="w-5 h-5" />
+                        ) : theme === 'dark' ? (
                             <Sun className="w-5 h-5 text-yellow-500" />
                         ) : (
                             <Moon className="w-5 h-5 text-indigo-500" />
                         )}
                         {!isCollapsed && (
                             <span className="text-sm font-medium flex-1 text-left">
-                                {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                                {mounted ? (theme === 'dark' ? 'Light Mode' : 'Dark Mode') : 'Theme'}
                             </span>
                         )}
                     </button>

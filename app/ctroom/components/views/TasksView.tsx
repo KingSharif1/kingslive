@@ -233,7 +233,7 @@ export const TasksView = ({ tasks, projects, toggleTaskStatus, openTaskModal, on
                             <span className={cn(
                                 "w-2 h-2 rounded-full",
                                 task.category === 'work' ? "bg-blue-500" :
-                                    task.category === 'habit' ? "bg-emerald-500" : "bg-purple-500"
+                                    (task.category as string) === 'habit' ? "bg-emerald-500" : "bg-purple-500"
                             )} />
                             {task.category}
                         </span>

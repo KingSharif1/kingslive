@@ -7,12 +7,11 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/ctroom/page": [
+    "/_not-found/page": [
       "static/chunks/webpack.js",
       "static/chunks/vendor.js",
       "static/chunks/main-app.js",
-      "static/chunks/framer-motion.js",
-      "static/chunks/app/ctroom/page.js"
+      "static/chunks/app/_not-found/page.js"
     ]
   }
 }

@@ -1,11 +1,11 @@
 import './globals.css'
-import { Unbounded, Sora } from 'next/font/google'
+import { Unbounded, Sora, Young_Serif, Inter, JetBrains_Mono } from 'next/font/google'
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ParticleBackgroundWrapper } from "@/components/ParticleBackgroundWrapper"
 import { AnalyticsWrapper } from "@/components/AnalyticsWrapper"
 
-// Unbounded for headers - bold geometric display font
+// Portfolio fonts
 const unbounded = Unbounded({
   subsets: ['latin'],
   variable: '--font-unbounded',
@@ -13,12 +13,35 @@ const unbounded = Unbounded({
   preload: true,
 })
 
-// Sora for body - smooth, modern sans-serif
 const sora = Sora({
   subsets: ['latin'],
   variable: '--font-sora',
   display: 'swap',
   preload: true,
+})
+
+// ─── Ctroom font system ───────────────────────────────
+// font-display → Young Serif  (section titles / view headings)
+// font-inter   → Inter        (body, labels, buttons — ctroom default)
+// font-mono    → JetBrains Mono (stats, numbers, code/project tags)
+
+const youngSerif = Young_Serif({
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-display',
+  display: 'swap',
+})
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
+  display: 'swap',
 })
 
 export const metadata = {
@@ -51,7 +74,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://cdn.sanity.io" />
         <link rel="dns-prefetch" href="https://cdn.sanity.io" />
       </head>
-      <body className={`${unbounded.variable} ${sora.variable} font-sans`}>
+      <body className={`${unbounded.variable} ${sora.variable} ${youngSerif.variable} ${inter.variable} ${jetbrainsMono.variable} font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <ParticleBackgroundWrapper />
           {children}

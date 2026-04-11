@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tail:*)",
+      "Bash(grep:*)",
+      "Bash(python3:*)",
+      "Bash(node:*)",
+      "mcp__ide__getDiagnostics",
+      "WebSearch",
+      "Bash(npx tsc:*)",
+      "Read(//c/Users/kings/.claude/**)",
+      "Read(//c/Users/kings/**)",
+      "Read(//c/Users/kings/AppData/Roaming/Claude/**)",
+      "Bash(claude mcp:*)",
+      "mcp__supabase__list_projects",
+      "mcp__supabase__list_tables",
+      "mcp__supabase__apply_migration",
+      "Bash(cd \"C:/Users/kings/WorkSpace/PORTFOLIO/kingslive\" && sed -i \"s/import\\('..\\\\/types'\\)\\\\.TransactionRule/TransactionRule/g; s/import\\('..\\\\/types'\\)\\\\.Subscription/Subscription/g; s/import\\('..\\\\/types'\\)\\\\.SubscriptionFrequency/SubscriptionFrequency/g\" app/ctroom/services/vaultDataService.ts)",
+      "Bash(cd C:/Users/kings/WorkSpace/PORTFOLIO/kingslive && npm install react-rnd 2>&1 | tail -5)",
+      "Bash(cd C:/Users/kings/WorkSpace/PORTFOLIO/kingslive && npm install react-rnd --legacy-peer-deps 2>&1 | tail -5)",
+      "Bash(find C:/Users/kings/WorkSpace/PORTFOLIO/kingslive/lib -name \"*.ts\" -o -name \"*.tsx\" 2>/dev/null | head -20; find C:/Users/kings/WorkSpace/PORTFOLIO/kingslive/utils -name \"*.ts\" 2>/dev/null | head -10; find C:/Users/kings/WorkSpace/PORTFOLIO/kingslive/app -name \"supabase*\" -o -name \"*supabase*\" 2>/dev/null | grep -v \".next\" | head -20)",
+      "mcp__supabase__execute_sql",
+      "Bash(npm install:*)",
+      "WebFetch(domain:worklog.hizkiajuan.com)",
+      "WebFetch(domain:github.com)"
+    ]
+  }
+}

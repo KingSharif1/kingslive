@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { DataService } from '../services/dataService'
-import { BlogPost, Comment, Category } from '../types'
+import { BlogPost, Comment, Category } from '../blog-types'
 
 // Enhanced error handling for queries
 const defaultQueryOptions = {

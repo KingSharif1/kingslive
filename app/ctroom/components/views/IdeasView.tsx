@@ -26,11 +26,13 @@ interface IdeasViewProps {
         title: string;
         content: string;
         category: Idea['category'];
+        metadata?: Record<string, any>;
     };
     setIdeaForm: React.Dispatch<React.SetStateAction<{
         title: string;
         content: string;
         category: Idea['category'];
+        metadata?: Record<string, any>;
     }>>;
     handleSaveIdea: () => void;
     handleNewIdea: () => void;

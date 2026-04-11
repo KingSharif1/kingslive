@@ -592,3 +592,64 @@ body::before {
 .animate-scroll:hover {
   animation-play-state: paused;
 }
+
+/* ── Ctroom Accent Themes ────────────────────────────────────────────────────
+   Applied as a class on the ctroom root div (.ctroom-accent-{name}).
+   Overrides --primary + --ring for all children in both light and dark mode.
+   "none" = default monochrome (no class needed).
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.ctroom-accent-violet {
+  --primary: oklch(0.52 0.24 264);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.52 0.24 264);
+}
+.dark .ctroom-accent-violet {
+  --primary: oklch(0.72 0.20 264);
+  --primary-foreground: oklch(0.10 0 0);
+  --ring: oklch(0.72 0.20 264);
+}
+
+.ctroom-accent-ocean {
+  --primary: oklch(0.52 0.20 220);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.52 0.20 220);
+}
+.dark .ctroom-accent-ocean {
+  --primary: oklch(0.68 0.18 220);
+  --primary-foreground: oklch(0.10 0 0);
+  --ring: oklch(0.68 0.18 220);
+}
+
+.ctroom-accent-amber {
+  --primary: oklch(0.68 0.16 65);
+  --primary-foreground: oklch(0.10 0 0);
+  --ring: oklch(0.68 0.16 65);
+}
+.dark .ctroom-accent-amber {
+  --primary: oklch(0.80 0.15 65);
+  --primary-foreground: oklch(0.10 0 0);
+  --ring: oklch(0.80 0.15 65);
+}
+
+.ctroom-accent-emerald {
+  --primary: oklch(0.52 0.17 152);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.52 0.17 152);
+}
+.dark .ctroom-accent-emerald {
+  --primary: oklch(0.70 0.17 152);
+  --primary-foreground: oklch(0.10 0 0);
+  --ring: oklch(0.70 0.17 152);
+}
+
+.ctroom-accent-rose {
+  --primary: oklch(0.52 0.22 8);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.52 0.22 8);
+}
+.dark .ctroom-accent-rose {
+  --primary: oklch(0.70 0.20 8);
+  --primary-foreground: oklch(0.10 0 0);
+  --ring: oklch(0.70 0.20 8);
+}

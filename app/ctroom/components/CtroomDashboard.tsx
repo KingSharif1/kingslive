@@ -9,7 +9,7 @@ import {
     View, ActionItem, Idea, Message, ActionItemCategory,
     ActionItemPriority, ChatTool, ChatSpeed, ChatContext,
     ActionItemType, SystemFrequency, Mission, System,
-    ThemeMode, UsageStats, UserSettings,
+    ThemeMode, UsageStats, UserSettings, CtroomAccent,
     ActionItemStatus
 } from '../types/';
 import { Sidebar } from './layout/Sidebar';
@@ -21,16 +21,25 @@ import { PlannerView } from './views/PlannerView';
 import { MissionsView } from './views/MissionsView';
 import { BlogView } from './views/BlogView';
 import { SettingsView } from './views/SettingsView';
+import { VaultView } from './views/VaultView';
+import DreamboardView from './views/DreamboardView';
 import { TaskFormModal } from './modals/TaskFormModal';
 import { MissionDetailModal } from './modals/MissionDetailModal';
 import { cn } from '@/lib/utils';
 import { CtroomDataService } from '../services/ctroomDataService';
+import { supabase } from '@/lib/supabase';
 
 export function CtroomDashboard() {
-    // Start with Dashboard or Planner
     const [currentView, setCurrentView] = useState<View>('dashboard');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
+
+    // Lazy-mounted views: mount on first visit, stay alive (hidden) after
+    const [mountedViews, setMountedViews] = useState<Set<View>>(new Set<View>(['dashboard']));
+
+    const handleViewChange = (view: View) => {
+        setMountedViews(prev => { const next = new Set(prev); next.add(view); return next; });
+        setCurrentView(view);
+    };
 
     // Sidebar & Theme State
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -47,6 +56,14 @@ export function CtroomDashboard() {
             return (saved as ThemeMode) || 'dark';
         }
         return 'dark';
+    });
+
+    // Accent color theme
+    const [accent, setAccent] = useState<CtroomAccent>(() => {
+        if (typeof window !== 'undefined') {
+            return (localStorage.getItem('ctroom-accent') as CtroomAccent) || 'none';
+        }
+        return 'none';
     });
 
     // Usage Stats State
@@ -71,14 +88,17 @@ export function CtroomDashboard() {
         },
         preferences: {
             theme: theme,
+            accent: 'none' as CtroomAccent,
             sidebarCollapsed: isSidebarCollapsed,
             notifications: true,
             autoSave: true
         },
         apiKeys: {
             openai: '',
+            anthropic: '',
+            google: '',
             github: '',
-            google: ''
+            groq: '',
         }
     });
 
@@ -120,35 +140,49 @@ export function CtroomDashboard() {
     const [chatInput, setChatInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
 
-    // Load data from database on mount
+    // Auth session monitoring - check token validity and auto-logout on expiry
+    useEffect(() => {
+        const checkAuthSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            
+            if (!session) {
+                console.warn('No active session found - redirecting to login');
+                window.location.href = '/login';
+                return;
+            }
+
+            const expiresAt = session.expires_at;
+            if (expiresAt) {
+                const expiryTime = expiresAt * 1000;
+                const now = Date.now();
+                
+                if (expiryTime <= now) {
+                    console.warn('Session expired - logging out');
+                    await supabase.auth.signOut();
+                    window.location.href = '/login';
+                }
+            }
+        };
+
+        checkAuthSession();
+        const interval = setInterval(checkAuthSession, 60000); // Check every minute
+        
+        return () => clearInterval(interval);
+    }, []);
+
+    // Load data from database on mount — two phases so UI appears instantly
     useEffect(() => {
         const loadData = async () => {
-            setIsLoading(true);
+            // ── Phase 1: critical data (missions + tasks + profile) ──────────
+            // UI renders immediately after this resolves.
             try {
-                // Fetch NEW Mission Control Data
-                const [missionsData, systemsData, itemsData, ideasData, messagesData, profile, tokenUsage, settings] = await Promise.all([
+                const [missionsData, itemsData, profile] = await Promise.all([
                     CtroomDataService.fetchMissions(),
-                    CtroomDataService.fetchSystems(),
                     CtroomDataService.fetchActionItems(),
-                    CtroomDataService.fetchIdeas(),
-                    CtroomDataService.fetchMessages(),
                     CtroomDataService.getUserProfile(),
-                    CtroomDataService.getTokenUsage(30),
-                    CtroomDataService.getUserSettings()
                 ]);
-
                 setMissions(missionsData);
-                setSystems(systemsData);
                 setActionItems(itemsData);
-
-                setIdeas(ideasData);
-                setMessages(messagesData.length > 0 ? messagesData : [{
-                    id: '1',
-                    role: 'assistant',
-                    content: "Welcome back! I'm ready to help you build. Which mission should we focus on today?",
-                    timestamp: new Date(),
-                }]);
-
                 if (profile) {
                     setUserProfile(profile);
                     setUserSettings(prev => ({
@@ -156,27 +190,50 @@ export function CtroomDashboard() {
                         profile: { ...prev.profile, name: profile.name, email: profile.email }
                     }));
                 }
+            } catch (error) {
+                console.error('Phase 1 load error:', error);
+                // If auth error, redirect to login
+                if (error instanceof Error && error.message.includes('auth')) {
+                    window.location.href = '/login';
+                }
+            }
 
-                // Load token usage from database
-                if (tokenUsage && tokenUsage.byProvider) {
+            // ── Phase 2: background data (non-blocking) ───────────────────────
+            try {
+                const [systemsData, ideasData, messagesData, tokenUsage, settings] = await Promise.all([
+                    CtroomDataService.fetchSystems(),
+                    CtroomDataService.fetchIdeas(),
+                    CtroomDataService.fetchMessages(),
+                    CtroomDataService.getTokenUsage(30),
+                    CtroomDataService.getUserSettings(),
+                ]);
+                setSystems(systemsData);
+                setIdeas(ideasData);
+                setMessages(messagesData.length > 0 ? messagesData : [{
+                    id: '1',
+                    role: 'assistant',
+                    content: "Welcome back! I'm ready to help you build. Which mission should we focus on today?",
+                    timestamp: new Date(),
+                }]);
+                if (tokenUsage?.byProvider) {
                     setUsageStats(prev => ({
                         ...prev,
                         byProvider: tokenUsage.byProvider,
                         total: { ...prev.total, used: tokenUsage.total }
                     }));
                 }
-
                 if (settings) {
                     setUserSettings(prev => ({
                         ...prev,
                         apiKeys: settings.api_keys || prev.apiKeys,
                         preferences: settings.preferences || prev.preferences
                     }));
+                    if (settings.preferences?.accent) {
+                        setAccent(settings.preferences.accent as CtroomAccent);
+                    }
                 }
             } catch (error) {
-                console.error('Error loading data:', error);
-            } finally {
-                setIsLoading(false);
+                console.error('Phase 2 load error:', error);
             }
         };
 
@@ -196,6 +253,10 @@ export function CtroomDashboard() {
     const handleSaveSettings = async (newSettings: UserSettings) => {
         setUserSettings(newSettings);
         setTheme(newSettings.preferences.theme);
+        if (newSettings.preferences.accent) {
+            setAccent(newSettings.preferences.accent);
+            localStorage.setItem('ctroom-accent', newSettings.preferences.accent);
+        }
         localStorage.setItem('user-settings', JSON.stringify(newSettings));
 
         await Promise.all([
@@ -214,9 +275,17 @@ export function CtroomDashboard() {
     const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
 
     const handleMissionUpdate = async (updatedMission: Mission) => {
+        console.log('📝 handleMissionUpdate called with:', {
+            id: updatedMission.id,
+            name: updatedMission.name,
+            repoUrl: updatedMission.repoUrl
+        });
         const success = await CtroomDataService.updateMission(updatedMission.id, updatedMission);
         if (success) {
+            console.log('✅ Mission state updated in CtroomDashboard');
             setMissions(prev => prev.map(m => m.id === updatedMission.id ? updatedMission : m));
+        } else {
+            console.error('❌ Mission update failed in CtroomDashboard');
         }
     };
 
@@ -444,17 +513,21 @@ export function CtroomDashboard() {
                     messages: [...messages, userMsg],
                     model,
                     thinkingMode: speed,
-                    tools: tool !== 'none' ? [tool] : []
+                    tools: tool !== 'none' ? [tool] : [],
+                    ctroomContext: {
+                        tasks: actionItems.filter(t => t.status !== 'done' && t.status !== 'archived').slice(0, 30),
+                        missions: missions.filter(m => m.status === 'active'),
+                    },
                 })
             });
             const aiResponse = await response.json();
             const assistantMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: aiResponse.content || 'Sorry, I encountered an error.',
+                content: aiResponse.message || aiResponse.content || 'Sorry, I encountered an error.',
                 timestamp: new Date(),
                 model,
-                thoughts: aiResponse.thinking
+                thoughts: aiResponse.thinkingSteps,
             };
             await CtroomDataService.saveMessage(assistantMsg);
             setMessages(prev => [...prev, assistantMsg]);
@@ -471,18 +544,8 @@ export function CtroomDashboard() {
         }
     };
 
+    // Full-bleed views have no padding (vault/dreamboard handled separately below)
     const isFullBleedView = currentView === 'ideas' || currentView === 'chat';
-
-    if (isLoading) {
-        return (
-            <div className="h-screen w-full flex items-center justify-center bg-background">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-muted-foreground">Initializing Mission Control...</p>
-                </div>
-            </div>
-        );
-    }
 
     // Projects Mapping for Modal (Missions -> Projects interface)
     const modalProjects = [
@@ -491,11 +554,14 @@ export function CtroomDashboard() {
     ];
 
     return (
-        <div className="h-screen w-full bg-background text-foreground font-sans selection:bg-primary/20 flex flex-col md:flex-row overflow-hidden">
+        <div className={cn(
+            "h-screen w-full bg-background text-foreground font-inter selection:bg-primary/20 flex flex-col md:flex-row overflow-hidden",
+            accent !== 'none' && `ctroom-accent-${accent}`
+        )}>
 
             <Sidebar
                 currentView={currentView}
-                setCurrentView={setCurrentView}
+                setCurrentView={handleViewChange}
                 isCollapsed={isSidebarCollapsed}
                 setIsCollapsed={setIsSidebarCollapsed}
                 usage={usageStats}
@@ -510,7 +576,7 @@ export function CtroomDashboard() {
                 isMobileMenuOpen={isMobileMenuOpen}
                 setIsMobileMenuOpen={setIsMobileMenuOpen}
                 currentView={currentView}
-                setCurrentView={setCurrentView}
+                setCurrentView={handleViewChange}
             />
 
             <main className="flex-1 overflow-hidden w-full relative bg-secondary/5 h-full">
@@ -520,19 +586,18 @@ export function CtroomDashboard() {
 
                     {currentView === 'dashboard' && (
                         <DashboardView
-                            tasks={actionItems as any} // Temporary cast until Dashboard is updated
-                            ideas={ideas}
+                            tasks={actionItems}
+                            missions={missions}
                             setCurrentView={setCurrentView}
                             toggleTaskStatus={toggleItemStatus}
-                            handleNewIdea={handleNewIdea}
                             setIsTaskModalOpen={setIsTaskModalOpen}
-                            loadIdea={loadIdea}
                         />
                     )}
 
                     {currentView === 'missions' && (
                         <MissionsView
                             onMissionClick={(id) => setSelectedMissionId(id)}
+                            githubToken={userSettings.apiKeys.github}
                         />
                     )}
 
@@ -575,8 +640,8 @@ export function CtroomDashboard() {
                             setChatInput={setChatInput}
                             handleSendMessage={handleSendMessage}
                             isTyping={isTyping}
-                            tasks={actionItems as any} // Temporary Cast
-                            ideas={ideas}
+                            actionItems={actionItems}
+                            missions={missions}
                             apiKeys={userSettings.apiKeys}
                         />
                     )}
@@ -593,28 +658,46 @@ export function CtroomDashboard() {
                         />
                     )}
 
-                    {currentView === 'blog' && (
-                        <div className="p-8">
-                            <BlogView />
-                        </div>
-                    )}
+                    {currentView === 'blog' && <BlogView />}
 
                     {currentView === 'settings' && (
                         <SettingsView
                             settings={userSettings}
                             onSave={handleSaveSettings}
+                            onAccentPreview={setAccent}
                         />
                     )}
                 </div>
+
+                {/* Vault — lazy mounted, kept alive after first visit */}
+                {mountedViews.has('vault') && (
+                    <div className={cn(
+                        "absolute inset-x-0 bottom-0 top-16 md:top-0 overflow-y-auto p-4 md:p-6 z-10 bg-secondary/5",
+                        currentView !== 'vault' && 'hidden'
+                    )}>
+                        <VaultView />
+                    </div>
+                )}
+
+                {/* Dreamboard — lazy mounted, full-bleed canvas */}
+                {mountedViews.has('dreamboard') && (
+                    <div className={cn(
+                        "absolute inset-x-0 bottom-0 top-16 md:top-0 z-10",
+                        currentView !== 'dreamboard' && 'hidden'
+                    )}>
+                        <DreamboardView />
+                    </div>
+                )}
             </main>
 
             <TaskFormModal
                 isOpen={isTaskModalOpen}
-                onClose={() => setIsTaskModalOpen(false)}
-                taskForm={taskForm as any} // Temporary cast
+                isEditing={!!editingItemId}
+                onClose={() => { setIsTaskModalOpen(false); setEditingItemId(null); }}
+                taskForm={taskForm as any}
                 setTaskForm={setTaskForm as any}
                 onSubmit={handleAddActionItem}
-                projects={modalProjects}
+                projects={modalProjects as any}
             />
 
             {/* Mission Detail Modal */}
@@ -631,6 +714,7 @@ export function CtroomDashboard() {
                         setActionItems(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
                     }}
                     onDeleteTask={handleDeleteItem}
+                    githubToken={userSettings.apiKeys.github}
                 />
             )}
         </div>

@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, Sparkles, Github, Globe, Code2, Cpu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Message } from '../../types/';
+import { ThinkingStep } from '../../types/';
 
-export const ThinkingProcess = ({ steps }: { steps: Message['thoughts'] }) => {
+export const ThinkingProcess = ({ steps }: { steps: ThinkingStep[] | undefined }) => {
     const [isExpanded, setIsExpanded] = useState(true);
 
     if (!steps || steps.length === 0) return null;

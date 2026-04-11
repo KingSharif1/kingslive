@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase"
-import { BlogPost, Comment, Category, PostAnalytics } from "../types"
+import { BlogPost, Comment, Category, PostAnalytics } from "../blog-types"
 
 export class DataService {
   // Blog Posts - All posts come from Sanity, analytics from Supabase

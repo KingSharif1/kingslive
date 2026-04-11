@@ -1,8 +1,8 @@
 import { supabase } from "@/lib/supabase";
-import { 
-  ActionItem, Mission, System, Idea, Message, 
-  ActionItemStatus, ActionItemPriority, ActionItemCategory, 
-  ActionItemType, SystemFrequency 
+import {
+  ActionItem, Mission, System, Idea, Message, DailyLog, DailyLogType,
+  ActionItemStatus, ActionItemPriority, ActionItemCategory,
+  ActionItemType, SystemFrequency
 } from "../types/index";
 
 /**
@@ -11,6 +11,12 @@ import {
  */
 
 export class CtroomDataService {
+  // ==================== SUPABASE CLIENT ====================
+  
+  static getSupabaseClient() {
+    return supabase;
+  }
+
   // ==================== MISSIONS (PROJECTS) ====================
 
   static async fetchMissions(): Promise<Mission[]> {
@@ -87,22 +93,33 @@ export class CtroomDataService {
   static async updateMission(id: string, updates: Partial<Mission>): Promise<boolean> {
     try {
       const dbUpdates: any = {};
-      if (updates.name) dbUpdates.name = updates.name;
-      if (updates.status) dbUpdates.status = updates.status;
-      if (updates.priority) dbUpdates.priority = updates.priority;
+      if (updates.name !== undefined) dbUpdates.name = updates.name;
+      if (updates.color !== undefined) dbUpdates.color = updates.color;
+      if (updates.icon !== undefined) dbUpdates.icon = updates.icon;
+      if (updates.description !== undefined) dbUpdates.description = updates.description;
+      if (updates.status !== undefined) dbUpdates.status = updates.status;
+      if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
       if (updates.progress !== undefined) dbUpdates.progress = updates.progress;
       if (updates.focusWeek !== undefined) dbUpdates.focus_week = updates.focusWeek;
-      if (updates.focusWeek !== undefined) dbUpdates.focus_week = updates.focusWeek;
-      if (updates.targetDate) dbUpdates.target_date = updates.targetDate;
+      if (updates.startDate !== undefined) dbUpdates.start_date = updates.startDate;
+      if (updates.targetDate !== undefined) dbUpdates.target_date = updates.targetDate;
       if (updates.repoUrl !== undefined) dbUpdates.repo_url = updates.repoUrl;
       if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+
+      console.log('🔄 Updating mission:', id, 'with updates:', dbUpdates);
 
       const { error } = await supabase
         .from('missions')
         .update(dbUpdates)
         .eq('id', id);
 
-      return !error;
+      if (error) {
+        console.error('❌ Mission update failed:', error);
+        return false;
+      }
+
+      console.log('✅ Mission updated successfully');
+      return true;
     } catch (error) {
       console.error('Error updating mission:', error);
       return false;
@@ -255,16 +272,20 @@ export class CtroomDataService {
   static async updateActionItem(id: string, updates: Partial<ActionItem>): Promise<boolean> {
     try {
       const dbUpdates: any = {};
-      if (updates.title) dbUpdates.title = updates.title;
-      if (updates.status) dbUpdates.completed = updates.status === 'done';
-      if (updates.timeBlock) dbUpdates.time_block = updates.timeBlock;
-      if (updates.date) dbUpdates.due_date = updates.date;
+      if (updates.title !== undefined) dbUpdates.title = updates.title;
+      if (updates.description !== undefined) dbUpdates.description = updates.description;
+      if (updates.status !== undefined) dbUpdates.completed = updates.status === 'done';
+      if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
+      if (updates.category !== undefined) dbUpdates.category = updates.category;
+      if (updates.date !== undefined) dbUpdates.due_date = updates.date;
+      if (updates.missionId !== undefined) dbUpdates.mission_id = updates.missionId || null;
+      if (updates.timeBlock !== undefined) dbUpdates.time_block = updates.timeBlock;
 
       const { error } = await supabase
         .from('tasks')
         .update(dbUpdates)
         .eq('id', id);
-      
+
       return !error;
     } catch (error) {
       return false;
@@ -365,6 +386,94 @@ export class CtroomDataService {
     return !error;
   }
 
+  // ==================== DAILY LOGS ====================
+
+  static async fetchDailyLogs(date: string): Promise<DailyLog[]> {
+    try {
+      const { data, error } = await supabase
+        .from('daily_logs')
+        .select('*')
+        .eq('date', date)
+        .order('created_at', { ascending: false });
+      if (error) { console.error('Error fetching daily logs:', error); return []; }
+      return (data || []).map(l => ({
+        id: l.id,
+        date: l.date,
+        content: l.content,
+        type: l.type as DailyLogType,
+        projectId: l.project_id || undefined,
+        timeSpentMinutes: l.time_spent_minutes || undefined,
+        createdAt: new Date(l.created_at),
+      }));
+    } catch (e) { console.error('Error in fetchDailyLogs:', e); return []; }
+  }
+
+  static async fetchLogsInRange(startDate: string, endDate: string): Promise<DailyLog[]> {
+    try {
+      const { data, error } = await supabase
+        .from('daily_logs')
+        .select('*')
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .order('created_at', { ascending: false });
+      if (error) { console.error('Error fetching logs in range:', error); return []; }
+      return (data || []).map(l => ({
+        id: l.id,
+        date: l.date,
+        content: l.content,
+        type: l.type as DailyLogType,
+        projectId: l.project_id || undefined,
+        timeSpentMinutes: l.time_spent_minutes || undefined,
+        createdAt: new Date(l.created_at),
+      }));
+    } catch (e) { console.error('Error in fetchLogsInRange:', e); return []; }
+  }
+
+  static async saveDailyLog(log: Omit<DailyLog, 'id' | 'createdAt'>): Promise<DailyLog | null> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from('daily_logs')
+        .insert([{
+          user_id: user.id,
+          date: log.date,
+          content: log.content,
+          type: log.type,
+          project_id: log.projectId || null,
+          time_spent_minutes: log.timeSpentMinutes || null,
+        }])
+        .select()
+        .single();
+      if (error) { console.error('Error saving daily log:', error); return null; }
+      return {
+        id: data.id,
+        date: data.date,
+        content: data.content,
+        type: data.type as DailyLogType,
+        projectId: data.project_id || undefined,
+        timeSpentMinutes: data.time_spent_minutes || undefined,
+        createdAt: new Date(data.created_at),
+      };
+    } catch (e) { console.error('Error in saveDailyLog:', e); return null; }
+  }
+
+  static async updateDailyLog(id: string, updates: Partial<Pick<DailyLog, 'content' | 'timeSpentMinutes' | 'projectId'>>): Promise<boolean> {
+    try {
+      const dbUpdates: any = {};
+      if (updates.content !== undefined) dbUpdates.content = updates.content;
+      if (updates.timeSpentMinutes !== undefined) dbUpdates.time_spent_minutes = updates.timeSpentMinutes;
+      if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
+      const { error } = await supabase.from('daily_logs').update(dbUpdates).eq('id', id);
+      return !error;
+    } catch (e) { console.error('Error in updateDailyLog:', e); return false; }
+  }
+
+  static async deleteDailyLog(id: string): Promise<boolean> {
+    const { error } = await supabase.from('daily_logs').delete().eq('id', id);
+    return !error;
+  }
+
   static async fetchMessages(): Promise<Message[]> { return []; } 
   static async saveMessage(message: any): Promise<Message | null> { return null; }
   static async clearMessages(): Promise<boolean> { return true; }
@@ -377,19 +486,10 @@ export class CtroomDataService {
       
       if (!user) return null;
 
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('name, email')
-        .eq('user_id', user.id)
-        .single();
-      
-      if (error || !data) {
-        return {
-          name: user.user_metadata?.name || 'User',
-          email: user.email || 'user@ctroom.com',
-        };
-      }
-      return data;
+      return {
+        name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+        email: user.email || 'user@ctroom.com',
+      };
     } catch (error) {
       return { name: 'King Sharif', email: 'king@ctroom.com' };
     }
@@ -397,18 +497,19 @@ export class CtroomDataService {
 
   static async updateUserProfile(name: string, email: string): Promise<boolean> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.auth.updateUser({
+        email: email,
+        data: { name: name }
+      });
       
-      if (!user) return false;
-
-      const { error } = await supabase
-        .from('user_profiles')
-        .upsert({ user_id: user.id, name, email })
-        .eq('user_id', user.id);
+      if (error) {
+        console.error('updateUserProfile error:', error);
+        return false;
+      }
       
-      return !error;
+      return true;
     } catch (error) {
-      console.error('Error in updateUserProfile:', error);
+      console.error('updateUserProfile exception:', error);
       return false;
     }
   }
@@ -490,16 +591,18 @@ export class CtroomDataService {
 
       const { data, error } = await supabase
         .from('user_settings')
-        .select('*')
+        .select('api_keys, preferences')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
+        console.error('getUserSettings error:', error);
         return null;
       }
       
       return data;
     } catch (error) {
+      console.error('getUserSettings exception:', error);
       return null;
     }
   }
@@ -516,11 +619,18 @@ export class CtroomDataService {
           user_id: user.id,
           api_keys: apiKeys,
           preferences: preferences
-        })
-        .eq('user_id', user.id);
+        }, {
+          onConflict: 'user_id'
+        });
       
-      return !error;
+      if (error) {
+        console.error('saveUserSettings error:', error);
+        return false;
+      }
+      
+      return true;
     } catch (error) {
+      console.error('saveUserSettings exception:', error);
       return false;
     }
   }

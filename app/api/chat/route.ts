@@ -1,347 +1,280 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { google } from 'googleapis'
-import { HfInference } from '@huggingface/inference'
+import { NextResponse } from 'next/server';
+import { google } from 'googleapis';
 
-const customSearch = google.customsearch('v1')
+const customSearch = google.customsearch('v1');
 
-// Helper function to estimate tokens (rough approximation: 1 token ≈ 4 characters)
-function estimateTokens(text: string): number {
-    return Math.ceil(text.length / 4);
-}
+// ─── Milo System Prompt ───────────────────────────────────────────────────────
 
-// Helper function to track token usage
-async function trackTokenUsage(provider: string, model: string, inputText: string, outputText: string) {
-    try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+function buildSystemPrompt(ctroomContext?: { tasks?: any[]; missions?: any[] }) {
+    let prompt = `You are Milo, King Sharif's elite personal AI — a Jarvis-like intelligence built into his private creator OS.
 
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
+About King:
+- Creative Developer & UX Engineer based in Chicago, IL
+- Works on Next.js, React, Tailwind, AI, Supabase, Three.js
+- Building "kingslive" — a personal portfolio + private creator command center
 
-        const totalTokens = estimateTokens(inputText) + estimateTokens(outputText)
+Personality:
+- Sharp, direct, smart — no filler, no fluff
+- Speak like a trusted advisor: concise, confident, insightful
+- Know when to be brief and when to go deep
+- You're aware of King's work and can reference it specifically`;
 
-        await supabase.from('token_usage').insert([{
-            user_id: user.id,
-            provider,
-            model,
-            tokens: totalTokens,
-            request_type: 'chat'
-        }])
-    } catch (error) {
-        console.error('Error tracking token usage:', error)
+    if (ctroomContext?.tasks && ctroomContext.tasks.length > 0) {
+        const today = new Date().toDateString();
+        const todayTasks = ctroomContext.tasks.filter((t: any) => {
+            try { return new Date(t.date).toDateString() === today; } catch { return false; }
+        });
+        const overdue = ctroomContext.tasks.filter((t: any) => {
+            try { return new Date(t.date) < new Date() && new Date(t.date).toDateString() !== today; } catch { return false; }
+        });
+
+        prompt += `\n\nCurrent Tasks (${ctroomContext.tasks.length} active):`;
+        if (todayTasks.length > 0) {
+            prompt += `\nDue Today (${todayTasks.length}): ${todayTasks.map((t: any) => `"${t.title}" [${t.priority}]`).join(', ')}`;
+        }
+        if (overdue.length > 0) {
+            prompt += `\nOverdue (${overdue.length}): ${overdue.slice(0, 5).map((t: any) => `"${t.title}"`).join(', ')}`;
+        }
+        const upcoming = ctroomContext.tasks.filter((t: any) => {
+            try { return new Date(t.date) > new Date(); } catch { return false; }
+        }).slice(0, 5);
+        if (upcoming.length > 0) {
+            prompt += `\nUpcoming: ${upcoming.map((t: any) => `"${t.title}" [${t.priority}]`).join(', ')}`;
+        }
     }
+
+    if (ctroomContext?.missions && ctroomContext.missions.length > 0) {
+        prompt += `\n\nActive Projects (${ctroomContext.missions.length}):`;
+        ctroomContext.missions.slice(0, 6).forEach((m: any) => {
+            prompt += `\n- "${m.name}" — ${m.progress ?? 0}% complete, priority: ${m.priority}${m.description ? `, ${m.description}` : ''}${m.repoUrl ? `, repo: ${m.repoUrl}` : ''}`;
+        });
+    }
+
+    prompt += `\n\nRespond in markdown where helpful. Be specific when you can reference King's actual data above.`;
+    return prompt;
 }
 
-// KING_INFO for context
-const KING_INFO = {
-  name: 'King Sharif',
-  profession: 'Creative Developer & UX Engineer',
-  skills: ['Next.js', 'React', 'TailwindCSS', 'Three.js', 'AI Integration', 'Supabase'],
-  location: 'Chicago, IL',
-  portfolio: 'https://kingsharif.com',
-  interests: ['AI Agents', 'Minimalist Design', 'Creative Coding']
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+async function doWebSearch(query: string): Promise<string | null> {
+    const apiKey = process.env.GOOGLE_SEARCH_API_KEY || process.env.GOOGLE_API_KEY;
+    const cx = process.env.GOOGLE_SEARCH_CX || process.env.GOOGLE_CX;
+    if (!apiKey || !cx) return null;
+    try {
+        const res = await customSearch.cse.list({ cx, q: query, auth: apiKey, num: 5 });
+        if (!res.data.items?.length) return null;
+        return res.data.items.map((item: any) => `- [${item.title}](${item.link}): ${item.snippet}`).join('\n');
+    } catch { return null; }
 }
+
+async function doGithubContext(query: string): Promise<string | null> {
+    const token = process.env.GITHUB_TOKEN;
+    if (!token) return null;
+    try {
+        const res = await fetch('https://api.github.com/user/repos?sort=updated&per_page=8', {
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (!res.ok) return null;
+        const repos = await res.json();
+        return repos.map((r: any) => `- ${r.name} (${r.language || 'N/A'}): ${r.description || 'No description'}`).join('\n');
+    } catch { return null; }
+}
+
+// ─── Provider functions ───────────────────────────────────────────────────────
+
+async function callOpenAI(model: string, systemPrompt: string, messages: any[]): Promise<string> {
+    const key = process.env.OPENAI_API_KEY;
+    if (!key) throw new Error('No OpenAI key');
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+        body: JSON.stringify({
+            model,
+            messages: [{ role: 'system', content: systemPrompt }, ...messages.map((m: any) => ({ role: m.role, content: m.content }))],
+            max_tokens: 1500,
+        }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || 'OpenAI error');
+    return data.choices?.[0]?.message?.content || '';
+}
+
+async function callGemini(model: string, systemPrompt: string, messages: any[]): Promise<string> {
+    const key = process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+    if (!key) throw new Error('No Gemini key');
+    // Map friendly model names to API model IDs
+    const modelMap: Record<string, string> = {
+        'gemini-flash': 'gemini-2.0-flash',
+        'gemini-2.0-flash': 'gemini-2.0-flash',
+        'gemini-pro': 'gemini-1.5-pro',
+        'gemini-1.5-pro': 'gemini-1.5-pro',
+    };
+    const apiModel = modelMap[model] || model;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${apiModel}:generateContent?key=${key}`;
+    const contents = [
+        { role: 'user', parts: [{ text: systemPrompt }] },
+        { role: 'model', parts: [{ text: 'Understood. I am Milo.' }] },
+        ...messages.map((m: any) => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: m.content }],
+        })),
+    ];
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+async function callAnthropic(model: string, systemPrompt: string, messages: any[]): Promise<string> {
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key) throw new Error('No Anthropic key');
+    // Map friendly model names to API model IDs
+    const modelMap: Record<string, string> = {
+        'claude-sonnet': 'claude-sonnet-4-6',
+        'claude-sonnet-4-6': 'claude-sonnet-4-6',
+        'claude-opus': 'claude-opus-4-6',
+        'claude-haiku': 'claude-haiku-4-5-20251001',
+    };
+    const apiModel = modelMap[model] || model;
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': key.trim(),
+            'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+            model: apiModel,
+            max_tokens: 1500,
+            system: systemPrompt,
+            messages: messages.map((m: any) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })),
+        }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    return data.content?.[0]?.text || '';
+}
+
+async function callGroq(model: string, systemPrompt: string, messages: any[]): Promise<string> {
+    const key = process.env.GROQ_API_KEY;
+    if (!key) throw new Error('No Groq key');
+    const modelMap: Record<string, string> = {
+        'groq-llama': 'llama-3.3-70b-versatile',
+        'groq-mixtral': 'mixtral-8x7b-32768',
+    };
+    const apiModel = modelMap[model] || 'llama-3.3-70b-versatile';
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+        body: JSON.stringify({
+            model: apiModel,
+            messages: [{ role: 'system', content: systemPrompt }, ...messages.map((m: any) => ({ role: m.role, content: m.content }))],
+            max_tokens: 1500,
+        }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || 'Groq error');
+    return data.choices?.[0]?.message?.content || '';
+}
+
+// ─── Main handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
-  try {
-<<<<<<< Updated upstream
-    const { messages, model, thinkingMode, tools } = await req.json()
-    const lastMessage = messages[messages.length - 1]
-    const query = lastMessage.content
-
-    // Initialize thinking steps
-    const thinkingSteps = []
-    
-    // 1. Analyze Intent
-    thinkingSteps.push({ title: 'Analyzing Request', status: 'completed', description: `Model: ${model}, Mode: ${thinkingMode}` })
-
-    let context = `You are Malo, King Sharif's advanced AI assistant (Jarvis-like).
-You are smart, precise, and have access to tools.
-Current User Context: ${JSON.stringify(KING_INFO)}
-`
-
-    // 2. Web Search
-    const needsSearch = tools?.includes('web') && 
-      (query.toLowerCase().includes('search') || 
-       query.toLowerCase().includes('google') || 
-       query.toLowerCase().includes('find') || 
-       query.toLowerCase().includes('current') ||
-       query.toLowerCase().includes('news') ||
-       (query.length > 20 && query.includes('?')))
-
-    let searchResults = ''
-    if (needsSearch) {
-      thinkingSteps.push({ title: 'Searching Web', status: 'pending', description: `Query: ${query}` })
-      try {
-        const apiKey = process.env.GOOGLE_SEARCH_API_KEY || process.env.GOOGLE_API_KEY
-        const cx = process.env.GOOGLE_SEARCH_CX || process.env.GOOGLE_CX
-        
-        if (!apiKey || !cx) throw new Error('Keys missing')
-
-        const res = await customSearch.cse.list({ cx, q: query, auth: apiKey, num: 5 })
-
-        if (res.data.items) {
-            searchResults = res.data.items.map((item: any) => `- [${item.title}](${item.link}): ${item.snippet}`).join('\n')
-            context += `\n\nWeb Search Results:\n${searchResults}\n\n`
-            thinkingSteps[thinkingSteps.length - 1].status = 'completed'
-            thinkingSteps[thinkingSteps.length - 1].description = `Found ${res.data.items.length} results`
-        } else {
-             thinkingSteps[thinkingSteps.length - 1].status = 'failed'
-             thinkingSteps[thinkingSteps.length - 1].description = 'No results'
-        }
-      } catch (error) {
-        console.error('Search error:', error)
-        thinkingSteps[thinkingSteps.length - 1].status = 'failed'
-        thinkingSteps[thinkingSteps.length - 1].description = 'Search unavailable'
-      }
-    }
-
-    // 3. Notes Access
-    if (query.toLowerCase().includes('idea') || query.toLowerCase().includes('note')) {
-        thinkingSteps.push({ title: 'Checking Notes', status: 'pending', description: 'Querying Supabase...' })
-        
-        // Initialize Supabase client only when needed
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-        const supabase = createClient(supabaseUrl, supabaseServiceKey)
-        
-        const { data: notes } = await supabase.from('ideas').select('*').order('created_at', { ascending: false }).limit(5)
-        if (notes) {
-            context += `\n\nRecent Notes:\n${JSON.stringify(notes)}\n\n`
-            thinkingSteps[thinkingSteps.length - 1].status = 'completed'
-            thinkingSteps[thinkingSteps.length - 1].description = `Retrieved ${notes.length} notes`
-        }
-    }
-
-    // 4. Generate Response (Multi-Provider)
-    thinkingSteps.push({ title: 'Formulating Answer', status: 'pending', description: `Using ${model}` })
-=======
-    const { message } = await req.json()
-    
-<<<<<<< Updated upstream
-    // Check if the message is valid
-    if (!message || typeof message !== 'string') {
-      return NextResponse.json(
-        { error: 'Invalid message format' },
-        { status: 400 }
-      )
-    }
-
-    // Handle greetings differently
-    if (isGreeting(message)) {
-      return NextResponse.json({ 
-        message: "Hi there! 👋 What would you like to know about King Sharif? I can tell you about his skills, projects, education, or interests."
-      })
-    }
-=======
-    // 1. Analyze Intent
-    thinkingSteps.push({ title: 'Analyzing Request', status: 'completed', description: `Model: ${model}, Tool: ${tools?.[0] || 'None'}` })
-
-    let context = `You are Malo, King Sharif's advanced AI assistant (Jarvis-like).
-You are smart, precise, and have access to tools.
-Current User Context: ${JSON.stringify(KING_INFO)}
-`
-
-    // 2. Web Search
-    const needsSearch = tools?.includes('search-web') || tools?.includes('web') || 
-      (query.toLowerCase().includes('search') && !query.toLowerCase().includes('github'))
-
-    if (needsSearch) {
-      thinkingSteps.push({ title: 'Searching Web', status: 'pending', description: `Query: ${query}` })
-      try {
-        const apiKey = process.env.GOOGLE_SEARCH_API_KEY || process.env.GOOGLE_API_KEY
-        const cx = process.env.GOOGLE_SEARCH_CX || process.env.GOOGLE_CX
-        
-        if (!apiKey || !cx) throw new Error('Keys missing')
-
-        const res = await customSearch.cse.list({ cx, q: query, auth: apiKey, num: 5 })
-
-        if (res.data.items) {
-            const searchResults = res.data.items.map((item: any) => `- [${item.title}](${item.link}): ${item.snippet}`).join('\n')
-            context += `\n\nWeb Search Results:\n${searchResults}\n\n`
-            thinkingSteps[thinkingSteps.length - 1].status = 'completed'
-            thinkingSteps[thinkingSteps.length - 1].description = `Found ${res.data.items.length} results`
-        } else {
-             thinkingSteps[thinkingSteps.length - 1].status = 'failed'
-             thinkingSteps[thinkingSteps.length - 1].description = 'No results'
-        }
-      } catch (error) {
-        console.error('Search error:', error)
-        thinkingSteps[thinkingSteps.length - 1].status = 'failed'
-        thinkingSteps[thinkingSteps.length - 1].description = 'Search unavailable'
-      }
-    }
-
-    // 3. GitHub Integration
-    const needsGithub = tools?.includes('github') || query.toLowerCase().includes('github')
-    
-    if (needsGithub) {
-        thinkingSteps.push({ title: 'Checking GitHub', status: 'pending', description: 'Accessing repositories...' })
-        try {
-            const githubToken = process.env.GITHUB_TOKEN
-            if (!githubToken) throw new Error('GitHub Token missing')
-
-            // Default to listing repos if no specific query
-            // In a real agent, we would parse specific intent (search code, list prs, etc)
-            const res = await fetch('https://api.github.com/user/repos?sort=updated&per_page=5', {
-                headers: {
-                    'Authorization': `token ${githubToken}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            })
-
-            if (res.ok) {
-                const repos = await res.json()
-                const repoList = repos.map((r: any) => `- [${r.name}](${r.html_url}): ${r.description || 'No description'} (Language: ${r.language})`).join('\n')
-                context += `\n\nRecent GitHub Repositories:\n${repoList}\n\n`
-                thinkingSteps[thinkingSteps.length - 1].status = 'completed'
-                thinkingSteps[thinkingSteps.length - 1].description = `Found ${repos.length} recent repos`
-            } else {
-                thinkingSteps[thinkingSteps.length - 1].status = 'failed'
-                thinkingSteps[thinkingSteps.length - 1].description = 'Failed to fetch repos'
-            }
-        } catch (error) {
-            console.error('GitHub error:', error)
-            thinkingSteps[thinkingSteps.length - 1].status = 'failed'
-            thinkingSteps[thinkingSteps.length - 1].description = 'GitHub unavailable'
-        }
-    }
-    
-    // 4. Notes Access (Supabase) - Keep existing logic if relevant
-    if (query.toLowerCase().includes('idea') || query.toLowerCase().includes('note')) {
-        // ... (existing notes logic if needed, suppressing for space if not core to this task, but user liked it before so keeping simplified)
-         // Initialize Supabase only if needed
-         if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-            const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-            const { data: notes } = await supabase.from('ideas').select('*').order('created_at', { ascending: false }).limit(3)
-            if (notes && notes.length > 0) {
-               context += `\n\nRecent Notes:\n${JSON.stringify(notes)}\n\n`
-            }
-         }
-    }
-
-    // 5. Generate Response (Multi-Provider)
-    thinkingSteps.push({ title: 'Formulating Answer', status: 'pending', description: `Using ${model}` })
->>>>>>> Stashed changes
-    
-    // Create a prompt for the AI
-    const prompt = `You are a friendly assistant for King Sharif's portfolio website. You should be concise, friendly, and helpful. Your responses should be short (1-3 sentences max) unless the user specifically asks for more detail.
-
-<<<<<<< Updated upstream
-Here's some information about King Sharif:
-${JSON.stringify(KING_INFO)}
-
-User: ${message}
-Assistant:`
-    
-    console.log('Sending request to Hugging Face API...')
-    
-    // Fallback response in case API fails
-    let aiMessage = "I'm sorry, I couldn't process your request at the moment. King Sharif is a full-stack developer with expertise in React, Next.js, and TypeScript. Feel free to explore his portfolio or ask another question!"
-    
     try {
-      // Call Hugging Face API with a simple model that should be available
-      const response = await hf.textGeneration({
-        model: 'gpt2', // Using a very basic model that should be available
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: 100,
-          temperature: 0.5,
-          top_p: 0.9,
-          repetition_penalty: 1.2,
-          do_sample: true,
-          return_full_text: false
-=======
-    // Provider Logic
-    if (model.startsWith('gpt') && process.env.OPENAI_API_KEY) {
-        // OpenAI
-        try {
-            const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
-                body: JSON.stringify({
-                    model: model, 
-                    messages: [
-                        { role: 'system', content: context },
-                        ...messages.map((m: any) => ({ role: m.role, content: m.content }))
-                    ],
-                    max_tokens: 1000
-                })
-            })
-            const data = await resp.json()
-            generatedText = data.choices?.[0]?.message?.content || "OpenAI Response Error"
-            await trackTokenUsage('OpenAI', model, query, generatedText)
-        } catch (e) {
-            console.error(e)
-            generatedText = "Error communicating with OpenAI."
+        const { messages, model, thinkingMode, tools, ctroomContext } = await req.json();
+        const lastMessage = messages[messages.length - 1];
+        const query = lastMessage?.content || '';
+
+        const thinkingSteps: { title: string; status: string; description: string }[] = [];
+        thinkingSteps.push({ title: 'Processing Request', status: 'completed', description: `Model: ${model}` });
+
+        // Build base system prompt with ctroom context
+        let systemPrompt = buildSystemPrompt(ctroomContext);
+
+        // Web Search
+        const needsSearch = tools?.includes('search-web') ||
+            (query.toLowerCase().includes('search') && !query.toLowerCase().includes('github'));
+        if (needsSearch) {
+            thinkingSteps.push({ title: 'Searching the Web', status: 'pending', description: query });
+            const results = await doWebSearch(query);
+            if (results) {
+                systemPrompt += `\n\nWeb Search Results:\n${results}`;
+                thinkingSteps[thinkingSteps.length - 1].status = 'completed';
+                thinkingSteps[thinkingSteps.length - 1].description = 'Found relevant results';
+            } else {
+                thinkingSteps[thinkingSteps.length - 1].status = 'failed';
+                thinkingSteps[thinkingSteps.length - 1].description = 'Search unavailable';
+            }
         }
-    } else if (model.includes('gemini') && process.env.GOOGLE_GEMINI_API_KEY) {
-        // Google Gemini
-        try {
-            const geminiModel = model.includes('flash') ? 'gemini-1.5-flash' : 'gemini-pro' 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${process.env.GOOGLE_GEMINI_API_KEY}`
-            
-            const resp = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: sysPrompt }] }]
-                })
-            })
-            const data = await resp.json()
-            generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Gemini Response Error"
-            await trackTokenUsage('Google', geminiModel, query, generatedText)
-        } catch (e) {
-            console.error(e)
-            generatedText = "Error communicating with Gemini."
+
+        // GitHub Context
+        const needsGithub = tools?.includes('github') || query.toLowerCase().includes('github');
+        if (needsGithub) {
+            thinkingSteps.push({ title: 'Checking GitHub', status: 'pending', description: 'Fetching repositories...' });
+            const repoList = await doGithubContext(query);
+            if (repoList) {
+                systemPrompt += `\n\nGitHub Repositories:\n${repoList}`;
+                thinkingSteps[thinkingSteps.length - 1].status = 'completed';
+                thinkingSteps[thinkingSteps.length - 1].description = 'Repos loaded';
+            } else {
+                thinkingSteps[thinkingSteps.length - 1].status = 'failed';
+                thinkingSteps[thinkingSteps.length - 1].description = 'GitHub unavailable';
+            }
         }
-    } else {
-        // Fallback to Hugging Face
+
+        // Generate response
+        thinkingSteps.push({ title: 'Generating Response', status: 'pending', description: `Using ${model}` });
+
+        let generatedText = '';
+        let usedProvider = '';
+
         try {
-            const hf = new HfInference(process.env.HUGGINGFACE_API_KEY)
-            const response = await hf.textGeneration({
-                model: 'mistralai/Mistral-7B-Instruct-v0.3', 
-                inputs: sysPrompt,
-                parameters: { max_new_tokens: 500, return_full_text: false }
-            })
-            generatedText = response.generated_text
-            await trackTokenUsage('HuggingFace', 'mistralai/Mistral-7B-Instruct-v0.3', query, generatedText)
-        } catch (e) {
-            generatedText = "I'm having trouble connecting to my brain. (Check API Keys)"
->>>>>>> Stashed changes
+            if (model.startsWith('gpt')) {
+                generatedText = await callOpenAI(model, systemPrompt, messages);
+                usedProvider = 'OpenAI';
+            } else if (model.includes('gemini')) {
+                generatedText = await callGemini(model, systemPrompt, messages);
+                usedProvider = 'Google';
+            } else if (model.includes('claude')) {
+                generatedText = await callAnthropic(model, systemPrompt, messages);
+                usedProvider = 'Anthropic';
+            } else if (model.startsWith('groq')) {
+                generatedText = await callGroq(model, systemPrompt, messages);
+                usedProvider = 'Groq';
+            } else {
+                // Fallback: try Gemini first, then OpenAI
+                if (process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY) {
+                    generatedText = await callGemini('gemini-2.0-flash', systemPrompt, messages);
+                    usedProvider = 'Google';
+                } else if (process.env.OPENAI_API_KEY) {
+                    generatedText = await callOpenAI('gpt-4o-mini', systemPrompt, messages);
+                    usedProvider = 'OpenAI';
+                } else {
+                    generatedText = "No AI provider available. Please add an API key in Settings.";
+                }
+            }
+        } catch (err: any) {
+            console.error('Provider error:', err);
+            generatedText = `Error: ${err.message || 'Failed to get a response.'}`;
         }
-      })
-      
-      console.log('Response received:', response)
-      
-      // Extract the AI's response and clean it up
-      aiMessage = response.generated_text.trim()
-    } catch (apiError) {
-      console.error('Hugging Face API error details:', apiError)
-      // Continue with fallback response
+
+        thinkingSteps[thinkingSteps.length - 1].status = 'completed';
+        thinkingSteps[thinkingSteps.length - 1].description = usedProvider || model;
+
+        return NextResponse.json({
+            message: generatedText || "I don't have that information right now.",
+            thinkingSteps,
+        });
+
+    } catch (error) {
+        console.error('Chat API Error:', error);
+        return NextResponse.json(
+            { error: 'Internal Server Error', details: error instanceof Error ? error.message : 'Unknown error' },
+            { status: 500 }
+        );
     }
-    
-    // Remove any potential instruction tokens that might be in the response
-    aiMessage = aiMessage.replace(/<s>|\[INST\]|\[\/INST\]|<\/s>/g, '').trim()
-    
-    // Remove phrases like "I am an AI assistant for King Sharif" or similar introductions
-    aiMessage = aiMessage.replace(/^(I am|I'm) an AI assistant for King Sharif\.?\s*/i, '')
-    aiMessage = aiMessage.replace(/^As an AI assistant for King Sharif,?\s*/i, '')
-    
-    // Format links to be clickable
-    aiMessage = formatLinks(aiMessage)
-    
-    console.log('Cleaned message:', aiMessage)
-    
-    return NextResponse.json({ message: aiMessage || "I don't have that information about King." })
-    
-  } catch (error) {
-    console.error('Chat API Error:', error)
-    return NextResponse.json(
-      { error: 'Internal Server Error', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    )
-  }
 }
