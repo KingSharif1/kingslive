@@ -18,7 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 import { View, UsageStats, ThemeMode } from '../../types/index';
 import { UsageWidget } from './UsageWidget';
-import { UsageModal } from '../modals/UsageModal';
+import UsageModal from '../modals/UsageModal';
 
 interface SidebarProps {
     currentView: View;

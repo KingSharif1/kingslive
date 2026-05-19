@@ -1,3 +1,4 @@
 {
-  "/_not-found/page": "app/_not-found/page.js"
+  "/api/teller/sync/route": "app/api/teller/sync/route.js",
+  "/ctroom/page": "app/ctroom/page.js"
 }

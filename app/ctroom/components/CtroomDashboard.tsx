@@ -140,33 +140,21 @@ export function CtroomDashboard() {
     const [chatInput, setChatInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
 
-    // Auth session monitoring - check token validity and auto-logout on expiry
+    // Auth session monitoring — sign out when session expires so parent auth gate shows login screen
     useEffect(() => {
         const checkAuthSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
-            
             if (!session) {
-                console.warn('No active session found - redirecting to login');
-                window.location.href = '/login';
+                await supabase.auth.signOut(); // triggers onAuthStateChange → parent shows login
                 return;
             }
-
             const expiresAt = session.expires_at;
-            if (expiresAt) {
-                const expiryTime = expiresAt * 1000;
-                const now = Date.now();
-                
-                if (expiryTime <= now) {
-                    console.warn('Session expired - logging out');
-                    await supabase.auth.signOut();
-                    window.location.href = '/login';
-                }
+            if (expiresAt && expiresAt * 1000 <= Date.now()) {
+                await supabase.auth.signOut();
             }
         };
 
-        checkAuthSession();
-        const interval = setInterval(checkAuthSession, 60000); // Check every minute
-        
+        const interval = setInterval(checkAuthSession, 60000);
         return () => clearInterval(interval);
     }, []);
 
@@ -192,9 +180,9 @@ export function CtroomDashboard() {
                 }
             } catch (error) {
                 console.error('Phase 1 load error:', error);
-                // If auth error, redirect to login
+                // If auth error, sign out silently
                 if (error instanceof Error && error.message.includes('auth')) {
-                    window.location.href = '/login';
+                    await supabase.auth.signOut();
                 }
             }
 

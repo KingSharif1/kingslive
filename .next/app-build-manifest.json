@@ -7,11 +7,33 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/_not-found/page": [
+    "/ctroom/page": [
       "static/chunks/webpack.js",
       "static/chunks/vendor.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/_not-found/page.js"
+      "static/chunks/framer-motion.js",
+      "static/chunks/app/ctroom/page.js"
+    ],
+    "/api/teller/sync/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
+      "static/chunks/main-app.js",
+      "static/chunks/common.js",
+      "static/chunks/app/api/teller/sync/route.js"
+    ],
+    "/api/settings/key-status/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
+      "static/chunks/main-app.js",
+      "static/chunks/common.js",
+      "static/chunks/app/api/settings/key-status/route.js"
+    ],
+    "/api/github/repos/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
+      "static/chunks/main-app.js",
+      "static/chunks/common.js",
+      "static/chunks/app/api/github/repos/route.js"
     ]
   }
 }

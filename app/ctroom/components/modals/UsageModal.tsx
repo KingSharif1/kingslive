@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { X, Zap, TrendingUp } from 'lucide-react';
 import { UsageStats, ProviderUsage } from '../../types/index';
@@ -9,7 +11,7 @@ interface UsageModalProps {
     usage: UsageStats;
 }
 
-export const UsageModal = ({ isOpen, onClose, usage }: UsageModalProps) => {
+const UsageModal = ({ isOpen, onClose, usage }: UsageModalProps) => {
     if (!isOpen) return null;
 
     const getProviderColor = (provider: string) => {
@@ -131,6 +133,9 @@ export const UsageModal = ({ isOpen, onClose, usage }: UsageModalProps) => {
         </div>
     );
 };
+
+export { UsageModal };
+export default UsageModal;
 
 interface UsageLineProps {
     label: string;
