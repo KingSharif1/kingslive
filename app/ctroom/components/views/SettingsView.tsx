@@ -263,13 +263,13 @@ function IntegrationsTab({ local, setLocal }: { local: UserSettings; setLocal: R
 
     useEffect(() => {
         // Check which env-var keys are set
-        fetch('/api/settings/key-status')
+        fetch('/api/ctroom/settings/key-status')
             .then(r => r.json())
             .then(data => { setEnvStatus(data); setLoadingStatus(false); })
             .catch(() => setLoadingStatus(false));
 
         // Try to load GitHub user info
-        fetch('/api/github/repos')
+        fetch('/api/ctroom/github/repos')
             .then(r => r.ok ? r.json() : null)
             .then(data => { if (data?.user) setGithubUser(data.user); })
             .catch(() => {});
@@ -615,7 +615,7 @@ function AppearanceTab({
                                 className="w-8 h-8 rounded-full ring-2 ring-offset-2 ring-offset-background shadow-md transition-transform group-hover:scale-110"
                                 style={{
                                     background: `linear-gradient(135deg, ${a.light}, ${a.dark})`,
-                                    ringColor: currentAccent === a.id ? a.light : 'transparent',
+                                    ['--tw-ring-color' as any]: currentAccent === a.id ? a.light : 'transparent',
                                 }}
                             />
                             <div className="flex items-center gap-1">

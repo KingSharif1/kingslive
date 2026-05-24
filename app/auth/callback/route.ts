@@ -53,6 +53,14 @@ export async function GET(request: Request) {
     }
   }
 
-  // Redirect to /ctroom with 303 status to prevent caching/resubmission
-  return NextResponse.redirect(new URL('/ctroom', requestUrl.origin), { status: 303 })
+  // Redirect to /ctroom — set ctroom_last_active so the inactivity check passes on first arrival
+  const redirectRes = NextResponse.redirect(new URL('/ctroom', requestUrl.origin), { status: 303 })
+  redirectRes.cookies.set('ctroom_last_active', Date.now().toString(), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 60 * 60 * 5, // 5 hours (matches inactivity window)
+    path: '/',
+  })
+  return redirectRes
 }

@@ -5,7 +5,7 @@ import {
     CheckCircle2, Plus, Inbox, Sun, CalendarDays, ChevronLeft,
     ChevronRight, Flame, Repeat, MoreHorizontal, Edit2,
     Trash2, Archive, Copy, Zap, Trophy, Target, Clock,
-    ChevronDown, ChevronUp, TrendingUp, FileText, BookOpen, Send, X
+    ChevronDown, ChevronUp, TrendingUp, FileText, BookOpen, Send, X, Loader2
 } from 'lucide-react';
 import {
     format, isToday, isTomorrow, isPast, isAfter, isSameDay,
@@ -116,7 +116,7 @@ interface PlannerViewProps {
 }
 
 type NavFilter = 'today' | 'inbox' | 'upcoming' | 'completed' | string;
-type CalView = 'week' | 'month';
+type CalView = 'week' | 'month' | 'schedule';
 type PlannerTab = 'tasks' | 'log' | 'reflection';
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -132,7 +132,7 @@ export const PlannerView = ({
     const [menuId, setMenuId] = useState<string | null>(null);
     const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
     const [showCal, setShowCal] = useState(false);
-    const [calView, setCalView] = useState<CalView>('week');
+    const [calView, setCalView] = useState<CalView>('schedule');
     const [calDate, setCalDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [collapsedSections, setCollapsedSections] = useState<string[]>([]);
@@ -284,7 +284,7 @@ export const PlannerView = ({
 
     // ─── Render ───────────────────────────────────────────────────────────────
     return (
-        <div className="h-full flex overflow-hidden font-inter">
+        <div className="h-full flex overflow-hidden font-inter" style={{ background: '#080808', color: '#e5e5e5' }}>
             {confetti && <Confetti x={confetti.x} y={confetti.y} />}
 
             {/* Context Menu */}
@@ -294,8 +294,8 @@ export const PlannerView = ({
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 100 }}
-                        className="w-44 bg-card border border-border rounded-xl shadow-2xl overflow-hidden"
+                        style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 100, background: '#111', border: '1px solid rgba(255,255,255,0.1)' }}
+                        className="w-44 rounded-xl shadow-2xl overflow-hidden"
                         onClick={e => e.stopPropagation()}
                     >
                         {[
@@ -303,11 +303,11 @@ export const PlannerView = ({
                             { icon: Copy,    label: 'Duplicate', action: () => { const i = actionItems.find(x => x.id === menuId); if (i) onDuplicateItem(i); setMenuId(null); } },
                             { icon: Archive, label: 'Archive',   action: () => { onArchiveItem(menuId!); setMenuId(null); } },
                         ].map(({ icon: Icon, label, action }) => (
-                            <button key={label} onClick={action} className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-secondary transition-colors text-left">
-                                <Icon size={13} className="text-muted-foreground" /> {label}
+                            <button key={label} onClick={action} className="w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors text-left text-white/60 hover:text-white hover:bg-white/5">
+                                <Icon size={13} className="text-white/30" /> {label}
                             </button>
                         ))}
-                        <div className="border-t border-border" />
+                        <div className="border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }} />
                         <button onClick={() => { onDeleteItem(menuId!); setMenuId(null); }}
                             className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-400 hover:bg-red-400/10 transition-colors">
                             <Trash2 size={13} /> Delete
@@ -317,38 +317,44 @@ export const PlannerView = ({
             </AnimatePresence>
 
             {/* ── Left Sidebar ─────────────────────────────────────────────── */}
-            <div className="w-56 flex-shrink-0 border-r border-border flex flex-col bg-card/40 overflow-y-auto">
+            <div className="w-56 flex-shrink-0 flex flex-col overflow-y-auto hq-scroll" style={{ background: '#0a0a0a', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
+
+                {/* HQ breadcrumb */}
+                <div className="px-4 py-3 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-white/20" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <span>PLANNER</span>
+                </div>
 
                 {/* Streak + XP */}
-                <div className="p-4 border-b border-border space-y-3">
+                <div className="p-4 space-y-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center",
-                                streak > 0 ? "bg-orange-500/10 text-orange-400" : "bg-secondary text-muted-foreground")}>
+                                streak > 0 ? "bg-orange-500/10 text-orange-400" : "bg-white/5 text-white/30")}>
                                 <Flame size={16} />
                             </div>
                             <div>
-                                <div className="font-mono text-lg font-bold text-foreground leading-none">{streak}</div>
-                                <div className="text-[10px] text-muted-foreground">day streak</div>
+                                <div className="font-mono text-lg font-bold text-white leading-none">{streak}</div>
+                                <div className="text-[10px] text-white/30 font-mono">day streak</div>
                             </div>
                         </div>
                         <div className="text-right">
-                            <div className="font-mono text-base font-bold text-primary leading-none">{todayXP}</div>
-                            <div className="text-[10px] text-muted-foreground">{isToday(selectedDate) ? 'XP today' : 'XP earned'}</div>
+                            <div className="font-mono text-base font-bold leading-none" style={{ color: '#00ff88' }}>{todayXP}</div>
+                            <div className="text-[10px] text-white/30 font-mono">{isToday(selectedDate) ? 'XP today' : 'XP earned'}</div>
                         </div>
                     </div>
                     <div>
                         <div className="flex items-center justify-between text-xs mb-1.5">
-                            <span className="text-muted-foreground">{isToday(selectedDate) ? 'Today' : format(selectedDate, 'MMM d')}</span>
-                            <span className={cn("font-mono font-medium", winTheDay ? "text-emerald-400" : "text-foreground")}>
+                            <span className="font-mono text-[10px] text-white/30">{isToday(selectedDate) ? 'Today' : format(selectedDate, 'MMM d')}</span>
+                            <span className={cn("font-mono text-[10px] font-medium", winTheDay ? "text-emerald-400" : "text-white/60")}>
                                 {winTheDay ? '🏆 Won!' : `${todayDone}/${todayTotal}`}
                             </span>
                         </div>
-                        <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                        <div className="h-[3px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
                             <motion.div
                                 initial={{ width: 0 }}
                                 animate={{ width: `${completionPct}%` }}
-                                className={cn("h-full rounded-full", winTheDay ? "bg-emerald-400" : "bg-primary")}
+                                className="h-full rounded-full"
+                                style={{ background: winTheDay ? '#00ff88' : '#00ff88' }}
                             />
                         </div>
                     </div>
@@ -356,24 +362,24 @@ export const PlannerView = ({
 
                 {/* Date Metrics */}
                 {nav === 'today' && (
-                    <div className="px-4 py-3 border-b border-border">
-                        <div className="font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2.5">
+                    <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <div className="font-mono text-[10px] font-semibold uppercase tracking-widest text-white/25 mb-2.5">
                             {isToday(selectedDate) ? "Today's Metrics" : format(selectedDate, 'MMM d')} Metrics
                         </div>
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <Clock size={11} className="text-blue-400" />
-                                    <span className="text-xs text-muted-foreground">Time Logged</span>
+                                    <span className="text-xs text-white/40 font-mono">Time Logged</span>
                                 </div>
-                                <span className="font-mono text-xs text-foreground">{timeLoggedStr}</span>
+                                <span className="font-mono text-xs text-white/70">{timeLoggedStr}</span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <CheckCircle2 size={11} className="text-emerald-400" />
-                                    <span className="text-xs text-muted-foreground">To-Do</span>
+                                    <span className="text-xs text-white/40 font-mono">To-Do</span>
                                 </div>
-                                <span className={cn("font-mono text-xs", winTheDay ? "text-emerald-400" : "text-foreground")}>
+                                <span className={cn("font-mono text-xs", winTheDay ? "text-emerald-400" : "text-white/70")}>
                                     {todayDone} / {todayTotal}
                                 </span>
                             </div>
@@ -382,10 +388,11 @@ export const PlannerView = ({
                 )}
 
                 {/* Add Task */}
-                <div className="p-3 border-b border-border">
+                <div className="p-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                     <button onClick={openItemModal}
-                        className="w-full flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary border border-primary/20 rounded-xl text-sm font-medium hover:bg-primary/20 transition-colors">
-                        <Plus size={15} /> Add Task
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl font-mono text-xs uppercase tracking-widest font-bold transition-all hover:opacity-90"
+                        style={{ background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', color: '#00ff88' }}>
+                        <Plus size={14} /> Add Task
                     </button>
                 </div>
 
@@ -399,14 +406,16 @@ export const PlannerView = ({
                     ].map(({ id, icon: Icon, label }) => (
                         <button key={id}
                             onClick={() => { setNav(id as NavFilter); setShowCal(false); }}
-                            className={cn(
-                                "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors",
-                                nav === id ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-                            )}>
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-mono transition-all"
+                            style={nav === id ? {
+                                background: 'rgba(0,255,136,0.08)',
+                                color: '#00ff88',
+                                boxShadow: 'inset 2px 0 0 0 #00ff88',
+                            } : { color: 'rgba(255,255,255,0.35)' }}>
                             <span className="flex items-center gap-2"><Icon size={14} /> {label}</span>
                             {navCount(id) > 0 && (
-                                <span className={cn("font-mono text-[10px] px-1.5 py-0.5 rounded-full",
-                                    nav === id ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground")}>
+                                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full"
+                                    style={{ background: nav === id ? 'rgba(0,255,136,0.15)' : 'rgba(255,255,255,0.06)', color: nav === id ? '#00ff88' : 'rgba(255,255,255,0.3)' }}>
                                     {navCount(id)}
                                 </span>
                             )}
@@ -417,23 +426,26 @@ export const PlannerView = ({
                 {/* Projects */}
                 {missions.filter(m => m.status === 'active').length > 0 && (
                     <div className="p-2 pt-0">
-                        <div className="font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 py-2">
+                        <div className="font-mono text-[10px] font-semibold uppercase tracking-widest text-white/20 px-3 py-2">
                             Projects
                         </div>
                         <div className="space-y-0.5">
                             {missions.filter(m => m.status === 'active').map(m => (
                                 <button key={m.id}
                                     onClick={() => { setNav(m.id); setShowCal(false); }}
-                                    className={cn(
-                                        "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors",
-                                        nav === m.id ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-                                    )}>
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-mono transition-all"
+                                    style={nav === m.id ? {
+                                        background: 'rgba(0,255,136,0.08)',
+                                        color: '#00ff88',
+                                        boxShadow: 'inset 2px 0 0 0 #00ff88',
+                                    } : { color: 'rgba(255,255,255,0.35)' }}>
                                     <span className="flex items-center gap-2 truncate min-w-0">
                                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: m.color }} />
                                         <span className="truncate">{m.name}</span>
                                     </span>
                                     {navCount(m.id) > 0 && (
-                                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground flex-shrink-0">
+                                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0"
+                                            style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' }}>
                                             {navCount(m.id)}
                                         </span>
                                     )}
@@ -444,77 +456,85 @@ export const PlannerView = ({
                 )}
 
                 {/* Calendar toggle */}
-                <div className="p-2 mt-auto border-t border-border">
+                <div className="p-2 mt-auto" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                     <button onClick={() => setShowCal(v => !v)}
-                        className={cn("w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
-                            showCal ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-secondary")}>
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono transition-all"
+                        style={showCal ? { background: 'rgba(0,255,136,0.08)', color: '#00ff88' } : { color: 'rgba(255,255,255,0.35)' }}>
                         <CalendarDays size={14} /> Calendar
                     </button>
                 </div>
             </div>
 
             {/* ── Main Content ──────────────────────────────────────────────── */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-hidden flex flex-col">
                 {showCal ? (
                     <CalendarPanel
                         calDate={calDate} setCalDate={setCalDate}
-                        calView={calView} setCalView={setCalView}
+                        calView={calView} setCalView={v => { setCalView(v); }}
                         weekDays={weekDays} monthDays={monthDays}
+                        selectedDay={selectedDate}
                         getItemsForDay={getItemsForDay}
-                        onDayClick={(day) => { setSelectedDate(day); setCalDate(day); setShowCal(false); }}
+                        actionItems={actionItems}
+                        missions={missions}
+                        onDayClick={(day) => { setSelectedDate(day); setCalDate(day); if (calView !== 'schedule') setShowCal(false); }}
+                        onSlotClick={(_hour) => { openItemModal(); }}
                     />
                 ) : (
-                    <div className="p-6 max-w-3xl mx-auto">
+                    <div className="flex-1 overflow-y-auto hq-scroll p-6 max-w-3xl mx-auto w-full">
 
-                        {/* Header */}
+                        {/* HQ Header */}
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-3">
-                                <button onClick={() => setSelectedDate(subDays(selectedDate, 1))} 
-                                    className="p-1.5 hover:bg-secondary rounded-lg transition-colors">
+                                <button onClick={() => setSelectedDate(subDays(selectedDate, 1))}
+                                    className="p-1.5 rounded-lg transition-colors text-white/30 hover:text-white hover:bg-white/5">
                                     <ChevronLeft size={18} />
                                 </button>
-                                <h2 className="font-display text-2xl text-foreground">{format(selectedDate, 'EEEE, MMM d')}</h2>
-                                <button onClick={() => setSelectedDate(addDays(selectedDate, 1))} 
-                                    className="p-1.5 hover:bg-secondary rounded-lg transition-colors">
+                                <h2 className="font-mono text-xl font-bold text-white uppercase tracking-tight">{format(selectedDate, 'EEEE, MMM d')}</h2>
+                                <button onClick={() => setSelectedDate(addDays(selectedDate, 1))}
+                                    className="p-1.5 rounded-lg transition-colors text-white/30 hover:text-white hover:bg-white/5">
                                     <ChevronRight size={18} />
                                 </button>
                                 {!isToday(selectedDate) && (
-                                    <button onClick={() => setSelectedDate(new Date())} 
-                                        className="px-2.5 py-1 text-xs font-medium border border-border rounded-lg hover:bg-secondary transition-colors">
+                                    <button onClick={() => setSelectedDate(new Date())}
+                                        className="px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest rounded-lg transition-colors text-white/40 hover:text-white hover:bg-white/5"
+                                        style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
                                         Today
                                     </button>
                                 )}
                             </div>
                             {nav === 'today' && (
-                                <p className="text-sm text-muted-foreground">
+                                <p className="font-mono text-xs text-white/30">
                                     {winTheDay ? 'Day complete. Exceptional work.' :
                                      todayTotal === 0 ? 'Nothing scheduled. Add a task.' :
                                      `${todayTotal - todayDone} remaining · `}
                                     {!winTheDay && todayTotal > 0 && (
-                                        <span className="font-mono">{completionPct}% done</span>
+                                        <span style={{ color: '#00ff88' }}>{completionPct}%</span>
                                     )}
                                 </p>
                             )}
                             {nav === 'today' && todayXP > 0 && (
-                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-xl text-xs font-medium text-primary">
+                                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-mono text-xs font-bold"
+                                    style={{ background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', color: '#00ff88' }}>
                                     <Zap size={12} />
-                                    <span className="font-mono">+{todayXP} XP</span>
+                                    <span>+{todayXP} XP</span>
                                 </div>
                             )}
                         </div>
 
                         {/* Tab switcher */}
-                        <div className="flex items-center gap-1 mb-5 bg-card/60 border border-border rounded-xl p-1 w-fit">
+                        <div className="flex items-center gap-1 mb-5 rounded-xl p-1 w-fit" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
                             {([
                                 { id: 'tasks' as PlannerTab,      icon: CheckCircle2, label: 'Tasks'   },
                                 { id: 'log' as PlannerTab,        icon: FileText,     label: 'Log'     },
                                 { id: 'reflection' as PlannerTab, icon: BookOpen,     label: 'Reflect' },
                             ]).map(({ id, icon: Icon, label }) => (
                                 <button key={id} onClick={() => setPlannerTab(id)}
-                                    className={cn(
-                                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                        plannerTab === id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                                    )}>
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[11px] uppercase tracking-widest font-medium transition-all"
+                                    style={plannerTab === id ? {
+                                        background: 'rgba(0,255,136,0.1)',
+                                        color: '#00ff88',
+                                        border: '1px solid rgba(0,255,136,0.2)',
+                                    } : { color: 'rgba(255,255,255,0.3)' }}>
                                     <Icon size={11} /> {label}
                                 </button>
                             ))}
@@ -549,7 +569,10 @@ export const PlannerView = ({
                                 {(nav === 'today' || nav === 'completed') && done.length > 0 && (
                                     <div className="mt-4">
                                         <button onClick={() => setShowDoneToday(v => !v)}
-                                            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2 px-1">
+                                            className="flex items-center gap-2 text-xs mb-2 px-1 transition-colors"
+                                            style={{ color: 'rgba(255,255,255,0.3)' }}
+                                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.7)'}
+                                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.3)'}>
                                             {showDoneToday ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                             <span className="font-mono uppercase tracking-widest text-[10px] font-semibold">
                                                 Completed ({done.length})
@@ -569,18 +592,20 @@ export const PlannerView = ({
                                 )}
                                 {filtered.length === 0 && nav !== 'upcoming' && (
                                     <div className="text-center py-20">
-                                        <div className="w-16 h-16 bg-card border border-border rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                            {winTheDay ? <Trophy size={28} className="text-emerald-400" /> : <Target size={28} className="text-muted-foreground" />}
+                                        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                                            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                            {winTheDay ? <Trophy size={28} className="text-emerald-400" /> : <Target size={28} style={{ color: 'rgba(255,255,255,0.3)' }} />}
                                         </div>
-                                        <p className="font-display text-base text-foreground mb-1">
+                                        <p className="font-mono text-sm font-semibold mb-1" style={{ color: '#e5e5e5' }}>
                                             {winTheDay ? 'Day won.' : 'Nothing here yet.'}
                                         </p>
-                                        <p className="text-xs text-muted-foreground mb-4">
+                                        <p className="text-xs mb-4" style={{ color: 'rgba(255,255,255,0.35)' }}>
                                             {winTheDay ? 'All tasks complete. Rest up.' : 'Add a task to get started.'}
                                         </p>
                                         {!winTheDay && (
                                             <button onClick={openItemModal}
-                                                className="flex items-center gap-1.5 mx-auto px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium">
+                                                className="flex items-center gap-1.5 mx-auto px-4 py-2 rounded-xl text-sm font-mono font-medium"
+                                                style={{ background: 'rgba(0,255,136,0.12)', border: '1px solid rgba(0,255,136,0.3)', color: '#00ff88' }}>
                                                 <Plus size={14} /> Add Task
                                             </button>
                                         )}
@@ -636,12 +661,12 @@ function TaskSection({ label, items, collapsed, onToggle, labelClass, missions, 
         <div className="mb-5">
             <button onClick={onToggle}
                 className="flex items-center gap-2 w-full mb-2 px-1 hover:opacity-80 transition-opacity">
-                {collapsed ? <ChevronDown size={12} className="text-muted-foreground" /> : <ChevronUp size={12} className="text-muted-foreground" />}
-                <span className={cn("font-mono text-[10px] font-semibold uppercase tracking-widest", labelClass || "text-muted-foreground")}>
+                {collapsed ? <ChevronDown size={12} className="text-white/30" /> : <ChevronUp size={12} className="text-white/30" />}
+                <span className={cn("font-mono text-[10px] font-semibold uppercase tracking-widest", labelClass || "text-white/30")}>
                     {label}
                 </span>
                 {items.length > 0 && (
-                    <span className="font-mono text-[10px] text-muted-foreground">· {items.length}</span>
+                    <span className="font-mono text-[10px] text-white/20">· {items.length}</span>
                 )}
             </button>
             <AnimatePresence>
@@ -649,7 +674,7 @@ function TaskSection({ label, items, collapsed, onToggle, labelClass, missions, 
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }} className="overflow-hidden space-y-1">
                         {items.length === 0 && emptyText && (
-                            <p className="text-xs text-muted-foreground px-1 py-2">{emptyText}</p>
+                            <p className="font-mono text-[11px] text-white/25 px-1 py-2">{emptyText}</p>
                         )}
                         {items.map(item => (
                             <TaskRow key={item.id} item={item} missions={missions} onCheck={onCheck} onMenu={onMenu} muted={muted} />
@@ -675,20 +700,26 @@ function TaskRow({ item, missions, onCheck, onMenu, done = false, muted = false 
     return (
         <motion.div layout initial={{ opacity: 0, y: -4 }} animate={{ opacity: done || muted ? 0.6 : 1, y: 0 }}
             exit={{ opacity: 0, x: 12 }}
-            className="group flex items-center gap-3 px-3 py-2.5 bg-card border border-border rounded-xl hover:border-primary/20 transition-all">
+            className="group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(0,255,136,0.15)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.06)'; }}>
             <button onClick={e => onCheck(e, item.id)}
-                className={cn(
-                    "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all",
-                    done ? "bg-primary border-primary text-primary-foreground" :
-                    item.priority === 'critical' ? "border-red-500 hover:bg-red-500/20" :
-                    item.priority === 'high' ? "border-orange-400 hover:bg-orange-400/20" :
-                    "border-muted-foreground/40 hover:border-primary hover:bg-primary/10"
-                )}>
+                className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all"
+                style={done ? {
+                    background: '#00ff88', borderColor: '#00ff88', color: '#000',
+                } : item.priority === 'critical' ? {
+                    borderColor: '#ef4444',
+                } : item.priority === 'high' ? {
+                    borderColor: '#f97316',
+                } : {
+                    borderColor: 'rgba(255,255,255,0.2)',
+                }}>
                 {done && <CheckCircle2 size={11} />}
             </button>
             <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", cfg.dot)} title={cfg.label} />
             <div className="flex-1 min-w-0">
-                <span className={cn("text-sm leading-snug", done && "line-through text-muted-foreground")}>
+                <span className={cn("text-sm leading-snug", done ? "line-through text-white/30" : "text-white/85")}>
                     {item.title}
                 </span>
                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -707,22 +738,22 @@ function TaskRow({ item, missions, onCheck, onMenu, done = false, muted = false 
                         <span className="font-mono text-[10px] text-red-400">{format(item.date, 'MMM d')}</span>
                     )}
                     {!isOverdue && !isToday(item.date) && !done && (
-                        <span className="font-mono text-[10px] text-muted-foreground">{format(item.date, 'MMM d')}</span>
+                        <span className="font-mono text-[10px] text-white/25">{format(item.date, 'MMM d')}</span>
                     )}
                     {item.dueTime && (
-                        <span className="font-mono text-[10px] text-muted-foreground flex items-center gap-0.5">
+                        <span className="font-mono text-[10px] text-white/25 flex items-center gap-0.5">
                             <Clock size={9} /> {item.dueTime}
                         </span>
                     )}
                     {!done && (
-                        <span className="font-mono text-[10px] text-primary/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="font-mono text-[10px] opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: '#00ff88' }}>
                             +{XP_MAP[item.priority]}xp
                         </span>
                     )}
                 </div>
             </div>
             <button onClick={e => onMenu(e, item.id)}
-                className="opacity-0 group-hover:opacity-100 p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary transition-all flex-shrink-0">
+                className="opacity-0 group-hover:opacity-100 p-1.5 text-white/25 hover:text-white rounded-lg hover:bg-white/5 transition-all flex-shrink-0">
                 <MoreHorizontal size={14} />
             </button>
         </motion.div>
@@ -746,7 +777,7 @@ function UpcomingGrouped({ items, missions, onCheck, onMenu }: {
     const sortedDates = Object.keys(byDate).sort();
 
     if (sortedDates.length === 0)
-        return <p className="text-sm text-muted-foreground text-center py-12">No upcoming tasks.</p>;
+        return <p className="text-sm text-center py-12" style={{ color: 'rgba(255,255,255,0.3)' }}>No upcoming tasks.</p>;
 
     return (
         <div className="space-y-5">
@@ -755,11 +786,11 @@ function UpcomingGrouped({ items, missions, onCheck, onMenu }: {
                 return (
                     <div key={dateKey}>
                         <div className="flex items-center gap-3 mb-2">
-                            <div className="h-px flex-1 bg-border" />
-                            <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                            <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                            <span className="font-mono text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.3)' }}>
                                 {isTomorrow(d) ? 'Tomorrow' : format(d, 'EEE, MMM d')}
                             </span>
-                            <div className="h-px flex-1 bg-border" />
+                            <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.06)' }} />
                         </div>
                         <div className="space-y-1">
                             {byDate[dateKey].map(item => (
@@ -814,18 +845,20 @@ function LogTab({ logs, missions, logInput, setLogInput, logProject, setLogProje
     return (
         <div className="space-y-4">
             {/* Quick entry */}
-            <div className="bg-card border-2 border-border rounded-xl overflow-hidden focus-within:border-primary/40 focus-within:shadow-lg focus-within:shadow-primary/5 transition-all">
+            <div className="rounded-xl overflow-hidden transition-all" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <textarea
                     value={logInput}
                     onChange={e => setLogInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onAdd(); } }}
                     placeholder="What did you work on? (Shift+Enter for new line, Enter to save)"
                     rows={3}
-                    className="w-full px-4 pt-3 pb-2 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 resize-none outline-none leading-relaxed"
+                    className="w-full px-4 pt-3 pb-2 bg-transparent text-sm resize-none outline-none leading-relaxed"
+                    style={{ color: '#e5e5e5', caretColor: '#00ff88' }}
                 />
-                <div className="flex items-center gap-2 px-3 pb-3 pt-1 border-t border-border/50">
+                <div className="flex items-center gap-2 px-3 pb-3 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                     <select value={logProject} onChange={e => setLogProject(e.target.value)}
-                        className="font-mono text-xs px-2 py-1.5 bg-secondary border border-border rounded-lg text-foreground outline-none flex-1 max-w-[140px]">
+                        className="font-mono text-xs px-2 py-1.5 rounded-lg outline-none flex-1 max-w-[140px]"
+                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#e5e5e5' }}>
                         <option value="">No project</option>
                         {missions.filter(m => m.status === 'active').map(m => (
                             <option key={m.id} value={m.id}>{m.name}</option>
@@ -833,13 +866,15 @@ function LogTab({ logs, missions, logInput, setLogInput, logProject, setLogProje
                     </select>
                     <div className="flex items-center gap-1">
                         <select value={hours} onChange={e => handleTimeChange(e.target.value, minutes)}
-                            className="font-mono text-xs px-2 py-1.5 bg-secondary border border-border rounded-lg text-foreground outline-none w-14">
+                            className="font-mono text-xs px-2 py-1.5 rounded-lg outline-none w-14"
+                            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#e5e5e5' }}>
                             {[...Array(13)].map((_, i) => (
                                 <option key={i} value={i}>{i}h</option>
                             ))}
                         </select>
                         <select value={minutes} onChange={e => handleTimeChange(hours, e.target.value)}
-                            className="font-mono text-xs px-2 py-1.5 bg-secondary border border-border rounded-lg text-foreground outline-none w-14">
+                            className="font-mono text-xs px-2 py-1.5 rounded-lg outline-none w-14"
+                            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#e5e5e5' }}>
                             <option value="0">0m</option>
                             <option value="15">15m</option>
                             <option value="30">30m</option>
@@ -847,9 +882,10 @@ function LogTab({ logs, missions, logInput, setLogInput, logProject, setLogProje
                         </select>
                     </div>
                     <div className="flex items-center gap-2 ml-auto">
-                        <span className="text-[10px] text-muted-foreground font-mono">{logInput.length}/500</span>
+                        <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.3)' }}>{logInput.length}/500</span>
                         <button onClick={onAdd} disabled={!logInput.trim() || saving}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium disabled:opacity-40 hover:opacity-90 transition-all shadow-sm">
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium disabled:opacity-40 transition-all"
+                            style={{ background: 'rgba(0,255,136,0.12)', border: '1px solid rgba(0,255,136,0.3)', color: '#00ff88' }}>
                             {saving ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
                             Log
                         </button>
@@ -859,7 +895,7 @@ function LogTab({ logs, missions, logInput, setLogInput, logProject, setLogProje
 
             {/* Log list header */}
             {logs.length > 0 && (
-                <div className="font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-1">
+                <div className="font-mono text-[10px] font-semibold uppercase tracking-widest px-1" style={{ color: 'rgba(255,255,255,0.3)' }}>
                     Logs for {format(new Date(logs[0].date), 'EEE, d MMM')} · {logs.length} {logs.length === 1 ? 'entry' : 'entries'}
                 </div>
             )}
@@ -867,9 +903,9 @@ function LogTab({ logs, missions, logInput, setLogInput, logProject, setLogProje
             {/* Log entries */}
             {logs.length === 0 ? (
                 <div className="text-center py-12">
-                    <FileText size={32} className="text-muted-foreground/20 mx-auto mb-3" />
-                    <p className="text-sm text-muted-foreground">No logs yet. What did you work on today?</p>
-                    <p className="font-mono text-xs text-muted-foreground/50 mt-1">Press Enter to add quickly.</p>
+                    <FileText size={32} className="mx-auto mb-3" style={{ color: 'rgba(255,255,255,0.1)' }} />
+                    <p className="text-sm" style={{ color: 'rgba(255,255,255,0.35)' }}>No logs yet. What did you work on today?</p>
+                    <p className="font-mono text-xs mt-1" style={{ color: 'rgba(255,255,255,0.2)' }}>Press Enter to add quickly.</p>
                 </div>
             ) : (
                 <AnimatePresence>
@@ -880,7 +916,10 @@ function LogTab({ logs, missions, logInput, setLogInput, logProject, setLogProje
                             return (
                                 <motion.div key={log.id} layout initial={{ opacity: 0, y: -4 }}
                                     animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: 12 }}
-                                    className="group flex items-start gap-3 px-4 py-3 bg-card border border-border rounded-xl hover:border-border/80 transition-all">
+                                    className="group flex items-start gap-3 px-4 py-3 rounded-xl transition-all"
+                                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)'}
+                                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.06)'}>
                                     <FileText size={13} className="text-blue-400 mt-0.5 flex-shrink-0" />
                                     <div className="flex-1 min-w-0">
                                         {isEditing ? (
@@ -894,10 +933,11 @@ function LogTab({ logs, missions, logInput, setLogInput, logProject, setLogProje
                                                     if (e.key === 'Escape') setEditingId(null);
                                                 }}
                                                 rows={2}
-                                                className="w-full bg-transparent text-sm text-foreground resize-none outline-none leading-snug"
+                                                className="w-full bg-transparent text-sm resize-none outline-none leading-snug"
+                                                style={{ color: '#e5e5e5', caretColor: '#00ff88' }}
                                             />
                                         ) : (
-                                            <p className="text-sm text-foreground leading-snug">{log.content}</p>
+                                            <p className="text-sm leading-snug" style={{ color: '#e5e5e5' }}>{log.content}</p>
                                         )}
                                         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                             {mission && (
@@ -911,18 +951,24 @@ function LogTab({ logs, missions, logInput, setLogInput, logProject, setLogProje
                                                     {formatMinutes(log.timeSpentMinutes)}
                                                 </span>
                                             )}
-                                            <span className="font-mono text-[10px] text-muted-foreground">
+                                            <span className="font-mono text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
                                                 {format(new Date(log.createdAt), 'HH:mm')}
                                             </span>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 mt-0.5">
                                         <button onClick={() => startEdit(log)}
-                                            className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors">
+                                            className="p-1 rounded transition-colors"
+                                            style={{ color: 'rgba(255,255,255,0.3)' }}
+                                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e5e5e5'}
+                                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.3)'}>
                                             <Edit2 size={11} />
                                         </button>
                                         <button onClick={() => onDelete(log.id)}
-                                            className="p-1 text-muted-foreground hover:text-red-400 rounded transition-colors">
+                                            className="p-1 rounded transition-colors"
+                                            style={{ color: 'rgba(255,255,255,0.3)' }}
+                                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#f87171'}
+                                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.3)'}>
                                             <X size={12} />
                                         </button>
                                     </div>
@@ -944,28 +990,30 @@ function ReflectionTab({ value, onChange, onSave, saving, savedAt }: {
 }) {
     return (
         <div className="max-w-2xl space-y-3">
-            <div className="font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            <div className="font-mono text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.3)' }}>
                 Daily Reflection
             </div>
-            <div className="bg-card border-2 border-border rounded-xl overflow-hidden focus-within:border-primary/40 focus-within:shadow-lg focus-within:shadow-primary/5 transition-all">
+            <div className="rounded-xl overflow-hidden transition-all" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <textarea
                     value={value}
                     onChange={e => onChange(e.target.value)}
                     placeholder="How did today go? What did you learn? What would you do differently? (Reflect on wins, challenges, and lessons)"
                     rows={10}
-                    className="w-full px-4 py-3 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 resize-none outline-none leading-relaxed"
+                    className="w-full px-4 py-3 bg-transparent text-sm resize-none outline-none leading-relaxed"
+                    style={{ color: '#e5e5e5', caretColor: '#00ff88' }}
                 />
-                <div className="flex items-center justify-between px-4 pb-3 border-t border-border/50 pt-2">
+                <div className="flex items-center justify-between px-4 pb-3 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                     <div className="flex items-center gap-3">
                         {savedAt ? (
-                            <span className="font-mono text-[10px] text-muted-foreground">
+                            <span className="font-mono text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
                                 Saved {format(new Date(savedAt), 'HH:mm')}
                             </span>
                         ) : <span />}
-                        <span className="text-[10px] text-muted-foreground font-mono">{value.length} chars</span>
+                        <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.3)' }}>{value.length} chars</span>
                     </div>
                     <button onClick={onSave} disabled={saving || !value.trim()}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium disabled:opacity-40 hover:opacity-90 transition-all shadow-sm">
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium disabled:opacity-40 transition-all"
+                        style={{ background: 'rgba(0,255,136,0.12)', border: '1px solid rgba(0,255,136,0.3)', color: '#00ff88' }}>
                         <BookOpen size={11} />
                         {saving ? 'Saving...' : 'Save Reflection'}
                     </button>
@@ -975,83 +1023,303 @@ function ReflectionTab({ value, onChange, onSave, saving, savedAt }: {
     );
 }
 
-// ─── Calendar Panel ───────────────────────────────────────────────────────────
+// ─── Day Schedule (Time Grid) ─────────────────────────────────────────────────
 
-function CalendarPanel({ calDate, setCalDate, calView, setCalView, weekDays, monthDays, getItemsForDay, onDayClick }: {
-    calDate: Date; setCalDate: (d: Date) => void;
-    calView: CalView; setCalView: (v: CalView) => void;
-    weekDays: Date[]; monthDays: Date[];
-    getItemsForDay: (d: Date) => ActionItem[];
-    onDayClick: (d: Date) => void;
+const SCHEDULE_HOURS = Array.from({ length: 18 }, (_, i) => i + 6); // 6am–11pm
+const SLOT_PX = 64; // px per hour
+
+function parseHourDecimal(timeStr: string): number {
+    const [h, m] = timeStr.split(':').map(Number);
+    return h + (m || 0) / 60;
+}
+
+function fmtHour(h: number): string {
+    if (h === 0 || h === 24) return '12 AM';
+    if (h === 12) return '12 PM';
+    return h < 12 ? `${h} AM` : `${h - 12} PM`;
+}
+
+function priorityBg(priority: ActionItemPriority): { bg: string; border: string; color: string } {
+    if (priority === 'critical') return { bg: 'rgba(239,68,68,0.12)',  border: 'rgba(239,68,68,0.35)',  color: '#f87171' };
+    if (priority === 'high')     return { bg: 'rgba(249,115,22,0.12)', border: 'rgba(249,115,22,0.35)', color: '#fb923c' };
+    if (priority === 'medium')   return { bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.35)', color: '#60a5fa' };
+    return                              { bg: 'rgba(0,255,136,0.07)',  border: 'rgba(0,255,136,0.20)',  color: '#00ff88' };
+}
+
+function DaySchedulePanel({ day, actionItems, missions, onSlotClick }: {
+    day: Date;
+    actionItems: ActionItem[];
+    missions: Mission[];
+    onSlotClick: (hour: number) => void;
 }) {
-    const navigate = (dir: 1 | -1) => {
-        if (calView === 'week') setCalDate(addDays(calDate, dir * 7));
-        else setCalDate(dir === 1 ? addMonths(calDate, 1) : subMonths(calDate, 1));
-    };
+    const scheduleRef = React.useRef<HTMLDivElement>(null);
+    const [nowPct, setNowPct] = React.useState(0);
+    const showNow = isToday(day);
 
-    const label = calView === 'week'
-        ? `${format(weekDays[0], 'MMM d')} – ${format(weekDays[6], 'MMM d, yyyy')}`
-        : format(calDate, 'MMMM yyyy');
+    // Compute "now" position
+    React.useEffect(() => {
+        function tick() {
+            const now = new Date();
+            const dec = now.getHours() + now.getMinutes() / 60;
+            const offset = dec - SCHEDULE_HOURS[0];
+            setNowPct((offset / SCHEDULE_HOURS.length) * 100);
+        }
+        tick();
+        const id = setInterval(tick, 60000);
+        return () => clearInterval(id);
+    }, []);
+
+    // Scroll to current hour on mount
+    React.useEffect(() => {
+        if (!scheduleRef.current || !showNow) return;
+        const now = new Date();
+        const offset = (now.getHours() - SCHEDULE_HOURS[0] - 1) * SLOT_PX;
+        scheduleRef.current.scrollTop = Math.max(0, offset);
+    }, [showNow]);
+
+    const dayItems = actionItems.filter(i => isSameDay(i.date, day));
+    const timedItems  = dayItems.filter(i => i.dueTime);
+    const floatItems  = dayItems.filter(i => !i.dueTime);
+    const doneItems   = dayItems.filter(i => i.status === 'done');
+    const totalItems  = dayItems.length;
+    const doneCount   = doneItems.length;
 
     return (
-        <div className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-                <h2 className="font-display text-xl text-foreground">{label}</h2>
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1">
-                        {(['week', 'month'] as CalView[]).map(v => (
-                            <button key={v} onClick={() => setCalView(v)}
-                                className={cn("px-3 py-1 rounded-lg text-xs font-medium transition-colors capitalize",
-                                    calView === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
-                                {v}
-                            </button>
-                        ))}
-                    </div>
-                    <button onClick={() => navigate(-1)} className="p-2 hover:bg-secondary rounded-lg transition-colors"><ChevronLeft size={15} /></button>
-                    <button onClick={() => setCalDate(new Date())} className="px-3 py-1.5 text-xs font-medium border border-border rounded-lg hover:bg-secondary transition-colors">Today</button>
-                    <button onClick={() => navigate(1)} className="p-2 hover:bg-secondary rounded-lg transition-colors"><ChevronRight size={15} /></button>
+        <div className="flex flex-col h-full overflow-hidden">
+            {/* Day header */}
+            <div className="flex items-center justify-between px-6 py-3 flex-shrink-0"
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <div>
+                    <h2 className="font-mono text-base font-bold text-white uppercase tracking-tight">
+                        {isToday(day) ? 'Today' : format(day, 'EEEE')} · {format(day, 'MMM d')}
+                    </h2>
+                    <p className="font-mono text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                        {totalItems === 0 ? 'No tasks — day is wide open' :
+                         `${doneCount}/${totalItems} tasks · ${timedItems.length} scheduled`}
+                    </p>
                 </div>
+                {totalItems > 0 && (
+                    <div className="w-24 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                        <div className="h-full rounded-full transition-all" style={{ background: '#00ff88', width: `${totalItems > 0 ? (doneCount / totalItems) * 100 : 0}%` }} />
+                    </div>
+                )}
             </div>
 
-            {calView === 'week' && (
-                <div className="grid grid-cols-7 gap-2">
-                    {weekDays.map(day => {
-                        const items = getItemsForDay(day);
+            {/* Floating (unscheduled) tasks */}
+            {floatItems.length > 0 && (
+                <div className="px-6 py-2.5 flex gap-2 flex-wrap flex-shrink-0"
+                    style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: 'rgba(255,255,255,0.01)' }}>
+                    <span className="font-mono text-[10px] text-white/25 self-center">ANYTIME</span>
+                    {floatItems.map(item => {
+                        const { bg, border, color } = priorityBg(item.priority);
                         return (
-                            <div key={day.toISOString()} onClick={() => onDayClick(day)}
-                                className={cn("min-h-[120px] rounded-xl border p-2 cursor-pointer transition-all hover:border-primary/30",
-                                    isToday(day) ? "border-primary/40 bg-primary/5" : "border-border bg-card/50")}>
-                                <div className="flex flex-col items-center mb-2">
-                                    <span className="font-mono text-[10px] text-muted-foreground uppercase">{format(day, 'EEE')}</span>
-                                    <span className={cn("font-mono text-sm font-bold mt-0.5", isToday(day) ? "text-primary" : "text-foreground")}>
-                                        {format(day, 'd')}
-                                    </span>
-                                </div>
-                                <div className="space-y-1">
-                                    {items.slice(0, 3).map(item => (
-                                        <div key={item.id} className={cn("text-[10px] px-1.5 py-0.5 rounded truncate",
-                                            item.status === 'done' ? "bg-secondary text-muted-foreground line-through" :
-                                            item.priority === 'critical' ? "bg-red-500/15 text-red-400" :
-                                            item.priority === 'high' ? "bg-orange-400/15 text-orange-400" :
-                                            "bg-primary/10 text-primary")}>
-                                            {item.title}
-                                        </div>
-                                    ))}
-                                    {items.length > 3 && (
-                                        <div className="font-mono text-[10px] text-muted-foreground pl-1">+{items.length - 3}</div>
-                                    )}
-                                </div>
+                            <div key={item.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-mono text-[11px] max-w-[200px] truncate"
+                                style={{ background: bg, border: `1px solid ${border}`, color, opacity: item.status === 'done' ? 0.4 : 1, textDecoration: item.status === 'done' ? 'line-through' : 'none' }}>
+                                {item.title}
                             </div>
                         );
                     })}
                 </div>
             )}
 
+            {/* Time grid */}
+            <div ref={scheduleRef} className="flex-1 overflow-y-auto hq-scroll">
+                <div style={{ position: 'relative', height: SCHEDULE_HOURS.length * SLOT_PX + 1 }}>
+
+                    {/* "Now" indicator */}
+                    {showNow && nowPct >= 0 && nowPct <= 100 && (
+                        <div className="absolute left-0 right-0 z-20 flex items-center pointer-events-none"
+                            style={{ top: `${nowPct}%` }}>
+                            <div className="w-2 h-2 rounded-full ml-[56px] flex-shrink-0" style={{ background: '#ef4444' }} />
+                            <div className="flex-1 h-px" style={{ background: '#ef4444', opacity: 0.6 }} />
+                        </div>
+                    )}
+
+                    {/* Hour rows */}
+                    {SCHEDULE_HOURS.map((h, idx) => {
+                        const tasksAtHour = timedItems.filter(i => Math.floor(parseHourDecimal(i.dueTime!)) === h);
+                        return (
+                            <div key={h} style={{ position: 'absolute', top: idx * SLOT_PX, left: 0, right: 0, height: SLOT_PX }}
+                                className="group flex">
+                                {/* Hour label */}
+                                <div className="w-14 flex-shrink-0 flex items-start pt-1 pl-4">
+                                    <span className="font-mono text-[10px]" style={{ color: 'rgba(255,255,255,0.2)' }}>{fmtHour(h)}</span>
+                                </div>
+                                {/* Slot area */}
+                                <div className="flex-1 relative border-t cursor-pointer transition-colors"
+                                    style={{ borderColor: 'rgba(255,255,255,0.04)' }}
+                                    onClick={() => onSlotClick(h)}
+                                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.015)'}
+                                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
+                                    {/* Click hint */}
+                                    <span className="absolute left-2 top-1 font-mono text-[9px] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                                        style={{ color: 'rgba(0,255,136,0.5)' }}>+ add task</span>
+
+                                    {/* Task chips */}
+                                    {tasksAtHour.map((item, i) => {
+                                        const { bg, border, color } = priorityBg(item.priority);
+                                        const topOffset = (parseHourDecimal(item.dueTime!) - h) * SLOT_PX;
+                                        const mission = missions.find(m => m.id === item.missionId);
+                                        return (
+                                            <div key={item.id}
+                                                className="absolute left-2 right-2 rounded-lg px-2.5 py-1.5 overflow-hidden"
+                                                style={{
+                                                    top: topOffset + 4,
+                                                    background: bg,
+                                                    border: `1px solid ${border}`,
+                                                    opacity: item.status === 'done' ? 0.45 : 1,
+                                                    zIndex: i + 1,
+                                                    marginLeft: i * 8,
+                                                }}>
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    {item.status === 'done' && <CheckCircle2 size={10} style={{ color }} className="flex-shrink-0" />}
+                                                    <span className="font-mono text-[11px] truncate font-medium"
+                                                        style={{ color, textDecoration: item.status === 'done' ? 'line-through' : 'none' }}>
+                                                        {item.title}
+                                                    </span>
+                                                    {mission && (
+                                                        <span className="font-mono text-[9px] px-1.5 rounded flex-shrink-0"
+                                                            style={{ background: `${mission.color}18`, color: mission.color }}>
+                                                            {mission.name.slice(0, 8)}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {item.dueTime && (
+                                                    <p className="font-mono text-[9px] mt-0.5" style={{ color: `${color}80` }}>{item.dueTime}</p>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Calendar Panel ───────────────────────────────────────────────────────────
+
+function CalendarPanel({ calDate, setCalDate, calView, setCalView, weekDays, monthDays, selectedDay, getItemsForDay, actionItems, missions, onDayClick, onSlotClick }: {
+    calDate: Date; setCalDate: (d: Date) => void;
+    calView: CalView; setCalView: (v: CalView) => void;
+    weekDays: Date[]; monthDays: Date[];
+    selectedDay: Date;
+    getItemsForDay: (d: Date) => ActionItem[];
+    actionItems: ActionItem[];
+    missions: Mission[];
+    onDayClick: (d: Date) => void;
+    onSlotClick: (hour: number) => void;
+}) {
+    const navigate = (dir: 1 | -1) => {
+        if (calView === 'schedule') setCalDate(addDays(calDate, dir));
+        else if (calView === 'week') setCalDate(addDays(calDate, dir * 7));
+        else setCalDate(dir === 1 ? addMonths(calDate, 1) : subMonths(calDate, 1));
+    };
+
+    const label = calView === 'schedule'
+        ? format(calDate, 'EEEE, MMMM d yyyy')
+        : calView === 'week'
+        ? `${format(weekDays[0], 'MMM d')} – ${format(weekDays[6], 'MMM d, yyyy')}`
+        : format(calDate, 'MMMM yyyy');
+
+    return (
+        <div className="h-full flex flex-col overflow-hidden">
+            {/* Calendar header */}
+            <div className="flex items-center justify-between px-6 py-3 flex-shrink-0"
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <h2 className="font-mono text-sm font-bold text-white uppercase tracking-tight">{label}</h2>
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-0.5 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        {([
+                            { v: 'schedule' as CalView, label: 'Day' },
+                            { v: 'week'     as CalView, label: 'Week' },
+                            { v: 'month'    as CalView, label: 'Month' },
+                        ]).map(({ v, label: vLabel }) => (
+                            <button key={v} onClick={() => setCalView(v)}
+                                className="px-2.5 py-1 rounded-lg font-mono text-[11px] uppercase tracking-widest font-medium transition-all"
+                                style={calView === v ? {
+                                    background: 'rgba(0,255,136,0.1)', color: '#00ff88', border: '1px solid rgba(0,255,136,0.2)',
+                                } : { color: 'rgba(255,255,255,0.3)' }}>
+                                {vLabel}
+                            </button>
+                        ))}
+                    </div>
+                    <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg transition-colors text-white/30 hover:text-white hover:bg-white/5"><ChevronLeft size={14} /></button>
+                    <button onClick={() => { setCalDate(new Date()); }}
+                        className="px-2.5 py-1 font-mono text-[11px] uppercase tracking-widest rounded-lg transition-colors text-white/40 hover:text-white"
+                        style={{ border: '1px solid rgba(255,255,255,0.08)' }}>Today</button>
+                    <button onClick={() => navigate(1)} className="p-1.5 rounded-lg transition-colors text-white/30 hover:text-white hover:bg-white/5"><ChevronRight size={14} /></button>
+                </div>
+            </div>
+
+            {/* Views */}
+            {calView === 'schedule' && (
+                <div className="flex-1 overflow-hidden">
+                    <DaySchedulePanel
+                        day={calDate}
+                        actionItems={actionItems}
+                        missions={missions}
+                        onSlotClick={onSlotClick}
+                    />
+                </div>
+            )}
+
+            {calView === 'week' && (
+                <div className="p-4 overflow-y-auto hq-scroll flex-1">
+                    <div className="grid grid-cols-7 gap-2">
+                        {weekDays.map(day => {
+                            const items = getItemsForDay(day);
+                            return (
+                                <div key={day.toISOString()} onClick={() => onDayClick(day)}
+                                    className="min-h-[120px] rounded-xl p-2 cursor-pointer transition-all"
+                                    style={isToday(day) ? {
+                                        background: 'rgba(0,255,136,0.06)',
+                                        border: '1px solid rgba(0,255,136,0.2)',
+                                    } : {
+                                        background: 'rgba(255,255,255,0.02)',
+                                        border: '1px solid rgba(255,255,255,0.06)',
+                                    }}>
+                                    <div className="flex flex-col items-center mb-2">
+                                        <span className="font-mono text-[10px] text-white/30 uppercase">{format(day, 'EEE')}</span>
+                                        <span className="font-mono text-sm font-bold mt-0.5" style={{ color: isToday(day) ? '#00ff88' : 'rgba(255,255,255,0.8)' }}>
+                                            {format(day, 'd')}
+                                        </span>
+                                    </div>
+                                    <div className="space-y-1">
+                                        {items.slice(0, 4).map(item => (
+                                            <div key={item.id} className="font-mono text-[10px] px-1.5 py-0.5 rounded truncate"
+                                                style={item.status === 'done' ? {
+                                                    background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.25)', textDecoration: 'line-through',
+                                                } : item.priority === 'critical' ? {
+                                                    background: 'rgba(239,68,68,0.12)', color: '#f87171',
+                                                } : item.priority === 'high' ? {
+                                                    background: 'rgba(249,115,22,0.12)', color: '#fb923c',
+                                                } : {
+                                                    background: 'rgba(0,255,136,0.08)', color: '#00ff88',
+                                                }}>
+                                                {item.dueTime && <span className="opacity-60 mr-1">{item.dueTime.slice(0,5)}</span>}
+                                                {item.title}
+                                            </div>
+                                        ))}
+                                        {items.length > 4 && (
+                                            <div className="font-mono text-[10px] text-white/25 pl-1">+{items.length - 4}</div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
             {calView === 'month' && (
-                <div>
+                <div className="p-4 overflow-y-auto hq-scroll flex-1">
                     <div className="grid grid-cols-7 mb-1">
                         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
-                            <div key={d} className="text-center font-mono text-[10px] font-semibold uppercase text-muted-foreground py-1">{d}</div>
+                            <div key={d} className="text-center font-mono text-[10px] font-semibold uppercase text-white/25 py-1">{d}</div>
                         ))}
                     </div>
                     <div className="grid grid-cols-7 gap-1">
@@ -1060,18 +1328,19 @@ function CalendarPanel({ calDate, setCalDate, calView, setCalView, weekDays, mon
                             const items = getItemsForDay(day);
                             return (
                                 <div key={day.toISOString()} onClick={() => onDayClick(day)}
-                                    className={cn("aspect-square rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all hover:bg-secondary p-1",
-                                        isToday(day) && "bg-primary/10 ring-1 ring-primary/30")}>
-                                    <span className={cn("font-mono text-xs font-medium", isToday(day) ? "text-primary" : "text-foreground")}>
+                                    className="aspect-square rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all p-1 hover:bg-white/5"
+                                    style={isToday(day) ? { background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.25)' } : {}}>
+                                    <span className="font-mono text-xs font-medium" style={{ color: isToday(day) ? '#00ff88' : 'rgba(255,255,255,0.7)' }}>
                                         {format(day, 'd')}
                                     </span>
                                     {items.length > 0 && (
                                         <div className="flex gap-0.5 mt-0.5">
                                             {items.slice(0, 3).map((item, idx) => (
-                                                <div key={idx} className={cn("w-1 h-1 rounded-full",
-                                                    item.status === 'done' ? "bg-emerald-400" :
-                                                    item.priority === 'critical' ? "bg-red-500" :
-                                                    item.priority === 'high' ? "bg-orange-400" : "bg-primary/60")} />
+                                                <div key={idx} className="w-1 h-1 rounded-full" style={{
+                                                    background: item.status === 'done' ? '#00ff88' :
+                                                    item.priority === 'critical' ? '#ef4444' :
+                                                    item.priority === 'high' ? '#f97316' : 'rgba(0,255,136,0.5)',
+                                                }} />
                                             ))}
                                         </div>
                                     )}

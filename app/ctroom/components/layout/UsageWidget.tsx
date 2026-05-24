@@ -1,5 +1,3 @@
-'use client';
-
 import React from 'react';
 import { Zap, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';

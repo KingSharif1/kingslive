@@ -5,6 +5,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import {
     View, ActionItem, Idea, Message, ActionItemCategory,
     ActionItemPriority, ChatTool, ChatSpeed, ChatContext,
@@ -25,11 +26,88 @@ import { VaultView } from './views/VaultView';
 import DreamboardView from './views/DreamboardView';
 import { TaskFormModal } from './modals/TaskFormModal';
 import { MissionDetailModal } from './modals/MissionDetailModal';
+import { UsageModal } from './modals/UsageModal';
 import { cn } from '@/lib/utils';
 import { CtroomDataService } from '../services/ctroomDataService';
 import { supabase } from '@/lib/supabase';
+import { LoginScreen } from './LoginScreen';
 
 export function CtroomDashboard() {
+    const [mounted, setMounted] = useState(false);
+    const [auth, setAuth] = useState<'checking' | 'in' | 'out'>('checking');
+    const [adminVerified, setAdminVerified] = useState(false);
+
+    useEffect(() => {
+        // Verify auth with server validation (optimized)
+        const checkAuth = async () => {
+            try {
+                // Get session (fast, from cache)
+                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+                
+                // If no session, bail immediately
+                if (sessionError || !session?.user?.email) {
+                    setAdminVerified(false);
+                    setAuth('out');
+                    return;
+                }
+
+                // Verify admin status (single API call)
+                const response = await fetch('/api/ctroom/auth/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: session.user.email })
+                });
+
+                if (!response.ok) {
+                    setAdminVerified(false);
+                    await supabase.auth.signOut();
+                    setAuth('out');
+                    return;
+                }
+
+                const { isAdmin } = await response.json();
+                
+                if (isAdmin) {
+                    setAdminVerified(true);
+                    setAuth('in');
+                } else {
+                    // Not admin - sign them out
+                    setAdminVerified(false);
+                    await supabase.auth.signOut();
+                    setAuth('out');
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                setAdminVerified(false);
+                await supabase.auth.signOut();
+                setAuth('out');
+            }
+        };
+
+        setMounted(true);
+
+        // Read localStorage only after mount so server/client initial renders match
+        const collapsed = localStorage.getItem('sidebar-collapsed');
+        if (collapsed) setIsSidebarCollapsed(JSON.parse(collapsed));
+        const savedTheme = localStorage.getItem('theme') as ThemeMode;
+        if (savedTheme) setTheme(savedTheme);
+        const savedAccent = localStorage.getItem('ctroom-accent') as CtroomAccent;
+        if (savedAccent) setAccent(savedAccent);
+
+        checkAuth();
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session?.user) {
+                checkAuth();
+            } else {
+                setAuth('out');
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
     const [currentView, setCurrentView] = useState<View>('dashboard');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -41,30 +119,11 @@ export function CtroomDashboard() {
         setCurrentView(view);
     };
 
-    // Sidebar & Theme State
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('sidebar-collapsed');
-            return saved ? JSON.parse(saved) : false;
-        }
-        return false;
-    });
-
-    const [theme, setTheme] = useState<ThemeMode>(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('theme');
-            return (saved as ThemeMode) || 'dark';
-        }
-        return 'dark';
-    });
-
-    // Accent color theme
-    const [accent, setAccent] = useState<CtroomAccent>(() => {
-        if (typeof window !== 'undefined') {
-            return (localStorage.getItem('ctroom-accent') as CtroomAccent) || 'none';
-        }
-        return 'none';
-    });
+    // Sidebar & Theme State — initialized with defaults to match server render.
+    // Actual localStorage values are applied in the mount useEffect below.
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [theme, setTheme] = useState<ThemeMode>('dark');
+    const [accent, setAccent] = useState<CtroomAccent>('none');
 
     // Usage Stats State
     const [usageStats, setUsageStats] = useState<UsageStats>({
@@ -77,13 +136,13 @@ export function CtroomDashboard() {
     });
 
     // User Profile
-    const [userProfile, setUserProfile] = useState({ name: 'Loading...', email: 'loading@ctroom.com' });
+    const [userProfile, setUserProfile] = useState({ name: '', email: '' });
 
     // User Settings State
     const [userSettings, setUserSettings] = useState<UserSettings>({
         profile: {
-            name: 'Loading...',
-            email: 'loading@ctroom.com',
+            name: '',
+            email: '',
             avatar: ''
         },
         preferences: {
@@ -114,6 +173,7 @@ export function CtroomDashboard() {
 
     const [ideas, setIdeas] = useState<Idea[]>([]);
     const [messages, setMessages] = useState<Message[]>([]);
+    const [isUsageModalOpen, setIsUsageModalOpen] = useState(false);
 
     // Task Modal State (For Quick Add)
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -140,23 +200,6 @@ export function CtroomDashboard() {
     const [chatInput, setChatInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
 
-    // Auth session monitoring — sign out when session expires so parent auth gate shows login screen
-    useEffect(() => {
-        const checkAuthSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                await supabase.auth.signOut(); // triggers onAuthStateChange → parent shows login
-                return;
-            }
-            const expiresAt = session.expires_at;
-            if (expiresAt && expiresAt * 1000 <= Date.now()) {
-                await supabase.auth.signOut();
-            }
-        };
-
-        const interval = setInterval(checkAuthSession, 60000);
-        return () => clearInterval(interval);
-    }, []);
 
     // Load data from database on mount — two phases so UI appears instantly
     useEffect(() => {
@@ -225,8 +268,8 @@ export function CtroomDashboard() {
             }
         };
 
-        loadData();
-    }, []);
+        if (auth === 'in') loadData();
+    }, [auth]);
 
     // Apply theme
     useEffect(() => {
@@ -494,6 +537,14 @@ export function CtroomDashboard() {
         });
 
         try {
+            // Build a rich context snapshot for Milo
+            const activeTasks = actionItems.filter(t => t.status !== 'done' && t.status !== 'archived');
+            const todayTasks = activeTasks.filter(t => {
+                const d = new Date(t.date);
+                const now = new Date();
+                return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+            });
+
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -503,8 +554,22 @@ export function CtroomDashboard() {
                     thinkingMode: speed,
                     tools: tool !== 'none' ? [tool] : [],
                     ctroomContext: {
-                        tasks: actionItems.filter(t => t.status !== 'done' && t.status !== 'archived').slice(0, 30),
-                        missions: missions.filter(m => m.status === 'active'),
+                        today: new Date().toISOString(),
+                        tasks: activeTasks.slice(0, 30).map(t => ({
+                            title: t.title,
+                            priority: t.priority,
+                            category: t.category,
+                            dueDate: t.date,
+                            dueTime: t.dueTime,
+                            project: missions.find(m => m.id === t.missionId)?.name,
+                        })),
+                        todayTaskCount: todayTasks.length,
+                        missions: missions.filter(m => m.status === 'active').map(m => ({
+                            name: m.name,
+                            description: m.description,
+                            progress: m.progress,
+                            status: m.status,
+                        })),
                     },
                 })
             });
@@ -532,6 +597,116 @@ export function CtroomDashboard() {
         }
     };
 
+    // Auth guards — after all hooks so Rules of Hooks are respected.
+    // !mounted ensures server and client both render the spinner on first paint,
+    // preventing hydration mismatch from Supabase detecting a session client-side.
+    // adminVerified ensures we don't render dashboard until server confirms admin status
+    if (!mounted || auth === 'checking' || (auth === 'in' && !adminVerified)) {
+        return (
+            <div className="flex items-center justify-center min-h-screen relative overflow-hidden" style={{ background: '#080808' }}>
+                {/* Animated background grid - only on client */}
+                {mounted && (
+                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+                )}
+                
+                {/* Floating particles - only on client to avoid hydration mismatch */}
+                {mounted && (
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                        {[...Array(15)].map((_, i) => (
+                            <motion.div
+                                key={i}
+                                className="absolute w-2 h-2 bg-primary/30 rounded-full"
+                                initial={{ 
+                                    x: Math.random() * window.innerWidth,
+                                    y: Math.random() * window.innerHeight,
+                                    scale: 0
+                                }}
+                                animate={{
+                                    y: [null, Math.random() * window.innerHeight],
+                                    scale: [0, 1, 0],
+                                    opacity: [0, 0.6, 0]
+                                }}
+                                transition={{
+                                    duration: 2 + Math.random() * 2,
+                                    repeat: Infinity,
+                                    delay: Math.random() * 2,
+                                    ease: "easeInOut"
+                                }}
+                            />
+                        ))}
+                    </div>
+                )}
+
+                {/* Main loading content */}
+                <div className="relative z-10 flex flex-col items-center gap-6">
+                    {mounted ? (
+                        <motion.div
+                            className="relative"
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: "spring", duration: 0.6 }}
+                        >
+                            {/* Outer pulse ring */}
+                            <motion.div
+                                className="absolute inset-0 rounded-full border-2 border-primary/40"
+                                animate={{
+                                    scale: [1, 1.5, 1],
+                                    opacity: [0.5, 0, 0.5]
+                                }}
+                                transition={{
+                                    duration: 2,
+                                    repeat: Infinity,
+                                    ease: "easeInOut"
+                                }}
+                            />
+                            
+                            {/* Spinning loader */}
+                            <motion.div 
+                                className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full"
+                                animate={{ rotate: 360 }}
+                                transition={{
+                                    duration: 1,
+                                    repeat: Infinity,
+                                    ease: "linear"
+                                }}
+                            />
+                            
+                            {/* Center dot */}
+                            <motion.div
+                                className="absolute inset-0 m-auto w-4 h-4 bg-primary rounded-full"
+                                animate={{
+                                    scale: [1, 1.2, 1],
+                                    opacity: [0.8, 1, 0.8]
+                                }}
+                                transition={{
+                                    duration: 1.5,
+                                    repeat: Infinity,
+                                    ease: "easeInOut"
+                                }}
+                            />
+                        </motion.div>
+                    ) : (
+                        // Server-side fallback: simple spinner
+                        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    )}
+
+                    <div className="text-center">
+                        <p className="text-sm text-muted-foreground">
+                            {auth === 'checking' ? 'Verifying access...' : 'Loading your workspace...'}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+    if (auth === 'out') return <LoginScreen />;
+
+    const handleSignOut = async () => {
+        setAdminVerified(false);
+        await supabase.auth.signOut();
+        setAuth('out');
+    };
+
     // Full-bleed views have no padding (vault/dreamboard handled separately below)
     const isFullBleedView = currentView === 'ideas' || currentView === 'chat';
 
@@ -542,11 +717,21 @@ export function CtroomDashboard() {
     ];
 
     return (
-        <div className={cn(
-            "h-screen w-full bg-background text-foreground font-inter selection:bg-primary/20 flex flex-col md:flex-row overflow-hidden",
-            accent !== 'none' && `ctroom-accent-${accent}`
-        )}>
+        <motion.div 
+            className={cn(
+                "h-screen w-full bg-background text-foreground font-inter selection:bg-primary/20 flex flex-col md:flex-row overflow-hidden",
+                accent !== 'none' && `ctroom-accent-${accent}`
+            )}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+        >
 
+            <UsageModal
+                isOpen={isUsageModalOpen}
+                onClose={() => setIsUsageModalOpen(false)}
+                usage={usageStats}
+            />
             <Sidebar
                 currentView={currentView}
                 setCurrentView={handleViewChange}
@@ -558,6 +743,8 @@ export function CtroomDashboard() {
                 userName={userProfile.name}
                 userEmail={userProfile.email}
                 apiKeys={userSettings.apiKeys}
+                onUsageClick={() => setIsUsageModalOpen(true)}
+                onSignOut={handleSignOut}
             />
 
             <MobileHeader
@@ -567,7 +754,7 @@ export function CtroomDashboard() {
                 setCurrentView={handleViewChange}
             />
 
-            <main className="flex-1 overflow-hidden w-full relative bg-secondary/5 h-full">
+            <main className="flex-1 overflow-hidden w-full relative h-full" style={{ background: '#080808' }}>
                 <div className="md:hidden h-16 flex-shrink-0" />
 
                 <div className={cn("h-full w-full", isFullBleedView ? "p-0" : "p-4 md:p-6 overflow-y-auto")}>
@@ -705,6 +892,6 @@ export function CtroomDashboard() {
                     githubToken={userSettings.apiKeys.github}
                 />
             )}
-        </div>
+        </motion.div>
     );
 }

@@ -1,6 +1,8 @@
 /**
  * TaskFormModal - Enhanced Task/Habit Creation Form
  */
+'use client';
+
 import React, { useState } from 'react';
 import { X, Calendar, Clock, Repeat, Flag, ChevronDown, Check } from 'lucide-react';
 import { format } from 'date-fns';

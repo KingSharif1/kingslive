@@ -1,279 +1,295 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
 
 const customSearch = google.customsearch('v1');
 
-// ─── Milo System Prompt ───────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-function buildSystemPrompt(ctroomContext?: { tasks?: any[]; missions?: any[] }) {
-    let prompt = `You are Milo, King Sharif's elite personal AI — a Jarvis-like intelligence built into his private creator OS.
+interface CtroomContext {
+    today?: string;
+    tasks?: Array<{ title: string; priority: string; category: string; dueDate?: string; dueTime?: string; project?: string }>;
+    todayTaskCount?: number;
+    missions?: Array<{ name: string; description?: string; progress: number; status: string }>;
+    vault?: { monthlySpend: number; topCategory: string };
+}
 
-About King:
-- Creative Developer & UX Engineer based in Chicago, IL
-- Works on Next.js, React, Tailwind, AI, Supabase, Three.js
-- Building "kingslive" — a personal portfolio + private creator command center
+interface ChatMessage {
+    role: 'user' | 'assistant';
+    content: string;
+}
 
-Personality:
-- Sharp, direct, smart — no filler, no fluff
-- Speak like a trusted advisor: concise, confident, insightful
-- Know when to be brief and when to go deep
-- You're aware of King's work and can reference it specifically`;
+interface ThinkingStep {
+    title: string;
+    status: 'pending' | 'completed' | 'failed';
+    description: string;
+}
 
-    if (ctroomContext?.tasks && ctroomContext.tasks.length > 0) {
-        const today = new Date().toDateString();
-        const todayTasks = ctroomContext.tasks.filter((t: any) => {
-            try { return new Date(t.date).toDateString() === today; } catch { return false; }
-        });
-        const overdue = ctroomContext.tasks.filter((t: any) => {
-            try { return new Date(t.date) < new Date() && new Date(t.date).toDateString() !== today; } catch { return false; }
-        });
+// ─── System prompt builder ────────────────────────────────────────────────────
 
-        prompt += `\n\nCurrent Tasks (${ctroomContext.tasks.length} active):`;
-        if (todayTasks.length > 0) {
-            prompt += `\nDue Today (${todayTasks.length}): ${todayTasks.map((t: any) => `"${t.title}" [${t.priority}]`).join(', ')}`;
-        }
-        if (overdue.length > 0) {
-            prompt += `\nOverdue (${overdue.length}): ${overdue.slice(0, 5).map((t: any) => `"${t.title}"`).join(', ')}`;
-        }
-        const upcoming = ctroomContext.tasks.filter((t: any) => {
-            try { return new Date(t.date) > new Date(); } catch { return false; }
-        }).slice(0, 5);
-        if (upcoming.length > 0) {
-            prompt += `\nUpcoming: ${upcoming.map((t: any) => `"${t.title}" [${t.priority}]`).join(', ')}`;
-        }
+function buildSystemPrompt(ctx?: CtroomContext): string {
+    const today = ctx?.today ? new Date(ctx.today).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    let prompt = `You are Milo, King Sharif's elite personal AI assistant — think Jarvis from Iron Man.
+You are sharp, direct, context-aware, and always helpful. You know what King is working on.
+
+King's Profile:
+- Name: King Sharif
+- Role: Creative Developer & UX Engineer
+- Location: Chicago, IL
+- Stack: Next.js, React, TailwindCSS, Supabase, AI Integration
+- Portfolio: kingsharif.com
+- Interests: AI Agents, Minimalist Design, Creative Coding
+
+Today is ${today}.`;
+
+    if (ctx?.todayTaskCount !== undefined) {
+        prompt += `\n\nToday's workload: ${ctx.todayTaskCount} task${ctx.todayTaskCount !== 1 ? 's' : ''} on deck.`;
     }
 
-    if (ctroomContext?.missions && ctroomContext.missions.length > 0) {
-        prompt += `\n\nActive Projects (${ctroomContext.missions.length}):`;
-        ctroomContext.missions.slice(0, 6).forEach((m: any) => {
-            prompt += `\n- "${m.name}" — ${m.progress ?? 0}% complete, priority: ${m.priority}${m.description ? `, ${m.description}` : ''}${m.repoUrl ? `, repo: ${m.repoUrl}` : ''}`;
-        });
+    if (ctx?.tasks && ctx.tasks.length > 0) {
+        const taskLines = ctx.tasks
+            .slice(0, 15)
+            .map(t => `  • [${t.priority.toUpperCase()}] ${t.title}${t.dueTime ? ` @ ${t.dueTime}` : ''}${t.project ? ` (${t.project})` : ''}`)
+            .join('\n');
+        prompt += `\n\nActive tasks:\n${taskLines}`;
     }
 
-    prompt += `\n\nRespond in markdown where helpful. Be specific when you can reference King's actual data above.`;
+    if (ctx?.missions && ctx.missions.length > 0) {
+        const missionLines = ctx.missions
+            .map(m => `  • ${m.name} — ${m.progress}% complete [${m.status}]${m.description ? `: ${m.description}` : ''}`)
+            .join('\n');
+        prompt += `\n\nActive projects/missions:\n${missionLines}`;
+    }
+
+    if (ctx?.vault) {
+        prompt += `\n\nVault snapshot: $${ctx.vault.monthlySpend.toFixed(0)} spent this month, top category: ${ctx.vault.topCategory}.`;
+    }
+
+    prompt += `\n\nInstructions:
+- Be concise and direct — no unnecessary filler
+- Reference King's actual tasks and projects when relevant
+- Format responses cleanly using markdown when helpful
+- You have access to web search and GitHub context tools when needed
+- Never pretend to be a different AI system`;
+
     return prompt;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Tool: Web search ─────────────────────────────────────────────────────────
 
-async function doWebSearch(query: string): Promise<string | null> {
+async function webSearch(query: string): Promise<string> {
     const apiKey = process.env.GOOGLE_SEARCH_API_KEY || process.env.GOOGLE_API_KEY;
     const cx = process.env.GOOGLE_SEARCH_CX || process.env.GOOGLE_CX;
-    if (!apiKey || !cx) return null;
-    try {
-        const res = await customSearch.cse.list({ cx, q: query, auth: apiKey, num: 5 });
-        if (!res.data.items?.length) return null;
-        return res.data.items.map((item: any) => `- [${item.title}](${item.link}): ${item.snippet}`).join('\n');
-    } catch { return null; }
+    if (!apiKey || !cx) throw new Error('Search API keys missing');
+
+    const res = await customSearch.cse.list({ cx, q: query, auth: apiKey, num: 5 });
+    if (!res.data.items || res.data.items.length === 0) return 'No results found.';
+
+    return res.data.items
+        .map((item: any) => `**${item.title}**\n${item.snippet}\n${item.link}`)
+        .join('\n\n');
 }
 
-async function doGithubContext(query: string): Promise<string | null> {
+// ─── Tool: GitHub context ─────────────────────────────────────────────────────
+
+async function githubContext(): Promise<string> {
     const token = process.env.GITHUB_TOKEN;
-    if (!token) return null;
-    try {
-        const res = await fetch('https://api.github.com/user/repos?sort=updated&per_page=8', {
-            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github.v3+json' }
-        });
-        if (!res.ok) return null;
-        const repos = await res.json();
-        return repos.map((r: any) => `- ${r.name} (${r.language || 'N/A'}): ${r.description || 'No description'}`).join('\n');
-    } catch { return null; }
+    if (!token) throw new Error('GitHub token missing');
+
+    const headers = {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github.v3+json',
+        'User-Agent': 'kingslive-milo',
+    };
+    const res = await fetch('https://api.github.com/user/repos?sort=updated&per_page=8', { headers });
+    if (!res.ok) throw new Error('GitHub API error');
+
+    const repos: any[] = await res.json();
+    return repos
+        .map(r => `**${r.full_name}** (${r.language || 'unknown'}) — ${r.description || 'no description'} — updated ${new Date(r.updated_at).toLocaleDateString()}`)
+        .join('\n');
 }
 
-// ─── Provider functions ───────────────────────────────────────────────────────
+// ─── Model routing ────────────────────────────────────────────────────────────
 
-async function callOpenAI(model: string, systemPrompt: string, messages: any[]): Promise<string> {
-    const key = process.env.OPENAI_API_KEY;
-    if (!key) throw new Error('No OpenAI key');
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+async function callAnthropic(systemPrompt: string, messages: ChatMessage[], modelId: string): Promise<string> {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) throw new Error('Anthropic API key missing');
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+        headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+        },
         body: JSON.stringify({
-            model,
-            messages: [{ role: 'system', content: systemPrompt }, ...messages.map((m: any) => ({ role: m.role, content: m.content }))],
-            max_tokens: 1500,
+            model: modelId,
+            max_tokens: 2048,
+            system: systemPrompt,
+            messages: messages.map(m => ({ role: m.role, content: m.content })),
         }),
     });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any).error?.message || `Anthropic error ${res.status}`);
+    }
+
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error?.message || 'OpenAI error');
+    return data.content?.[0]?.text || '';
+}
+
+async function callOpenAI(systemPrompt: string, messages: ChatMessage[], modelId: string, baseUrl = 'https://api.openai.com/v1'): Promise<string> {
+    const apiKey = baseUrl.includes('groq') ? process.env.GROQ_API_KEY : process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error(`API key missing for ${baseUrl}`);
+
+    const res = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: modelId,
+            max_tokens: 2048,
+            messages: [
+                { role: 'system', content: systemPrompt },
+                ...messages.map(m => ({ role: m.role, content: m.content })),
+            ],
+        }),
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any).error?.message || `API error ${res.status}`);
+    }
+
+    const data = await res.json();
     return data.choices?.[0]?.message?.content || '';
 }
 
-async function callGemini(model: string, systemPrompt: string, messages: any[]): Promise<string> {
-    const key = process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-    if (!key) throw new Error('No Gemini key');
-    // Map friendly model names to API model IDs
-    const modelMap: Record<string, string> = {
-        'gemini-flash': 'gemini-2.0-flash',
-        'gemini-2.0-flash': 'gemini-2.0-flash',
-        'gemini-pro': 'gemini-1.5-pro',
-        'gemini-1.5-pro': 'gemini-1.5-pro',
-    };
-    const apiModel = modelMap[model] || model;
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${apiModel}:generateContent?key=${key}`;
+async function callGemini(systemPrompt: string, messages: ChatMessage[], modelId: string): Promise<string> {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
+    if (!apiKey) throw new Error('Gemini API key missing');
+
     const contents = [
-        { role: 'user', parts: [{ text: systemPrompt }] },
-        { role: 'model', parts: [{ text: 'Understood. I am Milo.' }] },
-        ...messages.map((m: any) => ({
+        // Gemini doesn't have a system role in the same way — prepend to first user turn
+        {
+            role: 'user',
+            parts: [{ text: `${systemPrompt}\n\n---\n\n${messages[0]?.content || ''}` }],
+        },
+        ...messages.slice(1).map(m => ({
             role: m.role === 'assistant' ? 'model' : 'user',
             parts: [{ text: m.content }],
         })),
     ];
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents }),
-    });
+
+    const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`,
+        {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ contents, generationConfig: { maxOutputTokens: 2048 } }),
+        }
+    );
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any).error?.message || `Gemini error ${res.status}`);
+    }
+
     const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
     return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
-async function callAnthropic(model: string, systemPrompt: string, messages: any[]): Promise<string> {
-    const key = process.env.ANTHROPIC_API_KEY;
-    if (!key) throw new Error('No Anthropic key');
-    // Map friendly model names to API model IDs
-    const modelMap: Record<string, string> = {
-        'claude-sonnet': 'claude-sonnet-4-6',
-        'claude-sonnet-4-6': 'claude-sonnet-4-6',
-        'claude-opus': 'claude-opus-4-6',
-        'claude-haiku': 'claude-haiku-4-5-20251001',
-    };
-    const apiModel = modelMap[model] || model;
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': key.trim(),
-            'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-            model: apiModel,
-            max_tokens: 1500,
-            system: systemPrompt,
-            messages: messages.map((m: any) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })),
-        }),
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
-    return data.content?.[0]?.text || '';
-}
+// ─── Route handler ────────────────────────────────────────────────────────────
 
-async function callGroq(model: string, systemPrompt: string, messages: any[]): Promise<string> {
-    const key = process.env.GROQ_API_KEY;
-    if (!key) throw new Error('No Groq key');
-    const modelMap: Record<string, string> = {
-        'groq-llama': 'llama-3.3-70b-versatile',
-        'groq-mixtral': 'mixtral-8x7b-32768',
-    };
-    const apiModel = modelMap[model] || 'llama-3.3-70b-versatile';
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-        body: JSON.stringify({
-            model: apiModel,
-            messages: [{ role: 'system', content: systemPrompt }, ...messages.map((m: any) => ({ role: m.role, content: m.content }))],
-            max_tokens: 1500,
-        }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error?.message || 'Groq error');
-    return data.choices?.[0]?.message?.content || '';
-}
-
-// ─── Main handler ─────────────────────────────────────────────────────────────
-
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
     try {
-        const { messages, model, thinkingMode, tools, ctroomContext } = await req.json();
+        const { messages, model, tools, ctroomContext } = await req.json() as {
+            messages: ChatMessage[];
+            model: string;
+            thinkingMode?: string;
+            tools?: string[];
+            ctroomContext?: CtroomContext;
+        };
+
         const lastMessage = messages[messages.length - 1];
         const query = lastMessage?.content || '';
 
-        const thinkingSteps: { title: string; status: string; description: string }[] = [];
+        const thinkingSteps: ThinkingStep[] = [];
         thinkingSteps.push({ title: 'Processing Request', status: 'completed', description: `Model: ${model}` });
 
-        // Build base system prompt with ctroom context
         let systemPrompt = buildSystemPrompt(ctroomContext);
 
-        // Web Search
-        const needsSearch = tools?.includes('search-web') ||
-            (query.toLowerCase().includes('search') && !query.toLowerCase().includes('github'));
+        // Web search tool
+        const needsSearch = tools?.includes('web') && (
+            query.toLowerCase().includes('search') ||
+            query.toLowerCase().includes('find') ||
+            query.toLowerCase().includes('current') ||
+            query.toLowerCase().includes('news') ||
+            query.toLowerCase().includes('latest') ||
+            (query.length > 20 && query.includes('?'))
+        );
+
         if (needsSearch) {
-            thinkingSteps.push({ title: 'Searching the Web', status: 'pending', description: query });
-            const results = await doWebSearch(query);
-            if (results) {
-                systemPrompt += `\n\nWeb Search Results:\n${results}`;
+            thinkingSteps.push({ title: 'Searching Web', status: 'pending', description: `Query: ${query.slice(0, 60)}` });
+            try {
+                const results = await webSearch(query);
+                systemPrompt += `\n\nWeb search results for "${query}":\n${results}`;
                 thinkingSteps[thinkingSteps.length - 1].status = 'completed';
-                thinkingSteps[thinkingSteps.length - 1].description = 'Found relevant results';
-            } else {
+                thinkingSteps[thinkingSteps.length - 1].description = 'Results injected into context';
+            } catch {
                 thinkingSteps[thinkingSteps.length - 1].status = 'failed';
                 thinkingSteps[thinkingSteps.length - 1].description = 'Search unavailable';
             }
         }
 
-        // GitHub Context
-        const needsGithub = tools?.includes('github') || query.toLowerCase().includes('github');
-        if (needsGithub) {
-            thinkingSteps.push({ title: 'Checking GitHub', status: 'pending', description: 'Fetching repositories...' });
-            const repoList = await doGithubContext(query);
-            if (repoList) {
-                systemPrompt += `\n\nGitHub Repositories:\n${repoList}`;
+        // GitHub context tool
+        if (tools?.includes('github')) {
+            thinkingSteps.push({ title: 'Checking GitHub', status: 'pending', description: 'Fetching recent repos' });
+            try {
+                const ghContext = await githubContext();
+                systemPrompt += `\n\nKing's recent GitHub repos:\n${ghContext}`;
                 thinkingSteps[thinkingSteps.length - 1].status = 'completed';
-                thinkingSteps[thinkingSteps.length - 1].description = 'Repos loaded';
-            } else {
+                thinkingSteps[thinkingSteps.length - 1].description = 'GitHub context loaded';
+            } catch {
                 thinkingSteps[thinkingSteps.length - 1].status = 'failed';
                 thinkingSteps[thinkingSteps.length - 1].description = 'GitHub unavailable';
             }
         }
 
-        // Generate response
         thinkingSteps.push({ title: 'Generating Response', status: 'pending', description: `Using ${model}` });
 
-        let generatedText = '';
-        let usedProvider = '';
+        let content = '';
 
-        try {
-            if (model.startsWith('gpt')) {
-                generatedText = await callOpenAI(model, systemPrompt, messages);
-                usedProvider = 'OpenAI';
-            } else if (model.includes('gemini')) {
-                generatedText = await callGemini(model, systemPrompt, messages);
-                usedProvider = 'Google';
-            } else if (model.includes('claude')) {
-                generatedText = await callAnthropic(model, systemPrompt, messages);
-                usedProvider = 'Anthropic';
-            } else if (model.startsWith('groq')) {
-                generatedText = await callGroq(model, systemPrompt, messages);
-                usedProvider = 'Groq';
-            } else {
-                // Fallback: try Gemini first, then OpenAI
-                if (process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY) {
-                    generatedText = await callGemini('gemini-2.0-flash', systemPrompt, messages);
-                    usedProvider = 'Google';
-                } else if (process.env.OPENAI_API_KEY) {
-                    generatedText = await callOpenAI('gpt-4o-mini', systemPrompt, messages);
-                    usedProvider = 'OpenAI';
-                } else {
-                    generatedText = "No AI provider available. Please add an API key in Settings.";
-                }
+        // Route to the right provider
+        if (model.startsWith('claude-')) {
+            content = await callAnthropic(systemPrompt, messages, model);
+        } else if (model.startsWith('gpt-')) {
+            content = await callOpenAI(systemPrompt, messages, model);
+        } else if (model === 'groq-llama') {
+            content = await callOpenAI(systemPrompt, messages, 'llama-3.3-70b-versatile', 'https://api.groq.com/openai/v1');
+        } else if (model.startsWith('gemini-')) {
+            content = await callGemini(systemPrompt, messages, model);
+        } else {
+            // Fallback: try Gemini, then Claude
+            try {
+                content = await callGemini(systemPrompt, messages, 'gemini-2.0-flash');
+            } catch {
+                content = await callAnthropic(systemPrompt, messages, 'claude-sonnet-4-6');
             }
-        } catch (err: any) {
-            console.error('Provider error:', err);
-            generatedText = `Error: ${err.message || 'Failed to get a response.'}`;
         }
 
         thinkingSteps[thinkingSteps.length - 1].status = 'completed';
-        thinkingSteps[thinkingSteps.length - 1].description = usedProvider || model;
+        thinkingSteps[thinkingSteps.length - 1].description = 'Response ready';
 
-        return NextResponse.json({
-            message: generatedText || "I don't have that information right now.",
-            thinkingSteps,
-        });
-
-    } catch (error) {
-        console.error('Chat API Error:', error);
+        return NextResponse.json({ content, thinkingSteps });
+    } catch (err: any) {
+        console.error('[/api/chat] Error:', err);
         return NextResponse.json(
-            { error: 'Internal Server Error', details: error instanceof Error ? error.message : 'Unknown error' },
+            { error: err.message || 'Chat API error', thinkingSteps: [] },
             { status: 500 }
         );
     }

@@ -1,7 +1,9 @@
+'use client';
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Mission, ActionItem, ActionItemStatus, ActionItemPriority, NoteBlock } from '../../types';
 import {
-    X, CheckCircle2, Calendar, Github, FileText, CheckSquare, Plus, Trash2,
+    X, CheckCircle2, CheckCircle, Calendar, Github, FileText, CheckSquare, Plus, Trash2,
     MoreHorizontal, Settings, Pencil, Circle, ArrowUpRight, GitCommit,
     AlertCircle, GitPullRequest, Star, GitFork, RefreshCw, Loader2,
     ChevronDown, ChevronUp, Clock, Hash, Flame, Search, Lock, Check, Globe,
@@ -726,6 +728,8 @@ function GitHubTab({ repoOwnerRepo, token }: { repoOwnerRepo: string | null; tok
     const [activeTab, setActiveTab] = useState<GHTab>('commits');
     const [showIssueForm, setShowIssueForm] = useState(false);
     const [expandedSha, setExpandedSha] = useState<string | null>(null);
+    const [aiSummary, setAiSummary] = useState<string | null>(null);
+    const [aiLoading, setAiLoading] = useState(false);
 
     const doFetch = useCallback(async (force = false) => {
         if (!repoOwnerRepo) return;
@@ -740,7 +744,7 @@ function GitHubTab({ repoOwnerRepo, token }: { repoOwnerRepo: string | null; tok
         force ? setRefreshing(true) : setLoading(true);
         setError(null);
         try {
-            const res = await fetch(`/api/github/repo?repo=${encodeURIComponent(repoOwnerRepo)}`);
+            const res = await fetch(`/api/ctroom/github/repo?repo=${encodeURIComponent(repoOwnerRepo)}`);
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'GitHub API error');
             ghCache.set(repoOwnerRepo, { data: json, fetchedAt: Date.now() });
@@ -754,6 +758,30 @@ function GitHubTab({ repoOwnerRepo, token }: { repoOwnerRepo: string | null; tok
     }, [repoOwnerRepo]);
 
     useEffect(() => { doFetch(); }, [doFetch]);
+
+    const fetchAiSummary = useCallback(async (commits: GHCommit[]) => {
+        if (commits.length === 0) return;
+        setAiLoading(true);
+        try {
+            const res = await fetch('/api/ctroom/github/ai-summary', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ commits: commits.slice(0, 15).map(c => ({ sha: c.sha, message: c.message, author: c.author, date: c.date })) }),
+            });
+            const json = await res.json();
+            if (json.summary) setAiSummary(json.summary);
+        } catch {
+            // silently fail — summary is optional
+        } finally {
+            setAiLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (data?.commits && data.commits.length > 0 && !aiSummary) {
+            fetchAiSummary(data.commits);
+        }
+    }, [data, aiSummary, fetchAiSummary]);
 
     if (!repoOwnerRepo) {
         return (
@@ -918,6 +946,35 @@ function GitHubTab({ repoOwnerRepo, token }: { repoOwnerRepo: string | null; tok
             {/* Commits Tab */}
             {activeTab === 'commits' && (
                 <div className="space-y-4">
+                    {/* AI Summary */}
+                    <div className="rounded-xl border border-border overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(0,255,136,0.04) 0%, rgba(0,0,0,0) 60%)' }}>
+                        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
+                            <div className="flex items-center gap-2">
+                                <Zap size={12} className="text-primary" />
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">AI Summary</span>
+                            </div>
+                            <button
+                                onClick={() => { setAiSummary(null); fetchAiSummary(data?.commits ?? []); }}
+                                disabled={aiLoading}
+                                className={cn("p-1 text-muted-foreground hover:text-foreground transition-colors", aiLoading && "animate-spin")}
+                            >
+                                <RefreshCw size={11} />
+                            </button>
+                        </div>
+                        <div className="px-4 py-3">
+                            {aiLoading ? (
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                    <Loader2 size={13} className="animate-spin" />
+                                    <span className="text-xs">Analyzing commits…</span>
+                                </div>
+                            ) : aiSummary ? (
+                                <p className="text-xs text-foreground/80 leading-relaxed">{aiSummary}</p>
+                            ) : (
+                                <p className="text-xs text-muted-foreground">No summary yet.</p>
+                            )}
+                        </div>
+                    </div>
+
                     {groups.length === 0 && <p className="text-xs text-muted-foreground text-center py-8">No commits found.</p>}
                     {groups.map(({ label, commits }) => (
                         <div key={label}>
@@ -1074,7 +1131,7 @@ function CreateIssueForm({ repo, onCreated, onClose }: {
         setSubmitting(true);
         setErr(null);
         try {
-            const res = await fetch('/api/github/issue', {
+            const res = await fetch('/api/ctroom/github/issue', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ repo, title: title.trim(), body: body.trim(), labels: selectedLabels }),
@@ -1497,7 +1554,7 @@ function RepoPickerField({ value, onChange, onBlur }: {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch('/api/github/repos');
+            const res = await fetch('/api/ctroom/github/repos');
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed');
             setRepos(data.repos);

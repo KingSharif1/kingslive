@@ -1,5 +1,12 @@
 {
   "pages": {
+    "/api/ctroom/auth/verify/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
+      "static/chunks/main-app.js",
+      "static/chunks/common.js",
+      "static/chunks/app/api/ctroom/auth/verify/route.js"
+    ],
     "/layout": [
       "static/chunks/webpack.js",
       "static/chunks/vendor.js",
@@ -14,26 +21,40 @@
       "static/chunks/framer-motion.js",
       "static/chunks/app/ctroom/page.js"
     ],
-    "/api/teller/sync/route": [
+    "/api/ctroom/github/repo/route": [
       "static/chunks/webpack.js",
       "static/chunks/vendor.js",
       "static/chunks/main-app.js",
       "static/chunks/common.js",
-      "static/chunks/app/api/teller/sync/route.js"
+      "static/chunks/app/api/ctroom/github/repo/route.js"
     ],
-    "/api/settings/key-status/route": [
+    "/api/ctroom/settings/key-status/route": [
       "static/chunks/webpack.js",
       "static/chunks/vendor.js",
       "static/chunks/main-app.js",
       "static/chunks/common.js",
-      "static/chunks/app/api/settings/key-status/route.js"
+      "static/chunks/app/api/ctroom/settings/key-status/route.js"
     ],
-    "/api/github/repos/route": [
+    "/api/ctroom/github/repos/route": [
       "static/chunks/webpack.js",
       "static/chunks/vendor.js",
       "static/chunks/main-app.js",
       "static/chunks/common.js",
-      "static/chunks/app/api/github/repos/route.js"
+      "static/chunks/app/api/ctroom/github/repos/route.js"
+    ],
+    "/api/ctroom/github/ai-summary/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
+      "static/chunks/main-app.js",
+      "static/chunks/common.js",
+      "static/chunks/app/api/ctroom/github/ai-summary/route.js"
+    ],
+    "/api/ctroom/vault/sync/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/vendor.js",
+      "static/chunks/main-app.js",
+      "static/chunks/common.js",
+      "static/chunks/app/api/ctroom/vault/sync/route.js"
     ]
   }
 }

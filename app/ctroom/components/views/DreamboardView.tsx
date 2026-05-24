@@ -5,18 +5,43 @@ import { supabase } from '@/lib/supabase';
 import { Rnd } from 'react-rnd';
 import { cn } from '@/lib/utils';
 import {
-  ArrowLeft, Plus, ZoomIn, ZoomOut, ChevronRight,
+  ArrowLeft, Plus, ZoomIn, ZoomOut,
   Lock, Unlock, Trash2, Copy, Image, Quote, Type,
   Smile, Bold, Italic, AlignLeft, AlignCenter, AlignRight,
   ChevronsUp, ChevronsDown, Undo2, Redo2, Upload,
-  ArrowUpToLine, ArrowDownToLine, Download, RotateCw, MoreHorizontal
+  ArrowUpToLine, ArrowDownToLine, Download, RotateCw, MoreHorizontal,
+  Target, Hand, Grid3X3, Check, X as XIcon, GripVertical
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type BoardType  = 'year' | 'quarter' | 'month' | 'custom';
-type ItemType   = 'image' | 'quote' | 'text' | 'sticker';
+type ItemType   = 'image' | 'quote' | 'text' | 'sticker' | 'goal';
 type TextAlign  = 'left' | 'center' | 'right';
+
+interface GoalData {
+  progress: number;
+  items: { text: string; done: boolean }[];
+}
+
+function parseGoalData(content?: string): GoalData {
+  try { return JSON.parse(content || '{"progress":0,"items":[]}'); }
+  catch { return { progress: 0, items: [] }; }
+}
+
+function ProgressRing({ pct, size = 56, color = '#c49b66' }: { pct: number; size?: number; color?: string }) {
+  const r = (size - 6) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - Math.min(100, Math.max(0, pct)) / 100);
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={3.5} />
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={3.5}
+        strokeDasharray={`${circ}`} strokeDashoffset={`${offset}`} strokeLinecap="round"
+        style={{ transition: 'stroke-dashoffset 0.4s ease' }} />
+    </svg>
+  );
+}
 
 interface DreamBoard {
   id: string; title: string; type: BoardType; period?: string;
@@ -84,6 +109,7 @@ const ITEM_DEFAULTS: Record<ItemType, Partial<DreamItem>> = {
   quote:   { width: 300, height: 180, font_family: 'Playfair Display', font_size: 18, text_align: 'center' as TextAlign, color: '#ffffff' },
   text:    { width: 260, height: 140, font_family: 'Inter',            font_size: 16, text_align: 'left'   as TextAlign, color: '#ffffff' },
   sticker: { width: 120, height: 120 },
+  goal:    { width: 280, height: 320, color: '#c49b66', border_radius: 16 },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -463,7 +489,7 @@ function SelectionToolbar({ item, totalItems, onUpdate, onDelete, onDuplicate, o
             <button onClick={() => onUpdate({ bg_color: undefined })}
               className={cn('w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center text-[8px] text-white/40', !item.bg_color ? 'border-white' : 'border-white/20 hover:scale-105')}
               style={{ background: 'transparent' }} title="No background">✕</button>
-            {['rgba(255,255,255,0.08)','rgba(255,255,255,0.15)','#1a1a2e','#0d1f2d','#1a0a2e','#111827','#1c0a00','#0a1a0a'].map(c => (
+            {['rgba(0,0,0,0.55)','rgba(0,0,0,0.80)','rgba(255,255,255,0.08)','rgba(255,255,255,0.15)','#1a1a2e','#0d1f2d','#1a0a2e','#111827'].map(c => (
               <button key={c} onClick={() => onUpdate({ bg_color: c })}
                 className={cn('w-5 h-5 rounded-full border-2 transition-all flex-shrink-0', item.bg_color === c ? 'border-white scale-110' : 'border-white/20 hover:scale-105')}
                 style={{ backgroundColor: c }} />
@@ -570,14 +596,18 @@ function AddItemPanel({ onAdd, onClose }: {
   onClose: () => void;
 }) {
   const [activeType, setActiveType] = useState<ItemType>('image');
-  const [imageUrl,   setImageUrl]   = useState('');
-  const [content,    setContent]    = useState('');
-  const [author,     setAuthor]     = useState('');
-  const [title,      setTitle]      = useState('');
-  const [color,      setColor]      = useState('#ffffff');
-  const [sticker,    setSticker]    = useState('');
-  const [stickerUrl, setStickerUrl] = useState('');
-  const [uploading,  setUploading]  = useState(false);
+  const [imageUrl,    setImageUrl]    = useState('');
+  const [content,     setContent]     = useState('');
+  const [author,      setAuthor]      = useState('');
+  const [title,       setTitle]       = useState('');
+  const [color,       setColor]       = useState('#ffffff');
+  const [sticker,     setSticker]     = useState('');
+  const [stickerUrl,  setStickerUrl]  = useState('');
+  const [uploading,   setUploading]   = useState(false);
+  const [goalTitle,   setGoalTitle]   = useState('');
+  const [goalPct,     setGoalPct]     = useState(0);
+  const [goalItems,   setGoalItems]   = useState<{ text: string; done: boolean }[]>([]);
+  const [goalInput,   setGoalInput]   = useState('');
   const fileRef    = useRef<HTMLInputElement>(null);
   const stickerRef = useRef<HTMLInputElement>(null);
 
@@ -605,18 +635,24 @@ function AddItemPanel({ onAdd, onClose }: {
       if (sticker === '__custom__' && stickerUrl) onAdd('image', { image_url: stickerUrl, border_radius: 0 });
       else onAdd('sticker', { content: sticker, title });
     }
+    if (activeType === 'goal') {
+      const data: GoalData = { progress: goalPct, items: goalItems };
+      onAdd('goal', { title: goalTitle || 'My Goal', content: JSON.stringify(data), color: '#c49b66' });
+    }
     onClose();
   }
 
   const canAdd = activeType === 'image' ? !!imageUrl
     : activeType === 'sticker' ? (!!sticker)
+    : activeType === 'goal' ? !!goalTitle
     : !!content;
 
   const typeBtns: { id: ItemType; icon: React.ReactNode; label: string }[] = [
-    { id: 'image',   icon: <Image className="w-4 h-4" />,  label: 'Image'   },
-    { id: 'quote',   icon: <Quote className="w-4 h-4" />,  label: 'Quote'   },
-    { id: 'text',    icon: <Type className="w-4 h-4" />,   label: 'Text'    },
-    { id: 'sticker', icon: <Smile className="w-4 h-4" />,  label: 'Sticker' },
+    { id: 'image',   icon: <Image className="w-4 h-4" />,   label: 'Image'   },
+    { id: 'quote',   icon: <Quote className="w-4 h-4" />,   label: 'Quote'   },
+    { id: 'text',    icon: <Type className="w-4 h-4" />,    label: 'Text'    },
+    { id: 'sticker', icon: <Smile className="w-4 h-4" />,   label: 'Sticker' },
+    { id: 'goal',    icon: <Target className="w-4 h-4" />,  label: 'Goal'    },
   ];
 
   return (
@@ -714,6 +750,37 @@ function AddItemPanel({ onAdd, onClose }: {
           </>
         )}
 
+        {/* GOAL */}
+        {activeType === 'goal' && (
+          <>
+            <input value={goalTitle} onChange={e => setGoalTitle(e.target.value)} placeholder="Goal title (e.g. Buy a house)"
+              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-xs placeholder:text-white/25 focus:outline-none focus:border-white/30" />
+            <div>
+              <p className="text-[10px] text-white/40 mb-1">Progress: <span style={{ color: '#c49b66' }}>{goalPct}%</span></p>
+              <input type="range" min={0} max={100} value={goalPct} onChange={e => setGoalPct(+e.target.value)}
+                className="w-full h-1" style={{ accentColor: '#c49b66' }} />
+            </div>
+            <div>
+              <p className="text-[10px] text-white/40 mb-1.5">Checklist items</p>
+              <div className="flex gap-1.5">
+                <input value={goalInput} onChange={e => setGoalInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && goalInput.trim()) { setGoalItems(p => [...p, { text: goalInput.trim(), done: false }]); setGoalInput(''); } }}
+                  placeholder="Add item, press Enter"
+                  className="flex-1 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs placeholder:text-white/20 focus:outline-none" />
+                <button onClick={() => { if (goalInput.trim()) { setGoalItems(p => [...p, { text: goalInput.trim(), done: false }]); setGoalInput(''); } }}
+                  className="px-2 rounded-lg bg-white/10 text-white/60 hover:text-white text-xs">+</button>
+              </div>
+              {goalItems.map((it, i) => (
+                <div key={i} className="flex items-center gap-2 mt-1.5 px-2 py-1 rounded-lg bg-white/5">
+                  <div className="w-3 h-3 rounded-sm border border-white/20 flex-shrink-0" style={{ background: it.done ? '#c49b66' : 'transparent' }} />
+                  <span className="flex-1 text-[11px] text-white/70">{it.text}</span>
+                  <button onClick={() => setGoalItems(p => p.filter((_, j) => j !== i))} className="text-white/20 hover:text-red-400 text-xs">✕</button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
         <button onClick={handleAdd} disabled={!canAdd}
           className="w-full py-2 rounded-xl bg-white text-black text-xs font-semibold hover:bg-white/90 transition-colors disabled:opacity-30">
           Add to Board
@@ -724,8 +791,8 @@ function AddItemPanel({ onAdd, onClose }: {
 }
 
 // ── Canvas Item ───────────────────────────────────────────────────────────────
-function CanvasItem({ item, isSelected, isEditing, onSelect, onStartEdit, onStopEdit, onUpdate, onContextMenu }: {
-  item: DreamItem; isSelected: boolean; isEditing: boolean;
+function CanvasItem({ item, isSelected, isEditing, snapGrid, onSelect, onStartEdit, onStopEdit, onUpdate, onContextMenu }: {
+  item: DreamItem; isSelected: boolean; isEditing: boolean; snapGrid: number;
   onSelect: () => void; onStartEdit: () => void; onStopEdit: () => void;
   onUpdate: (u: Partial<DreamItem>) => void;
   onContextMenu: (x: number, y: number) => void;
@@ -733,6 +800,7 @@ function CanvasItem({ item, isSelected, isEditing, onSelect, onStartEdit, onStop
   const editRef    = useRef<HTMLTextAreaElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [liveRot,  setLiveRot]  = useState(item.rotation || 0);
+  const [isHovered, setIsHovered] = useState(false);
   const rotRef     = useRef(item.rotation || 0);
 
   useEffect(() => {
@@ -781,46 +849,66 @@ function CanvasItem({ item, isSelected, isEditing, onSelect, onStartEdit, onStop
 
   function renderContent() {
     if (item.type === 'image') return (
-      <div className="w-full h-full relative" style={{ borderRadius: item.border_radius ?? 12, overflow: 'hidden' }}>
+      <div className="w-full h-full relative group/imgcard" style={{ borderRadius: item.border_radius ?? 12, overflow: 'hidden', background: '#0a0a0a' }}>
         {item.image_url
           // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={item.image_url} alt="" className="w-full h-full object-cover" draggable={false} style={{ filter: 'contrast(1.02) saturate(1.05)' }} />
-          : <div className="w-full h-full bg-gradient-to-br from-white/5 to-white/10 flex items-center justify-center text-white/20 text-xs backdrop-blur-sm">No image</div>
+          ? <img src={item.image_url} alt="" className="w-full h-full object-cover transition-all duration-500 group-hover/imgcard:grayscale-0 group-hover/imgcard:opacity-100" draggable={false}
+              style={{ filter: isHovered ? 'grayscale(0%) opacity(1)' : 'grayscale(40%) opacity(0.7)' }} />
+          : <div className="w-full h-full bg-gradient-to-br from-white/5 to-white/10 flex items-center justify-center text-white/20 text-xs backdrop-blur-sm">Drop image here</div>
         }
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
         {item.content && (
-          <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-3 pt-12 backdrop-blur-sm">
-            <p className="text-white text-sm leading-snug font-medium drop-shadow-lg">{item.content}</p>
+          <div className="absolute bottom-0 inset-x-0 p-4">
+            <h4 className="text-sm font-bold text-white uppercase tracking-tighter leading-tight">{item.content}</h4>
+          </div>
+        )}
+        {/* Expand icon on hover */}
+        {isHovered && (
+          <div className="absolute bottom-3 right-3 text-white/40">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
           </div>
         )}
       </div>
     );
 
     if (item.type === 'quote') return (
-      <div className="w-full h-full p-5 flex flex-col justify-center" style={{
-        background: 'transparent',
+      <div className="w-full h-full p-7 flex flex-col justify-center" style={{
+        background: item.bg_color || '#0a0a0a',
         borderRadius: item.border_radius ?? 0,
-        borderLeft: `3px solid ${item.color || 'rgba(59,130,246,0.6)'}`,
       }}>
         {isEditing
           ? <textarea ref={editRef} defaultValue={item.content || ''}
               onBlur={e => { onUpdate({ content: e.target.value }); onStopEdit(); }}
               onKeyDown={e => { if (e.key === 'Escape') onStopEdit(); e.stopPropagation(); }}
-              className="bg-transparent border-none outline-none resize-none w-full flex-1 italic" style={{...ts, color: '#1f2937'}} />
-          : <p className="italic leading-relaxed" style={{...ts, color: '#1f2937'}}>"{item.content}"</p>
+              className="bg-transparent border-none outline-none resize-none w-full flex-1 italic text-white text-2xl leading-relaxed text-center"
+              style={{ fontFamily: 'Young Serif, Playfair Display, serif' }} />
+          : <p className="italic leading-relaxed text-center text-white"
+              style={{ fontFamily: 'Young Serif, Playfair Display, serif', fontSize: Math.max(14, item.font_size || 22), lineHeight: 1.5 }}>
+              "{item.content}"
+            </p>
         }
-        {!isEditing && item.author && <p className="mt-3 text-gray-500 text-xs font-medium">— {item.author}</p>}
+        {!isEditing && item.author && (
+          <p className="mt-4 text-xs font-medium text-center" style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'JetBrains Mono, monospace' }}>— {item.author}</p>
+        )}
+        {!isEditing && (
+          <div className="mt-4 flex justify-center">
+            <span style={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace', color: '#00ff88', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+              Affirmation
+            </span>
+          </div>
+        )}
       </div>
     );
 
     if (item.type === 'text') return (
       <div className="w-full h-full p-4 flex flex-col" style={{ background: 'transparent', borderRadius: item.border_radius ?? 0 }}>
-        {item.title && <p className="font-bold mb-2" style={{ ...ts, fontSize: (item.font_size || 16) + 3, color: '#111827' }}>{item.title}</p>}
+        {item.title && <p className="font-bold mb-2" style={{ ...ts, fontSize: (item.font_size || 16) + 3 }}>{item.title}</p>}
         {isEditing
           ? <textarea ref={editRef} defaultValue={item.content || ''}
               onBlur={e => { onUpdate({ content: e.target.value }); onStopEdit(); }}
               onKeyDown={e => { if (e.key === 'Escape') onStopEdit(); e.stopPropagation(); }}
-              className="bg-transparent border-none outline-none resize-none w-full flex-1" style={{...ts, color: '#374151'}} />
-          : <p className="leading-relaxed" style={{...ts, color: '#374151'}}>{item.content}</p>
+              className="bg-transparent border-none outline-none resize-none w-full flex-1" style={ts} />
+          : <p className="leading-relaxed" style={ts}>{item.content}</p>
         }
       </div>
     );
@@ -831,13 +919,77 @@ function CanvasItem({ item, isSelected, isEditing, onSelect, onStartEdit, onStop
         {item.title && <p className="text-gray-700 text-xs font-medium text-center px-2 bg-white/80 backdrop-blur-sm rounded-full py-1 shadow-sm">{item.title}</p>}
       </div>
     );
+
+    if (item.type === 'goal') {
+      const goalData = parseGoalData(item.content);
+      const accentColor = item.color || '#c49b66';
+      return (
+        <div className="w-full h-full flex flex-col p-5 overflow-hidden"
+          style={{ background: '#0e0e0e', borderRadius: item.border_radius ?? 16, border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="flex flex-col items-center mb-3 flex-shrink-0">
+            <div style={{ filter: `drop-shadow(0 0 8px ${accentColor}66)` }}>
+              <ProgressRing pct={goalData.progress} size={72} color={accentColor} />
+            </div>
+            <h3 className="text-xs font-bold text-white mt-3 mb-1 uppercase tracking-tighter text-center">{item.title || 'Goal'}</h3>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: accentColor }} />
+              <span className="text-[9px] font-mono uppercase tracking-wider" style={{ color: accentColor, fontFamily: 'JetBrains Mono, monospace' }}>{goalData.progress}% complete</span>
+            </div>
+          </div>
+          {/* Progress bar */}
+          <div className="h-0.5 rounded-full mb-3 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${goalData.progress}%`, background: accentColor }} />
+          </div>
+          {/* Checklist */}
+          <div className="flex-1 overflow-hidden space-y-1.5">
+            {goalData.items.length === 0 && (
+              <p className="text-white/20 text-[10px] text-center py-2">No checklist items</p>
+            )}
+            {goalData.items.slice(0, 8).map((it, i) => (
+              <button key={i}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const updated = { ...goalData, items: goalData.items.map((gi, j) => j === i ? { ...gi, done: !gi.done } : gi) };
+                  onUpdate({ content: JSON.stringify(updated) });
+                }}
+                className="w-full flex items-center gap-2 text-left hover:bg-white/5 rounded-lg px-1 py-1 transition-colors">
+                {it.done
+                  ? <Check className="w-3 h-3 flex-shrink-0" style={{ color: accentColor }} />
+                  : <div className="w-3 h-3 rounded-full border flex-shrink-0" style={{ borderColor: 'rgba(255,255,255,0.2)' }} />
+                }
+                <span style={{ fontSize: 10, lineHeight: 1.3, color: it.done ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.6)', textDecoration: it.done ? 'line-through' : 'none', fontFamily: 'JetBrains Mono, monospace' }} className="truncate">{it.text}</span>
+              </button>
+            ))}
+          </div>
+          {isEditing && (
+            <div className="mt-2 flex-shrink-0">
+              <input
+                autoFocus
+                placeholder="Edit progress (0-100)"
+                className="w-full px-2 py-1 rounded-lg bg-white/10 text-white text-xs focus:outline-none border border-white/20"
+                defaultValue={String(goalData.progress)}
+                onBlur={e => {
+                  const pct = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                  onUpdate({ content: JSON.stringify({ ...goalData, progress: pct }) });
+                  onStopEdit();
+                }}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') { (e.target as HTMLInputElement).blur(); } e.stopPropagation(); }}
+              />
+            </div>
+          )}
+        </div>
+      );
+    }
   }
 
   return (
     <Rnd
       size={{ width: item.width, height: item.height }}
       position={{ x: item.x, y: item.y }}
-      onDragStop={(_, d) => onUpdate({ x: d.x, y: d.y })}
+      onDragStop={(_, d) => {
+        const snap = (v: number) => snapGrid > 0 ? Math.round(v / snapGrid) * snapGrid : v;
+        onUpdate({ x: snap(d.x), y: snap(d.y) });
+      }}
       onResizeStop={(_, __, ref, ___, pos) => onUpdate({ width: parseFloat(ref.style.width), height: parseFloat(ref.style.height), x: pos.x, y: pos.y })}
       disableDragging={isEditing || item.is_locked}
       enableResizing={isSelected && !isEditing && !liveRot}
@@ -848,8 +1000,30 @@ function CanvasItem({ item, isSelected, isEditing, onSelect, onStartEdit, onStop
       onDoubleClick={(e: React.MouseEvent) => { e.stopPropagation(); if (item.type === 'text' || item.type === 'quote') onStartEdit(); }}
       onContextMenu={(e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); onContextMenu(e.clientX, e.clientY); }}
     >
-      {/* Rotation wrapper */}
-      <div ref={wrapperRef} style={{ width: '100%', height: '100%', transform: `rotate(${liveRot}deg)`, transformOrigin: 'center center' }}>
+      {/* Rotation wrapper — hover flattens rotation and scales up (Canva-style) */}
+      <div ref={wrapperRef}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        style={{
+          width: '100%', height: '100%',
+          transform: isHovered && !isEditing ? `rotate(0deg) scale(1.02)` : `rotate(${liveRot}deg)`,
+          transformOrigin: 'center center',
+          transition: isEditing ? 'none' : 'transform 0.2s ease',
+          zIndex: isHovered ? 50 : undefined,
+        }}>
+        {/* Pin dot — white ring style matching design mock */}
+        {item.type !== 'sticker' && (
+          <div style={{
+            position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)',
+            width: 16, height: 16, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 2, pointerEvents: 'none',
+          }}>
+            <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'rgba(255,255,255,0.4)' }} />
+          </div>
+        )}
         {/* Rotation handle – rendered in rotated space so it stays above the item */}
         {isSelected && !isEditing && !item.is_locked && (
           <>
@@ -875,8 +1049,8 @@ function CanvasItem({ item, isSelected, isEditing, onSelect, onStartEdit, onStop
           boxShadow: isSelected 
             ? '0 12px 40px -8px rgba(0,0,0,0.4), 0 4px 12px -2px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.1)'
             : '0 4px 16px -2px rgba(0,0,0,0.25), 0 2px 8px -1px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.05)',
-          background: item.type === 'text' || item.type === 'quote' 
-            ? (item.bg_color || 'rgba(255,255,255,0.95)')
+          background: item.type === 'text' || item.type === 'quote'
+            ? (item.bg_color || 'rgba(0,0,0,0.55)')
             : item.type === 'sticker' ? 'transparent' : undefined,
           backdropFilter: item.type === 'text' || item.type === 'quote' ? 'blur(8px)' : undefined,
         }}>
@@ -907,17 +1081,21 @@ function CanvasItem({ item, isSelected, isEditing, onSelect, onStartEdit, onStop
 
 // ── Board Canvas ──────────────────────────────────────────────────────────────
 function BoardCanvas({ board, onBack }: { board: DreamBoard; onBack: () => void }) {
-  const [items,       setItems]       = useState<DreamItem[]>([]);
-  const [selectedId,  setSelectedId]  = useState<string | null>(null);
-  const [editingId,   setEditingId]   = useState<string | null>(null);
-  const [zoom,        setZoom]        = useState(0.9);
-  const [showAdd,     setShowAdd]     = useState(false);
-  const [isInfinite,  setIsInfinite]  = useState(board.is_infinite);
-  const [isSaving,    setIsSaving]    = useState(false);
-  const [isDragOver,  setIsDragOver]  = useState(false);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; itemId: string } | null>(null);
-  const [bgColor,     setBgColor]     = useState(board.bg_color);
+  const [items,        setItems]        = useState<DreamItem[]>([]);
+  const [selectedId,   setSelectedId]   = useState<string | null>(null);
+  const [editingId,    setEditingId]    = useState<string | null>(null);
+  const [zoom,         setZoom]         = useState(0.9);
+  const [showAdd,      setShowAdd]      = useState(false);
+  const [isInfinite,   setIsInfinite]   = useState(board.is_infinite);
+  const [isSaving,     setIsSaving]     = useState(false);
+  const [isDragOver,   setIsDragOver]   = useState(false);
+  const [contextMenu,  setContextMenu]  = useState<{ x: number; y: number; itemId: string } | null>(null);
+  const [bgColor,      setBgColor]      = useState(board.bg_color);
   const [showBgPicker, setShowBgPicker] = useState(false);
+  const [snapToGrid,   setSnapToGrid]   = useState(false);
+  const [isPanMode,    setIsPanMode]    = useState(false);
+  const [isPanning,    setIsPanning]    = useState(false);
+  const panStartRef = useRef<{ mx: number; my: number; sl: number; st: number } | null>(null);
 
   const historyRef = useRef<DreamItem[][]>([]);
   const historyIdx = useRef(0);
@@ -953,13 +1131,18 @@ function BoardCanvas({ board, onBack }: { board: DreamBoard; onBack: () => void 
       if (editingId) return;
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === ' ') { e.preventDefault(); setIsPanMode(true); return; }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) deleteItem(selectedId);
       if (e.key === 'Escape') { setSelectedId(null); setContextMenu(null); }
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
       if ((e.ctrlKey || e.metaKey) && e.key === 'd' && selectedId) { e.preventDefault(); duplicateItem(selectedId); }
     }
+    function onKeyUp(e: KeyboardEvent) {
+      if (e.key === ' ') setIsPanMode(false);
+    }
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKeyUp);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKeyUp); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingId, selectedId, items]);
 
@@ -972,10 +1155,13 @@ function BoardCanvas({ board, onBack }: { board: DreamBoard; onBack: () => void 
     const base = ITEM_DEFAULTS[type];
     const w    = (base.width  as number) || 240;
     const h    = (base.height as number) || 160;
+    // Random initial scatter rotation: ±4° for image/quote, ±2° for text/goal/sticker
+    const maxRot = (type === 'image' || type === 'quote') ? 4 : 2;
+    const initRot = parseFloat(((Math.random() - 0.5) * 2 * maxRot).toFixed(1));
     const payload: any = {
       user_id: user.id, board_id: board.id, type,
       x: cx - w / 2, y: cy - h / 2, width: w, height: h,
-      rotation: 0, z_index: items.length > 0 ? Math.max(...items.map(i => i.z_index)) + 1 : 0,
+      rotation: initRot, z_index: items.length > 0 ? Math.max(...items.map(i => i.z_index)) + 1 : 0,
       font_size: 16, font_family: 'Inter', font_weight: '400',
       text_align: 'left', letter_spacing: 0,
       is_uppercase: false, opacity: 1, border_radius: 12, is_locked: false,
@@ -1101,19 +1287,20 @@ function BoardCanvas({ board, onBack }: { board: DreamBoard; onBack: () => void 
   const canvasH = isInfinite ? 3000 : board.canvas_height;
 
   return (
-    <div className="h-full flex flex-col" style={{ background: '#0a0a0a' }}>
+    <div className="h-full flex flex-col relative" style={{ background: '#070707' }}>
       {/* Main toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-white/10 flex-shrink-0 bg-[#111] h-11">
-        <div className="flex items-center gap-3">
-          <button onClick={onBack} className="flex items-center gap-1.5 text-white/60 hover:text-white transition-colors text-sm">
-            <ArrowLeft className="w-4 h-4" /> Boards
+      <div className="flex items-center justify-between px-6 py-0 border-b border-white/5 flex-shrink-0 h-16" style={{ background: '#070707' }}>
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="flex items-center gap-1.5 text-white/40 hover:text-white transition-colors"
+            style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.05em' }}>
+            <ArrowLeft className="w-3.5 h-3.5" /> BOARDS
           </button>
-          <div className="w-px h-4 bg-white/15" />
+          <div className="w-px h-4 bg-white/10" />
           <div>
-            <p className="font-semibold text-white text-sm leading-none">{board.title}</p>
-            {board.period && <p className="text-white/40 text-[10px]">{board.period}</p>}
+            <p className="font-bold text-white text-sm leading-none tracking-tight">{board.title}</p>
+            {board.period && <p style={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace', color: 'rgba(255,255,255,0.25)', marginTop: 2 }}>{board.period}</p>}
           </div>
-          {isSaving && <span className="text-white/30 text-[10px]">Saving...</span>}
+          {isSaving && <span style={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace', color: 'rgba(0,255,136,0.5)' }}>SAVING…</span>}
         </div>
         <div className="flex items-center gap-1.5">
           <button onClick={undo} title="Undo (Ctrl+Z)" className="w-7 h-7 rounded-lg text-white/50 hover:bg-white/10 hover:text-white flex items-center justify-center transition-colors"><Undo2 className="w-3.5 h-3.5" /></button>
@@ -1123,6 +1310,14 @@ function BoardCanvas({ board, onBack }: { board: DreamBoard; onBack: () => void 
           <button onClick={() => setIsInfinite(p => !p)}
             className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-xs font-medium border border-white/15 text-white/50 hover:text-white hover:border-white/30 transition-all">
             {isInfinite ? <><Unlock className="w-3 h-3" /> Infinite</> : <><Lock className="w-3 h-3" /> Fixed</>}
+          </button>
+          <button onClick={() => setSnapToGrid(p => !p)} title="Snap to grid"
+            className={cn('w-7 h-7 rounded-lg flex items-center justify-center transition-colors', snapToGrid ? 'bg-white/20 text-white' : 'text-white/40 hover:bg-white/10 hover:text-white')}>
+            <Grid3X3 className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={() => setIsPanMode(p => !p)} title="Pan mode (or hold Space)"
+            className={cn('w-7 h-7 rounded-lg flex items-center justify-center transition-colors', isPanMode ? 'bg-white/20 text-white' : 'text-white/40 hover:bg-white/10 hover:text-white')}>
+            <Hand className="w-3.5 h-3.5" />
           </button>
           <div className="flex items-center gap-0.5 bg-white/5 rounded-lg px-1 border border-white/10 h-7">
             <button onClick={() => setZoom(z => Math.max(z - 0.1, 0.3))} className="p-1 text-white/60 hover:text-white"><ZoomOut className="w-3 h-3" /></button>
@@ -1150,8 +1345,11 @@ function BoardCanvas({ board, onBack }: { board: DreamBoard; onBack: () => void 
             )}
           </div>
           <button onClick={() => setShowAdd(p => !p)}
-            className={cn('flex items-center gap-1.5 h-7 px-3 rounded-lg text-xs font-semibold transition-all', showAdd ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20')}>
-            <Plus className="w-3.5 h-3.5" /> Add
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition-all hover:scale-105"
+            style={{ background: '#00ff88', color: '#000', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.05em' }}>
+            <Plus className="w-3 h-3" />
+            <span>ADD ITEM</span>
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
           </button>
         </div>
       </div>
@@ -1174,8 +1372,20 @@ function BoardCanvas({ board, onBack }: { board: DreamBoard; onBack: () => void 
       {/* Canvas */}
       <div ref={canvasRef}
         className={cn('flex-1 overflow-auto relative', isDragOver && 'ring-2 ring-inset ring-white/30')}
-        style={{ background: bgColor }}
-        onClick={() => { setSelectedId(null); setContextMenu(null); setShowBgPicker(false); }}
+        style={{ background: bgColor, cursor: isPanMode ? (isPanning ? 'grabbing' : 'grab') : 'crosshair' }}
+        onClick={() => { if (!isPanMode) { setSelectedId(null); setContextMenu(null); setShowBgPicker(false); } }}
+        onMouseDown={e => {
+          if (!isPanMode) return;
+          setIsPanning(true);
+          panStartRef.current = { mx: e.clientX, my: e.clientY, sl: canvasRef.current?.scrollLeft || 0, st: canvasRef.current?.scrollTop || 0 };
+        }}
+        onMouseMove={e => {
+          if (!isPanning || !panStartRef.current || !canvasRef.current) return;
+          canvasRef.current.scrollLeft = panStartRef.current.sl - (e.clientX - panStartRef.current.mx);
+          canvasRef.current.scrollTop  = panStartRef.current.st - (e.clientY - panStartRef.current.my);
+        }}
+        onMouseUp={() => { setIsPanning(false); panStartRef.current = null; }}
+        onMouseLeave={() => { setIsPanning(false); panStartRef.current = null; }}
         onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
       >
         {/* Subtle texture overlay for realistic board feel */}
@@ -1190,12 +1400,12 @@ function BoardCanvas({ board, onBack }: { board: DreamBoard; onBack: () => void 
                   backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
                   mixBlendMode: 'overlay'
                 }} />
-              {/* Subtle dot grid */}
+              {/* Dot grid — 32px snap grid visible reference */}
               <div className="absolute inset-0 pointer-events-none"
-                style={{ 
-                  opacity: isLight ? 0.08 : 0.03, 
-                  backgroundImage: `radial-gradient(circle, ${isLight ? '#000' : '#fff'} 1px, transparent 1px)`, 
-                  backgroundSize: '24px 24px' 
+                style={{
+                  opacity: isLight ? 0.12 : 0.06,
+                  backgroundImage: `radial-gradient(circle, ${isLight ? '#000' : '#fff'} 1px, transparent 1px)`,
+                  backgroundSize: '32px 32px'
                 }} />
             </>
           );
@@ -1219,7 +1429,8 @@ function BoardCanvas({ board, onBack }: { board: DreamBoard; onBack: () => void 
             <CanvasItem key={item.id} item={item}
               isSelected={selectedId === item.id}
               isEditing={editingId === item.id}
-              onSelect={() => setSelectedId(item.id)}
+              snapGrid={snapToGrid ? 32 : 0}
+              onSelect={() => { if (!isPanMode) setSelectedId(item.id); }}
               onStartEdit={() => setEditingId(item.id)}
               onStopEdit={() => setEditingId(null)}
               onUpdate={u => updateItem(item.id, u)}
@@ -1228,11 +1439,39 @@ function BoardCanvas({ board, onBack }: { board: DreamBoard; onBack: () => void 
           ))}
           {items.length === 0 && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none">
-              <p className="text-white/20 text-xl font-medium">Your board is empty</p>
-              <p className="text-white/15 text-sm">Click + Add or drop images here to start</p>
+              <p style={{ color: 'rgba(255,255,255,0.15)', fontFamily: 'Young Serif, serif', fontSize: 22, fontStyle: 'italic' }}>
+                "Your vision awaits."
+              </p>
+              <p style={{ color: 'rgba(255,255,255,0.1)', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.15em' }}>
+                Click ADD ITEM or drop images to begin
+              </p>
             </div>
           )}
         </div>
+      </div>
+
+      {/* Floating bottom legend pill — matches design mock */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-6 px-7 py-2.5 rounded-2xl pointer-events-none"
+        style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.05)' }}>
+        {[
+          { color: 'rgba(255,255,255,0.15)', border: 'rgba(255,255,255,0.2)', label: 'Affirmations' },
+          { color: 'rgba(196,155,102,0.2)', border: 'rgba(196,155,102,0.5)', label: 'Goals' },
+          { color: 'rgba(0,255,136,0.2)', border: 'rgba(0,255,136,0.5)', label: 'Images' },
+        ].map(t => (
+          <div key={t.label} className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full" style={{ background: t.color, border: `1px solid ${t.border}` }} />
+            <span style={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace', color: 'rgba(156,163,175,1)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{t.label}</span>
+          </div>
+        ))}
+        {items.length > 0 && (
+          <div className="flex items-center gap-2 pl-4" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
+            <span style={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace', color: 'rgba(107,114,128,1)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              {items.length} obj · {Math.round(zoom * 100)}%
+              {snapToGrid ? ' · SNAP' : ''}
+              {isPanMode ? ' · PAN' : ''}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Add panel */}
@@ -1266,6 +1505,8 @@ function BoardCanvas({ board, onBack }: { board: DreamBoard; onBack: () => void 
 }
 
 // ── Board Gallery ─────────────────────────────────────────────────────────────
+const YEAR_TABS = ['All', '2024', '2025', '2026', '2027', '2028'];
+
 function BoardGallery({ onOpen }: { onOpen: (board: DreamBoard) => void }) {
   const [boards,        setBoards]        = useState<DreamBoard[]>([]);
   const [itemCounts,    setItemCounts]    = useState<Record<string, number>>({});
@@ -1273,6 +1514,7 @@ function BoardGallery({ onOpen }: { onOpen: (board: DreamBoard) => void }) {
   const [isLoading,     setIsLoading]     = useState(true);
   const [showNew,       setShowNew]       = useState(false);
   const [editingBoard,  setEditingBoard]  = useState<DreamBoard | null>(null);
+  const [activeYear,    setActiveYear]    = useState(() => new Date().getFullYear().toString());
 
   useEffect(() => { loadBoards(); }, []);
 
@@ -1308,38 +1550,78 @@ function BoardGallery({ onOpen }: { onOpen: (board: DreamBoard) => void }) {
     setIsLoading(false);
   }
 
+  const filteredBoards = activeYear === 'All'
+    ? boards
+    : boards.filter(b => {
+        if (b.period) return b.period.includes(activeYear);
+        return new Date(b.created_at).getFullYear().toString() === activeYear;
+      });
+
   const byType: Record<BoardType, DreamBoard[]> = { year: [], quarter: [], month: [], custom: [] };
-  boards.forEach(b => byType[b.type].push(b));
+  filteredBoards.forEach(b => byType[b.type].push(b));
   const typeLabels: Record<BoardType, string> = { year: '📅 Year', quarter: '📊 Quarters', month: '🗓️ Monthly', custom: '✏️ Custom' };
 
   return (
-    <div className="h-full flex flex-col bg-[#0a0a0a] overflow-hidden">
-      <div className="px-8 pt-8 pb-6 flex-shrink-0 border-b border-white/10">
-        <div className="flex items-end justify-between">
-          <div>
-            <h1 className="font-display text-2xl font-bold text-white tracking-tight">Dreamboard</h1>
-            <p className="text-white/40 text-sm mt-1">Your vision, your future — look back and see how far you've come.</p>
+    <div className="h-full flex flex-col hq-scroll overflow-y-auto" style={{ background: '#080808', color: '#e5e5e5' }}>
+      {/* Top header with title + new board button */}
+      <div className="flex items-center justify-between px-6 pt-5 pb-0 flex-shrink-0">
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-widest text-white/25 flex items-center gap-2 mb-1">
+            <span>CTROOM</span><span>/</span><span style={{ color: '#c49b66' }}>DREAMBOARD</span>
           </div>
-          <button onClick={() => setShowNew(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black text-sm font-semibold hover:bg-white/90 transition-colors shadow-lg">
-            <Plus className="w-4 h-4" /> New Board
-          </button>
+          <div className="font-mono text-lg font-bold text-white tracking-tighter uppercase">The Vision Board</div>
         </div>
+        <button onClick={() => setShowNew(true)}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-mono text-[11px] uppercase tracking-widest font-bold transition-all hover:opacity-90"
+          style={{ background: 'rgba(196,155,102,0.12)', border: '1px solid rgba(196,155,102,0.3)', color: '#c49b66' }}>
+          <Plus className="w-3.5 h-3.5" /> New Board
+        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-8 py-6 space-y-10">
+      {/* Year tabs — pill container matching design mock */}
+      <div className="flex items-center justify-between px-6 mt-5 flex-shrink-0">
+        <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)' }}>
+          {YEAR_TABS.map(yr => {
+            const isActive = activeYear === yr;
+            return (
+              <button key={yr} onClick={() => setActiveYear(yr)}
+                className="px-5 py-1.5 text-xs transition-all rounded-lg"
+                style={{
+                  fontFamily: 'JetBrains Mono, monospace',
+                  color: isActive ? '#ffffff' : '#525252',
+                  background: isActive ? 'rgba(255,255,255,0.06)' : 'transparent',
+                  border: isActive ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent',
+                }}>
+                {yr}
+              </button>
+            );
+          })}
+        </div>
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: 'rgba(255,255,255,0.15)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+          {filteredBoards.length} board{filteredBoards.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+
+      <div className="flex-1 px-8 py-6 space-y-10">
         {isLoading ? (
-          <div className="flex items-center justify-center h-48 text-white/30 text-sm">Loading your boards...</div>
-        ) : boards.length === 0 ? (
+          <div className="flex items-center justify-center h-48 font-mono text-[11px] text-white/20 uppercase tracking-widest">
+            <span className="animate-pulse">Loading boards...</span>
+          </div>
+        ) : filteredBoards.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 gap-5 text-center">
-            <div className="text-6xl">✨</div>
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(196,155,102,0.06)', border: '1px solid rgba(196,155,102,0.15)' }}>
+              <span className="text-3xl">✨</span>
+            </div>
             <div>
-              <p className="text-white font-semibold">No boards yet</p>
-              <p className="text-white/40 text-sm mt-1 max-w-xs">Create your first dreamboard and start mapping out your vision.</p>
+              <p className="font-mono text-sm font-bold text-white uppercase tracking-wider">
+                {activeYear === 'All' ? 'No boards yet' : `No boards for ${activeYear}`}
+              </p>
+              <p className="font-mono text-[11px] text-white/30 mt-1.5 max-w-xs">Create your first dreamboard and start mapping out your vision.</p>
             </div>
             <button onClick={() => setShowNew(true)}
-              className="px-6 py-2.5 rounded-xl bg-white text-black text-sm font-semibold hover:bg-white/90 transition-colors">
-              Create First Board
+              className="px-5 py-2 rounded-xl font-mono text-[11px] uppercase tracking-widest font-bold transition-all hover:opacity-90"
+              style={{ background: 'rgba(196,155,102,0.12)', border: '1px solid rgba(196,155,102,0.3)', color: '#c49b66' }}>
+              Create {activeYear === 'All' ? 'First' : activeYear} Board
             </button>
           </div>
         ) : (
@@ -1348,7 +1630,11 @@ function BoardGallery({ onOpen }: { onOpen: (board: DreamBoard) => void }) {
             if (!group.length) return null;
             return (
               <div key={type}>
-                <h2 className="font-mono text-xs font-semibold text-white/40 uppercase tracking-widest mb-4">{typeLabels[type]}</h2>
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="font-mono text-[10px] font-bold text-white/30 uppercase tracking-widest">{typeLabels[type]}</span>
+                  <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                  <span className="font-mono text-[9px] text-white/15">{group.length}</span>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {group.map(board => (
                     <BoardCard key={board.id} board={board} itemCount={itemCounts[board.id] || 0}

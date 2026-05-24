@@ -653,3 +653,138 @@ body::before {
   --primary-foreground: oklch(0.10 0 0);
   --ring: oklch(0.70 0.20 8);
 }
+
+/* ── Ctroom HQ Design System ────────────────────────────────────────────────
+   Command-center aesthetic: dark terminal + single #00ff88 accent
+   ─────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --hq-accent: #00ff88;
+  --hq-accent-dim: rgba(0, 255, 136, 0.15);
+  --hq-accent-glow: rgba(0, 255, 136, 0.4);
+  --hq-bg: #070707;
+  --hq-border: rgba(255, 255, 255, 0.05);
+  --hq-glass: rgba(255, 255, 255, 0.04);
+}
+
+/* Scanline sweep (login screen) */
+@keyframes hq-scanline {
+  0%   { top: -120px; }
+  100% { top: 100%; }
+}
+.hq-scanline {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 120px;
+  background: linear-gradient(0deg, transparent 0%, rgba(255,255,255,0.025) 50%, transparent 100%);
+  animation: hq-scanline 12s linear infinite;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* CRT pixel-line overlay */
+.hq-crt {
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.08) 50%),
+    linear-gradient(90deg, rgba(255,0,0,0.015), rgba(0,255,0,0.008), rgba(0,0,255,0.015));
+  background-size: 100% 2px, 3px 100%;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Terminal typing reveal */
+@keyframes hq-type {
+  from { width: 0; opacity: 1; }
+  to   { width: 100%; opacity: 1; }
+}
+.hq-type {
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  animation: hq-type 0.8s steps(35, end) forwards;
+}
+
+/* Blinking block cursor */
+@keyframes hq-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+.hq-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 14px;
+  background: var(--hq-accent);
+  animation: hq-blink 1s step-end infinite;
+  vertical-align: text-bottom;
+  margin-left: 2px;
+}
+
+/* Button scan sweep */
+@keyframes hq-sweep {
+  0%   { left: -60%; }
+  50%  { left: 120%; }
+  100% { left: 120%; }
+}
+.hq-sweep {
+  position: relative;
+  overflow: hidden;
+}
+.hq-sweep::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0,255,136,0.18), transparent);
+  transform: skewX(-20deg);
+  animation: hq-sweep 3s ease-in-out infinite;
+}
+
+/* Active nav left-border line */
+.hq-nav-active {
+  box-shadow: inset 2px 0 0 0 var(--hq-accent);
+  background: rgba(255,255,255,0.04);
+}
+
+/* Accent text glow */
+.hq-glow {
+  text-shadow: 0 0 12px var(--hq-accent-glow);
+}
+
+/* Green dot glow */
+.hq-dot-active {
+  background: var(--hq-accent);
+  box-shadow: 0 0 8px var(--hq-accent);
+}
+
+/* Thin progress bar track */
+.hq-bar-track {
+  background: rgba(255,255,255,0.06);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.hq-bar-fill {
+  background: var(--hq-accent);
+  box-shadow: 0 0 8px var(--hq-accent-glow);
+  border-radius: 9999px;
+  height: 100%;
+}
+
+/* Card glass */
+.hq-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  backdrop-filter: blur(12px);
+}
+.hq-card:hover {
+  border-color: rgba(0,255,136,0.2);
+}
+
+/* Custom slim scrollbar for HQ views */
+.hq-scroll::-webkit-scrollbar { width: 4px; }
+.hq-scroll::-webkit-scrollbar-track { background: transparent; }
+.hq-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 9999px; }

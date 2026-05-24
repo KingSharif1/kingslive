@@ -1,15 +1,17 @@
-import React, { useState, useEffect } from 'react';
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Plus, Target, Clock, Flame, Github, ArrowUpRight,
-    MoreHorizontal, CheckCircle2, Circle, Pause, Archive,
-    TrendingUp, FolderKanban, ListTodo, Pencil, Trash2,
-    Globe, Zap, AlertTriangle, CheckCircle
+    Plus, Github, ArrowUpRight, ExternalLink, Flame,
+    MoreHorizontal, CheckCircle2, Pause, Archive,
+    TrendingUp, Pencil, Trash2, Globe, AlertTriangle, CheckCircle,
+    GitCommit, Clock, Loader2, Target,
 } from 'lucide-react';
 import { Mission, ActionItem } from '../../types';
 import { CtroomDataService } from '../../services/ctroomDataService';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { MissionFormModal } from '../modals/MissionFormModal';
 import { MissionDetailModal } from '../modals/MissionDetailModal';
 
@@ -18,7 +20,21 @@ interface MissionsViewProps {
     githubToken?: string;
 }
 
-type FilterTab = 'all' | 'active' | 'on-hold' | 'completed';
+type FilterTab = 'active' | 'ideas' | 'all' | 'completed';
+
+const STATUS_CONFIG: Record<Mission['status'], { label: string; class: string }> = {
+    active:    { label: 'In Progress', class: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+    'on-hold': { label: 'On Hold',     class: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+    completed: { label: 'Completed',   class: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+    archived:  { label: 'Archived',    class: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20' },
+};
+
+const MILO_COLOR: Record<Mission['status'], string> = {
+    active:    '#3b82f6',
+    'on-hold': '#f59e0b',
+    completed: '#10b981',
+    archived:  '#71717a',
+};
 
 export const MissionsView = ({ onMissionClick, githubToken }: MissionsViewProps) => {
     const [missions, setMissions] = useState<Mission[]>([]);
@@ -29,12 +45,10 @@ export const MissionsView = ({ onMissionClick, githubToken }: MissionsViewProps)
     const [editingMission, setEditingMission] = useState<Mission | undefined>(undefined);
     const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [showGHImport, setShowGHImport] = useState(false);
 
-    useEffect(() => {
-        loadData();
-    }, []);
+    useEffect(() => { loadData(); }, []);
 
-    // Close menu on outside click
     useEffect(() => {
         const handler = () => setOpenMenuId(null);
         document.addEventListener('click', handler);
@@ -50,8 +64,6 @@ export const MissionsView = ({ onMissionClick, githubToken }: MissionsViewProps)
             ]);
             setMissions(missionsData);
             setActionItems(itemsData);
-            
-            // Check domain status for projects with domainUrl
             checkDomainStatuses(missionsData);
         } catch (err) {
             console.error('Failed to load projects', err);
@@ -61,29 +73,19 @@ export const MissionsView = ({ onMissionClick, githubToken }: MissionsViewProps)
     };
 
     const checkDomainStatuses = async (projects: Mission[]) => {
-        const projectsWithDomains = projects.filter(m => m.domainUrl);
-        if (projectsWithDomains.length === 0) return;
-
-        // Check domains in parallel
-        const statusChecks = projectsWithDomains.map(async (project) => {
+        const withDomains = projects.filter(m => m.domainUrl);
+        if (!withDomains.length) return;
+        const results = await Promise.all(withDomains.map(async (p) => {
             try {
-                const res = await fetch(`/api/domain/status?url=${encodeURIComponent(project.domainUrl!)}`);
-                const status = await res.json();
-                return { projectId: project.id, status };
-            } catch (err) {
-                return { projectId: project.id, status: { isOnline: false, error: 'Failed to check' } };
+                const res = await fetch(`/api/domain/status?url=${encodeURIComponent(p.domainUrl!)}`);
+                return { id: p.id, status: await res.json() };
+            } catch {
+                return { id: p.id, status: { isOnline: false } };
             }
-        });
-
-        const results = await Promise.all(statusChecks);
-        
-        // Update missions with domain status
+        }));
         setMissions(prev => prev.map(m => {
-            const result = results.find(r => r.projectId === m.id);
-            if (result) {
-                return { ...m, domainStatus: result.status };
-            }
-            return m;
+            const r = results.find(x => x.id === m.id);
+            return r ? { ...m, domainStatus: r.status } : m;
         }));
     };
 
@@ -93,19 +95,13 @@ export const MissionsView = ({ onMissionClick, githubToken }: MissionsViewProps)
             if (success) {
                 const updated = { ...editingMission, ...data };
                 setMissions(prev => prev.map(m => m.id === editingMission.id ? updated : m));
-                // Check domain status if domainUrl was added/changed
-                if (data.domainUrl) {
-                    checkDomainStatuses([updated]);
-                }
+                if (data.domainUrl) checkDomainStatuses([updated]);
             }
         } else {
             const saved = await CtroomDataService.saveMission({ ...data, progress: 0 } as any);
             if (saved) {
                 setMissions(prev => [...prev, saved]);
-                // Check domain status for new project
-                if (saved.domainUrl) {
-                    checkDomainStatuses([saved]);
-                }
+                if (saved.domainUrl) checkDomainStatuses([saved]);
             }
         }
         setIsFormModalOpen(false);
@@ -113,7 +109,6 @@ export const MissionsView = ({ onMissionClick, githubToken }: MissionsViewProps)
     };
 
     const handleDeleteMission = async (id: string) => {
-        // TODO: wire up delete in CtroomDataService
         setMissions(prev => prev.filter(m => m.id !== id));
         setOpenMenuId(null);
     };
@@ -125,108 +120,107 @@ export const MissionsView = ({ onMissionClick, githubToken }: MissionsViewProps)
         setOpenMenuId(null);
     };
 
-    const filtered = missions.filter(m =>
-        filter === 'all' ? m.status !== 'archived' : m.status === filter
-    );
+    const filtered = missions.filter(m => {
+        if (m.status === 'archived') return false;
+        if (filter === 'all') return true;
+        if (filter === 'active') return m.status === 'active' || m.status === 'on-hold';
+        if (filter === 'ideas') return !m.repoUrl && m.status !== 'completed';
+        if (filter === 'completed') return m.status === 'completed';
+        return true;
+    });
 
-    const stats = {
-        active: missions.filter(m => m.status === 'active').length,
-        onHold: missions.filter(m => m.status === 'on-hold').length,
+    const counts = {
+        active: missions.filter(m => m.status === 'active' || m.status === 'on-hold').length,
+        ideas: missions.filter(m => !m.repoUrl && m.status !== 'completed' && m.status !== 'archived').length,
+        all: missions.filter(m => m.status !== 'archived').length,
         completed: missions.filter(m => m.status === 'completed').length,
-        total: missions.filter(m => m.status !== 'archived').length,
     };
 
-    const avgProgress = stats.total > 0
-        ? Math.round(missions.filter(m => m.status !== 'archived').reduce((s, m) => s + m.progress, 0) / stats.total)
-        : 0;
-
-    const tabs: { id: FilterTab; label: string; count: number }[] = [
-        { id: 'all', label: 'All', count: stats.total },
-        { id: 'active', label: 'Active', count: stats.active },
-        { id: 'on-hold', label: 'On Hold', count: stats.onHold },
-        { id: 'completed', label: 'Completed', count: stats.completed },
+    const tabs: { id: FilterTab; label: string }[] = [
+        { id: 'all', label: 'All' },
+        { id: 'active', label: 'Active' },
+        { id: 'ideas', label: 'Ideas' },
+        { id: 'completed', label: 'Completed' },
     ];
 
     return (
-        <div className="h-full flex flex-col space-y-6 overflow-y-auto">
-
-            {/* Header */}
-            <div className="flex items-start justify-between">
-                <div>
-                    <h1 className="font-display text-2xl text-foreground">Projects</h1>
-                    <p className="text-sm text-muted-foreground mt-0.5">Track missions, goals, and active work</p>
+        <div
+            className="flex flex-col min-h-full hq-scroll overflow-y-auto"
+            style={{ color: '#f4f4f5', padding: '2.5rem 2.5rem', background: '#09090b' }}
+        >
+            {/* ── Header ─────────────────────────────────────── */}
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                <div className="space-y-1">
+                    <h1 className="text-3xl font-bold tracking-tight text-white" style={{ fontFamily: "'Young Serif', 'Georgia', serif" }}>
+                        Projects
+                    </h1>
+                    <p className="text-sm text-zinc-400">Manage your active repositories and seed new ideas.</p>
                 </div>
-                <button
-                    onClick={() => { setEditingMission(undefined); setIsFormModalOpen(true); }}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
-                >
-                    <Plus size={16} />
-                    New Project
-                </button>
-            </div>
-
-            {/* Stats Strip */}
-            {!loading && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <StatCard label="Total Projects" value={stats.total} icon={FolderKanban} color="text-blue-400" />
-                    <StatCard label="Active" value={stats.active} icon={TrendingUp} color="text-emerald-400" />
-                    <StatCard label="On Hold" value={stats.onHold} icon={Pause} color="text-amber-400" />
-                    <StatCard label="Avg Progress" value={`${avgProgress}%`} icon={Target} color="text-purple-400" />
-                </div>
-            )}
-
-            {/* Filter Tabs */}
-            <div className="flex items-center gap-1 bg-card/60 border border-border rounded-xl p-1 w-fit">
-                {tabs.map(tab => (
+                <div className="flex items-center gap-3">
                     <button
-                        key={tab.id}
-                        onClick={() => setFilter(tab.id)}
-                        className={cn(
-                            "px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
-                            filter === tab.id
-                                ? "bg-background text-foreground shadow-sm"
-                                : "text-muted-foreground hover:text-foreground"
-                        )}
+                        onClick={() => setShowGHImport(true)}
+                        className="flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-lg transition-all"
+                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#f4f4f5' }}
                     >
-                        {tab.label}
-                        <span className={cn(
-                            "text-xs px-1.5 py-0.5 rounded-full",
-                            filter === tab.id ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"
-                        )}>
-                            {tab.count}
+                        <Github size={16} />
+                        Import from GitHub
+                    </button>
+                    <button
+                        onClick={() => { setEditingMission(undefined); setIsFormModalOpen(true); }}
+                        className="flex items-center gap-2 text-sm font-bold px-4 py-2.5 rounded-lg transition-all"
+                        style={{ background: '#f4f4f5', color: '#09090b' }}
+                    >
+                        <Plus size={16} />
+                        New Idea
+                    </button>
+                </div>
+            </header>
+
+            {/* ── Tabs ────────────────────────────────────────── */}
+            <div className="flex items-center gap-8 mb-8" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                {tabs.map(t => (
+                    <button
+                        key={t.id}
+                        onClick={() => setFilter(t.id)}
+                        className="pb-4 text-sm font-semibold flex items-center gap-2 transition-colors relative"
+                        style={filter === t.id ? { color: '#fff', borderBottom: '2px solid #3b82f6', marginBottom: '-1px' } : { color: '#71717a' }}
+                    >
+                        {t.label}
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-mono" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                            {counts[t.id]}
                         </span>
                     </button>
                 ))}
             </div>
 
-            {/* Grid */}
+            {/* ── Grid ────────────────────────────────────────── */}
             {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {[...Array(6)].map((_, i) => (
-                        <div key={i} className="h-48 rounded-xl bg-card/40 animate-pulse border border-border" />
+                        <div key={i} className="h-64 rounded-2xl animate-pulse" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }} />
                     ))}
                 </div>
             ) : filtered.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 text-center">
-                    <div className="w-16 h-16 rounded-2xl bg-card border border-border flex items-center justify-center mb-4">
-                        <FolderKanban size={28} className="text-muted-foreground" />
+                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <Target size={28} className="text-white/20" />
                     </div>
-                    <p className="text-base font-medium text-foreground mb-1">No projects here</p>
-                    <p className="text-sm text-muted-foreground mb-6">
-                        {filter === 'all' ? 'Create your first project to get started.' : `No ${filter} projects.`}
+                    <p className="text-sm font-bold text-white mb-1">Nothing here yet</p>
+                    <p className="text-xs text-zinc-500 mb-6">
+                        {filter === 'ideas' ? 'Add a new idea to get started.' : `No ${filter} projects.`}
                     </p>
-                    {filter === 'all' && (
-                        <button
-                            onClick={() => { setEditingMission(undefined); setIsFormModalOpen(true); }}
-                            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium"
-                        >
-                            <Plus size={16} /> New Project
-                        </button>
-                    )}
+                    <button
+                        onClick={() => { setEditingMission(undefined); setIsFormModalOpen(true); }}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all"
+                        style={{ background: '#f4f4f5', color: '#09090b' }}
+                    >
+                        <Plus size={14} /> New Project
+                    </button>
                 </div>
             ) : (
                 <AnimatePresence mode="popLayout">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filtered.map((mission, i) => {
                             const taskCount = actionItems.filter(t => t.missionId === mission.id).length;
                             const doneCount = actionItems.filter(t => t.missionId === mission.id && t.status === 'done').length;
@@ -238,6 +232,7 @@ export const MissionsView = ({ onMissionClick, githubToken }: MissionsViewProps)
                                     doneCount={doneCount}
                                     index={i}
                                     isMenuOpen={openMenuId === mission.id}
+                                    githubToken={githubToken}
                                     onOpenMenu={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === mission.id ? null : mission.id); }}
                                     onEdit={() => { setEditingMission(mission); setIsFormModalOpen(true); setOpenMenuId(null); }}
                                     onDelete={() => handleDeleteMission(mission.id)}
@@ -250,7 +245,29 @@ export const MissionsView = ({ onMissionClick, githubToken }: MissionsViewProps)
                 </AnimatePresence>
             )}
 
-            {/* Modals */}
+            {/* ── GitHub Import Drawer ─────────────────────────── */}
+            <AnimatePresence>
+                {showGHImport && (
+                    <GHImportDrawer
+                        githubToken={githubToken}
+                        onImport={(repoData) => {
+                            setShowGHImport(false);
+                            setEditingMission(undefined);
+                            setIsFormModalOpen(true);
+                            // Pre-fill the form via MissionFormModal's initialData
+                            setEditingMission({
+                                id: '', name: repoData.name, description: repoData.description || '',
+                                color: '#3b82f6', icon: '🚀', status: 'active', priority: 'medium',
+                                progress: 0, focusWeek: false,
+                                repoUrl: repoData.htmlUrl,
+                            } as any);
+                        }}
+                        onClose={() => setShowGHImport(false)}
+                    />
+                )}
+            </AnimatePresence>
+
+            {/* ── Modals ──────────────────────────────────────── */}
             <MissionFormModal
                 isOpen={isFormModalOpen}
                 onClose={() => { setIsFormModalOpen(false); setEditingMission(undefined); }}
@@ -287,32 +304,16 @@ export const MissionsView = ({ onMissionClick, githubToken }: MissionsViewProps)
     );
 };
 
-// ─────────────────────────────────────────────
-// Stat Card
-// ─────────────────────────────────────────────
-function StatCard({ label, value, icon: Icon, color }: { label: string; value: string | number; icon: React.ElementType; color: string }) {
-    return (
-        <div className="bg-card/60 border border-border rounded-xl p-4 flex items-center gap-3">
-            <div className={cn("w-9 h-9 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0", color)}>
-                <Icon size={18} />
-            </div>
-            <div className="min-w-0">
-                <div className="font-mono text-xl font-bold text-foreground">{value}</div>
-                <div className="text-xs text-muted-foreground truncate">{label}</div>
-            </div>
-        </div>
-    );
-}
-
-// ─────────────────────────────────────────────
-// Project Card
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
+// ProjectCard — matches projects-design.html card style
+// ─────────────────────────────────────────────────────────
 interface ProjectCardProps {
     mission: Mission;
     taskCount: number;
     doneCount: number;
     index: number;
     isMenuOpen: boolean;
+    githubToken?: string;
     onOpenMenu: (e: React.MouseEvent) => void;
     onEdit: () => void;
     onDelete: () => void;
@@ -320,192 +321,318 @@ interface ProjectCardProps {
     onClick: () => void;
 }
 
-function ProjectCard({ mission, taskCount, doneCount, index, isMenuOpen, onOpenMenu, onEdit, onDelete, onToggleFocus, onClick }: ProjectCardProps) {
-    const statusConfig: Record<Mission['status'], { icon: React.ElementType; label: string; class: string }> = {
-        active:    { icon: TrendingUp,   label: 'Active',    class: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20' },
-        'on-hold': { icon: Pause,        label: 'On Hold',   class: 'text-amber-400 bg-amber-400/10 border-amber-400/20' },
-        completed: { icon: CheckCircle2, label: 'Completed', class: 'text-blue-400 bg-blue-400/10 border-blue-400/20' },
-        archived:  { icon: Archive,      label: 'Archived',  class: 'text-zinc-400 bg-zinc-400/10 border-zinc-400/20' },
-    };
+interface LastCommit {
+    message: string;
+    timeAgo: string;
+    author: string;
+}
 
-    const priorityDot: Record<Mission['priority'], string> = {
-        low: 'bg-zinc-400',
-        medium: 'bg-blue-400',
-        high: 'bg-orange-400',
-        critical: 'bg-red-500',
-    };
+function ProjectCard({ mission, taskCount, doneCount, index, isMenuOpen, githubToken, onOpenMenu, onEdit, onDelete, onToggleFocus, onClick }: ProjectCardProps) {
+    const [lastCommit, setLastCommit] = useState<LastCommit | null>(null);
+    const [commitLoading, setCommitLoading] = useState(false);
 
-    const { icon: StatusIcon, label: statusLabel, class: statusClass } = statusConfig[mission.status];
-    const circumference = 2 * Math.PI * 16;
-    const strokeDash = (mission.progress / 100) * circumference;
+    const { label: statusLabel, class: statusClass } = STATUS_CONFIG[mission.status];
+    const miloColor = MILO_COLOR[mission.status];
+
+    // Extract owner/repo from repoUrl
+    const repoPath = mission.repoUrl
+        ? mission.repoUrl.replace('https://github.com/', '').replace(/\/$/, '')
+        : null;
+
+    const fetchLastCommit = useCallback(async () => {
+        if (!repoPath) return;
+        setCommitLoading(true);
+        try {
+            const res = await fetch(`/api/ctroom/github/repo?repo=${encodeURIComponent(repoPath)}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            const c = data.commits?.[0];
+            if (c) {
+                setLastCommit({
+                    message: c.message,
+                    timeAgo: formatDistanceToNow(new Date(c.date), { addSuffix: true }),
+                    author: c.authorLogin || c.author || 'unknown',
+                });
+            }
+        } catch { /* silently fail */ }
+        finally { setCommitLoading(false); }
+    }, [repoPath]);
+
+    useEffect(() => { fetchLastCommit(); }, [fetchLastCommit]);
+
+    // Build auto Milo insight from available data
+    const miloInsight = (() => {
+        if (!repoPath && !mission.description) return `This project has no repo linked yet. Add a GitHub repo to track progress.`;
+        if (!lastCommit && !commitLoading && repoPath) return `No recent commit activity detected on ${repoPath}. Time to push some code?`;
+        if (lastCommit) {
+            const taskInfo = taskCount > 0 ? ` You have ${taskCount - doneCount} tasks remaining.` : '';
+            return `Latest: "${lastCommit.message}" ${lastCommit.timeAgo}.${taskInfo}`;
+        }
+        return mission.description || `Project is ${mission.progress}% complete.`;
+    })();
 
     return (
         <motion.div
             layout
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96 }}
-            transition={{ delay: index * 0.04 }}
-            whileHover={{ y: -2 }}
+            transition={{ delay: index * 0.05 }}
             onClick={onClick}
-            className="group relative bg-card/60 border border-border rounded-xl p-5 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all cursor-pointer"
+            className="group flex flex-col rounded-2xl cursor-pointer transition-all duration-300 hover:border-zinc-500/30"
+            style={{
+                background: 'rgba(20,20,23,0.6)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(39,39,42,0.8)',
+                padding: '1.25rem',
+            }}
         >
-            {/* Focus badge */}
-            {mission.focusWeek && (
-                <div className="absolute top-3 right-12 flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 text-amber-400 text-xs rounded-full border border-amber-500/20">
-                    <Flame size={10} />
-                    <span>Focus</span>
-                </div>
-            )}
-
-            {/* Menu button */}
-            <div className="absolute top-3 right-3">
-                <button
-                    onClick={onOpenMenu}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors opacity-0 group-hover:opacity-100"
-                >
-                    <MoreHorizontal size={15} />
-                </button>
-                <AnimatePresence>
-                    {isMenuOpen && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                            transition={{ duration: 0.1 }}
-                            className="absolute right-0 top-8 z-50 w-40 bg-card border border-border rounded-xl shadow-xl overflow-hidden"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <button onClick={onEdit} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors">
-                                <Pencil size={13} /> Edit
-                            </button>
-                            <button onClick={onToggleFocus} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors">
-                                <Flame size={13} /> {mission.focusWeek ? 'Remove focus' : 'Mark focus'}
-                            </button>
-                            <div className="border-t border-border" />
-                            <button onClick={onDelete} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-400/10 transition-colors">
-                                <Trash2 size={13} /> Delete
-                            </button>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-
-            {/* Top row: icon + progress ring */}
-            <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                    <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                        style={{ backgroundColor: `${mission.color}18`, border: `1px solid ${mission.color}30` }}
+            {/* ── Card Header ── */}
+            <div className="flex justify-between items-start mb-4">
+                <div className="space-y-0.5 min-w-0 flex-1 pr-2">
+                    <h3
+                        className="text-xl font-bold tracking-tight text-white truncate group-hover:text-blue-400 transition-colors"
+                        style={{ fontFamily: "'Young Serif', 'Georgia', serif" }}
                     >
-                        {mission.icon || '🚀'}
-                    </div>
-                    <div>
-                        <h3 className="font-semibold text-foreground leading-tight">{mission.name}</h3>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                            <div className={cn("w-1.5 h-1.5 rounded-full", priorityDot[mission.priority])} />
-                            <span className="text-xs text-muted-foreground capitalize">{mission.priority}</span>
-                        </div>
-                    </div>
+                        {mission.icon && <span className="mr-2">{mission.icon}</span>}
+                        {mission.name}
+                    </h3>
+                    {repoPath && (
+                        <p className="font-mono text-[11px] text-zinc-500 uppercase tracking-wider truncate">{repoPath}</p>
+                    )}
                 </div>
-
-                {/* Progress ring */}
-                <div className="relative flex-shrink-0">
-                    <svg width="40" height="40" className="-rotate-90">
-                        <circle cx="20" cy="20" r="16" fill="none" stroke="currentColor" strokeWidth="3" className="text-secondary" />
-                        <circle
-                            cx="20" cy="20" r="16" fill="none" strokeWidth="3"
-                            stroke={mission.color}
-                            strokeDasharray={`${strokeDash} ${circumference}`}
-                            strokeLinecap="round"
-                        />
-                    </svg>
-                    <span className="absolute inset-0 flex items-center justify-center font-mono text-[10px] font-bold text-foreground">
-                        {mission.progress}%
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className={cn('text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded border', statusClass)}>
+                        {statusLabel}
                     </span>
-                </div>
-            </div>
-
-            {/* Description */}
-            {mission.description && (
-                <p className="text-xs text-muted-foreground mb-4 line-clamp-2 leading-relaxed">{mission.description}</p>
-            )}
-
-            {/* Task count progress bar */}
-            {taskCount > 0 && (
-                <div className="mb-4">
-                    <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-                        <div className="flex items-center gap-1">
-                            <ListTodo size={11} />
-                            <span>{doneCount}/{taskCount} tasks</span>
-                        </div>
-                        <span>{taskCount > 0 ? Math.round((doneCount / taskCount) * 100) : 0}%</span>
-                    </div>
-                    <div className="h-1 w-full bg-secondary rounded-full overflow-hidden">
-                        <div
-                            className="h-full rounded-full transition-all"
-                            style={{ width: `${taskCount > 0 ? (doneCount / taskCount) * 100 : 0}%`, backgroundColor: mission.color }}
-                        />
-                    </div>
-                </div>
-            )}
-
-            {/* Footer */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                    <div className={cn("flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border", statusClass)}>
-                        <StatusIcon size={10} />
-                        <span>{statusLabel}</span>
-                    </div>
-                    {/* Domain Status Badge */}
-                    {mission.domainUrl && mission.domainStatus && (
-                        <div className={cn(
-                            "flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border",
-                            mission.domainStatus.isOnline
-                                ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/20"
-                                : "bg-red-400/10 text-red-400 border-red-400/20"
-                        )}>
-                            {mission.domainStatus.isOnline ? <CheckCircle size={8} /> : <AlertTriangle size={8} />}
-                            {mission.domainStatus.isOnline && mission.domainStatus.responseTime && (
-                                <span>{mission.domainStatus.responseTime}ms</span>
+                    {/* Menu */}
+                    <div className="relative">
+                        <button
+                            onClick={onOpenMenu}
+                            className="w-6 h-6 rounded flex items-center justify-center text-zinc-600 hover:text-white transition-colors"
+                        >
+                            <MoreHorizontal size={14} />
+                        </button>
+                        <AnimatePresence>
+                            {isMenuOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                                    transition={{ duration: 0.1 }}
+                                    className="absolute right-0 top-7 z-50 w-40 rounded-xl shadow-xl overflow-hidden"
+                                    style={{ background: '#1a1a1d', border: '1px solid rgba(255,255,255,0.1)' }}
+                                    onClick={e => e.stopPropagation()}
+                                >
+                                    <button onClick={onEdit} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:bg-white/5 transition-colors">
+                                        <Pencil size={13} /> Edit
+                                    </button>
+                                    <button onClick={onToggleFocus} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:bg-white/5 transition-colors">
+                                        <Flame size={13} /> {mission.focusWeek ? 'Remove focus' : 'Mark focus'}
+                                    </button>
+                                    <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }} />
+                                    <button onClick={onDelete} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-400/10 transition-colors">
+                                        <Trash2 size={13} /> Delete
+                                    </button>
+                                </motion.div>
                             )}
-                        </div>
-                    )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                    {mission.targetDate && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock size={11} />
-                            <span>{format(new Date(mission.targetDate), 'MMM d')}</span>
-                        </div>
-                    )}
-                    {mission.domainUrl && (
-                        <a
-                            href={mission.domainUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={e => e.stopPropagation()}
-                            className="text-muted-foreground hover:text-foreground transition-colors"
-                            title="Visit live site"
-                        >
-                            <Globe size={13} />
-                        </a>
-                    )}
-                    {mission.repoUrl && (
-                        <a
-                            href={mission.repoUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={e => e.stopPropagation()}
-                            className="text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                            <Github size={13} />
-                        </a>
-                    )}
-                    <ArrowUpRight size={13} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </AnimatePresence>
+                    </div>
                 </div>
             </div>
+
+            {/* ── Progress ── */}
+            <div className="space-y-2 mb-4 flex-grow">
+                <div className="flex justify-between items-center text-[11px] font-mono">
+                    <span className="text-zinc-400">{mission.progress}% Complete</span>
+                    {taskCount > 0 && <span className="text-zinc-500">{doneCount}/{taskCount} tasks</span>}
+                </div>
+                <div className="h-1.5 w-full rounded-full overflow-hidden" style={{ background: 'rgba(39,39,42,1)' }}>
+                    <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${mission.progress}%`, background: miloColor }}
+                    />
+                </div>
+            </div>
+
+            {/* ── Last Commit Block ── */}
+            {repoPath && (
+                <div className="rounded-xl p-3 mb-3" style={{ background: 'rgba(9,9,11,0.5)', border: '1px solid rgba(39,39,42,0.5)' }}>
+                    {commitLoading ? (
+                        <div className="flex items-center gap-2 text-zinc-600">
+                            <Loader2 size={11} className="animate-spin" />
+                            <span className="font-mono text-[10px]">fetching latest commit…</span>
+                        </div>
+                    ) : lastCommit ? (
+                        <div className="flex items-center gap-2 font-mono text-xs text-zinc-300">
+                            <Github size={12} className="text-zinc-500 flex-shrink-0" />
+                            <span className="truncate flex-1">{lastCommit.message}</span>
+                            <span className="text-zinc-600 flex-shrink-0">{lastCommit.timeAgo}</span>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 font-mono text-xs text-zinc-600">
+                            <GitCommit size={11} />
+                            <span>No commits found</span>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ── Milo Insight ── */}
+            <div className="rounded-r-lg p-3 mb-4" style={{ background: 'rgba(39,39,42,0.2)', borderLeft: `2px solid ${miloColor}50` }}>
+                <div className="flex gap-2.5">
+                    <div
+                        className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white"
+                        style={{ background: miloColor }}
+                    >
+                        M
+                    </div>
+                    <p className="text-xs leading-relaxed text-zinc-300">
+                        <span className="font-semibold" style={{ color: miloColor }}>Milo: </span>
+                        {commitLoading ? <span className="text-zinc-500">Checking project status…</span> : miloInsight}
+                    </p>
+                </div>
+            </div>
+
+            {/* ── Actions ── */}
+            <div className="flex gap-2 mt-auto">
+                <button
+                    onClick={onClick}
+                    className="flex-1 text-center py-2 text-xs font-semibold rounded-lg transition-colors"
+                    style={{ background: 'rgba(39,39,42,0.8)', border: '1px solid rgba(63,63,70,0.5)', color: '#f4f4f5' }}
+                >
+                    View Details
+                </button>
+                {mission.repoUrl && (
+                    <a
+                        href={mission.repoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        className="px-3 py-2 rounded-lg transition-colors flex items-center justify-center"
+                        style={{ background: 'rgba(39,39,42,0.5)', border: '1px solid rgba(39,39,42,0.3)', color: '#71717a' }}
+                    >
+                        <ExternalLink size={14} />
+                    </a>
+                )}
+                {mission.domainUrl && (
+                    <a
+                        href={mission.domainUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        className="px-3 py-2 rounded-lg transition-colors flex items-center justify-center"
+                        style={{ background: 'rgba(39,39,42,0.5)', border: '1px solid rgba(39,39,42,0.3)', color: '#71717a' }}
+                        title={mission.domainStatus?.isOnline ? 'Site online' : 'Visit site'}
+                    >
+                        {mission.domainStatus?.isOnline
+                            ? <CheckCircle size={14} className="text-emerald-400" />
+                            : mission.domainStatus
+                            ? <AlertTriangle size={14} className="text-red-400" />
+                            : <Globe size={14} />
+                        }
+                    </a>
+                )}
+                {mission.focusWeek && (
+                    <div className="px-2 py-2 flex items-center" title="Focus week">
+                        <Flame size={13} className="text-amber-400" />
+                    </div>
+                )}
+            </div>
+        </motion.div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────
+// GitHub Import Drawer
+// ─────────────────────────────────────────────────────────
+interface GHRepo { name: string; fullName: string; description: string | null; htmlUrl: string; language: string | null; stars: number; updatedAt: string; private: boolean; }
+
+function GHImportDrawer({ githubToken, onImport, onClose }: { githubToken?: string; onImport: (repo: GHRepo) => void; onClose: () => void; }) {
+    const [repos, setRepos] = useState<GHRepo[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const res = await fetch('/api/ctroom/github/repos', {
+                    headers: githubToken ? { 'x-github-token': githubToken } : {},
+                });
+                const data = await res.json();
+                setRepos(data.repos || []);
+            } catch { setRepos([]); }
+            finally { setLoading(false); }
+        })();
+    }, [githubToken]);
+
+    const filtered = repos.filter(r =>
+        r.name.toLowerCase().includes(search.toLowerCase()) ||
+        (r.description || '').toLowerCase().includes(search.toLowerCase())
+    );
+
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+            onClick={onClose}
+        >
+            <motion.div
+                initial={{ scale: 0.96, y: 16 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.96, y: 8 }}
+                className="w-full max-w-lg rounded-2xl overflow-hidden"
+                style={{ background: '#141417', border: '1px solid rgba(39,39,42,0.8)' }}
+                onClick={e => e.stopPropagation()}
+            >
+                <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(39,39,42,0.6)' }}>
+                    <div className="flex items-center gap-2">
+                        <Github size={18} className="text-white" />
+                        <span className="font-bold text-white">Import from GitHub</span>
+                    </div>
+                    <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors text-xl leading-none">×</button>
+                </div>
+                <div className="px-6 py-3" style={{ borderBottom: '1px solid rgba(39,39,42,0.4)' }}>
+                    <input
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="Search repos…"
+                        className="w-full bg-transparent text-sm text-white placeholder-zinc-600 focus:outline-none"
+                        autoFocus
+                    />
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                    {loading ? (
+                        <div className="flex items-center justify-center py-12 text-zinc-500">
+                            <Loader2 size={20} className="animate-spin mr-2" /> Loading repos…
+                        </div>
+                    ) : filtered.length === 0 ? (
+                        <div className="text-center py-12 text-zinc-600 text-sm">No repos found</div>
+                    ) : filtered.map(repo => (
+                        <button
+                            key={repo.fullName}
+                            onClick={() => onImport(repo)}
+                            className="w-full flex items-center gap-4 px-6 py-4 text-left transition-colors hover:bg-white/[0.03]"
+                            style={{ borderBottom: '1px solid rgba(39,39,42,0.3)' }}
+                        >
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-semibold text-white truncate">{repo.name}</span>
+                                    {repo.private && <span className="text-[9px] text-zinc-500 border border-zinc-700 px-1 rounded">private</span>}
+                                </div>
+                                {repo.description && <p className="text-xs text-zinc-500 truncate mt-0.5">{repo.description}</p>}
+                            </div>
+                            <div className="flex-shrink-0 text-right">
+                                {repo.language && <p className="text-[10px] text-zinc-400 font-mono">{repo.language}</p>}
+                                <p className="text-[10px] text-zinc-600">{formatDistanceToNow(new Date(repo.updatedAt))} ago</p>
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            </motion.div>
         </motion.div>
     );
 }

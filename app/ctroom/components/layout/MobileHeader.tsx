@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { Menu, X, LayoutDashboard, MessageSquare, Target, Calendar, Vault, FileText, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';

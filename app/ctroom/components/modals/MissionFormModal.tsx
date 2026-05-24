@@ -88,7 +88,7 @@ export const MissionFormModal = ({ isOpen, onClose, onSubmit, initialData }: Mis
         setReposLoading(true);
         setReposError(null);
         try {
-            const res = await fetch('/api/github/repos');
+            const res = await fetch('/api/ctroom/github/repos');
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to load repos');
             setRepos(data.repos);

@@ -3,7 +3,6 @@ import { Unbounded, Sora, Young_Serif, Inter, JetBrains_Mono } from 'next/font/g
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ParticleBackgroundWrapper } from "@/components/ParticleBackgroundWrapper"
-import { AnalyticsWrapper } from "@/components/AnalyticsWrapper"
 
 // Portfolio fonts
 const unbounded = Unbounded({
@@ -92,7 +91,6 @@ export default function RootLayout({
               className: 'celebration-toast'
             }}
           />
-          <AnalyticsWrapper />
         </ThemeProvider>
       </body>
     </html>

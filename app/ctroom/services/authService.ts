@@ -63,7 +63,7 @@ export class AuthService {
       }
       
       // Check if user is authorized admin via secure API
-      const adminResponse = await fetch('/api/auth/verify-admin', {
+      const adminResponse = await fetch('/api/ctroom/auth/verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -6,18 +6,6 @@
       "static/chunks/_app-pages-browser_app_ctroom_components_views_VaultCharts_tsx.js"
     ]
   },
-  "components\\AnalyticsWrapper.tsx -> @vercel/analytics/react": {
-    "id": "components\\AnalyticsWrapper.tsx -> @vercel/analytics/react",
-    "files": [
-      "static/chunks/vendor.js"
-    ]
-  },
-  "components\\AnalyticsWrapper.tsx -> @vercel/speed-insights/next": {
-    "id": "components\\AnalyticsWrapper.tsx -> @vercel/speed-insights/next",
-    "files": [
-      "static/chunks/vendor.js"
-    ]
-  },
   "components\\ParticleBackgroundWrapper.tsx -> @/components/ParticleBackground": {
     "id": "components\\ParticleBackgroundWrapper.tsx -> @/components/ParticleBackground",
     "files": [

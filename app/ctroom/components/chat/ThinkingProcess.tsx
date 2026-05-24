@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, Sparkles, Github, Globe, Code2, Cpu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';

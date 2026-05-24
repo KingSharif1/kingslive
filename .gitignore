@@ -67,3 +67,6 @@ supabase/*
 #nextjs
 .next
 .next/*
+
+# Claude MCP config (contains API tokens)
+.claude.json

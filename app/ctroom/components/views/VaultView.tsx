@@ -100,7 +100,7 @@ function TellerConnectButton({ onSuccess, disabled }: {
       const { data: { session } } = await supabase.auth.getSession();
       const jwt = session?.access_token;
 
-      const res = await fetch('/api/teller/enroll', {
+      const res = await fetch('/api/ctroom/vault/enroll', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -327,7 +327,7 @@ export function VaultView() {
       const { data: { session } } = await supabase.auth.getSession();
       const jwt = session?.access_token;
 
-      const res = await fetch('/api/teller/sync', {
+      const res = await fetch('/api/ctroom/vault/sync', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -362,98 +362,87 @@ export function VaultView() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="w-7 h-7 rounded-full border-2 animate-spin" style={{ borderColor: 'rgba(0,255,136,0.3)', borderTopColor: '#00ff88' }} />
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold flex items-center gap-2">
-            <Wallet className="w-6 h-6 text-emerald-500" /> Vault
-          </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Your personal finance hub</p>
+    <div className="h-full flex flex-col hq-scroll overflow-y-auto" style={{ background: '#080808', color: '#e5e5e5' }}>
+      {/* HQ breadcrumb */}
+      <div className="flex items-center justify-between px-6 py-3 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.4)' }}>
+        <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-white/25">
+          <span>CTROOM</span><span>/</span><span style={{ color: '#00ff88' }}>VAULT</span>
         </div>
         <div className="flex items-center gap-2">
           {syncMessage && (
-            <span className="text-xs text-muted-foreground animate-pulse">{syncMessage}</span>
+            <span className="font-mono text-[10px] text-white/30 animate-pulse">{syncMessage}</span>
           )}
-          <button
-            onClick={handleSync}
-            disabled={isSyncing}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border hover:bg-secondary transition-colors text-sm"
-          >
-            <RefreshCw className={cn("w-4 h-4", isSyncing && "animate-spin")} />
+          <button onClick={handleSync} disabled={isSyncing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[11px] uppercase tracking-widest transition-all text-white/40 hover:text-white hover:bg-white/5"
+            style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+            <RefreshCw className={cn("w-3 h-3", isSyncing && "animate-spin")} />
             <span className="hidden sm:inline">Sync</span>
           </button>
           <TellerConnectButton onSuccess={() => { loadAll(); handleSync(); }} />
         </div>
       </div>
 
+    <div className="max-w-5xl mx-auto space-y-6 p-6">
+
+      {/* Header */}
+      <div>
+        <div className="font-mono text-xl font-bold text-white tracking-tighter uppercase">VAULT</div>
+        <div className="font-mono text-[11px] text-white/25 mt-1">Personal finance hub — real data, real time.</div>
+      </div>
+
       {/* Net Worth Banner */}
-      <div className="rounded-2xl bg-gradient-to-br from-emerald-500/10 via-blue-500/5 to-purple-500/10 border border-border p-6">
-        <p className="text-sm text-muted-foreground mb-1">Net Worth</p>
-        <p className={cn(
-          "font-mono text-4xl font-bold tracking-tight",
-          netWorth >= 0 ? "text-foreground" : "text-red-500"
-        )}>
+      <div className="rounded-2xl p-6" style={{ background: 'rgba(0,255,136,0.04)', border: '1px solid rgba(0,255,136,0.12)' }}>
+        <p className="font-mono text-[10px] uppercase tracking-widest text-white/30 mb-2">Net Worth</p>
+        <p className={cn("font-mono text-4xl font-bold tracking-tight", netWorth >= 0 ? "text-white" : "text-red-400")}>
           {fmtFull(netWorth)}
         </p>
-        <div className="flex flex-wrap gap-6 mt-4">
-          <div>
-            <p className="text-xs text-muted-foreground">{TIME_RANGE_LABELS[timeRange]} Income</p>
-            <p className="font-mono text-lg font-semibold text-emerald-500">+{fmtFull(totalIncome)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">{TIME_RANGE_LABELS[timeRange]} Spent</p>
-            <p className="font-mono text-lg font-semibold text-red-400">-{fmtFull(totalExpenses)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Savings Rate</p>
-            <p className={cn("font-mono text-lg font-semibold", totalIncome > 0 && (totalIncome - totalExpenses) / totalIncome >= 0.2 ? "text-emerald-500" : "text-amber-400")}>
-              {totalIncome > 0 ? `${Math.round(((totalIncome - totalExpenses) / totalIncome) * 100)}%` : '—'}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Total Debt</p>
-            <p className="font-mono text-lg font-semibold text-amber-500">{fmtFull(totalDebt)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Accounts</p>
-            <p className="text-lg font-semibold">{accounts.length}</p>
-          </div>
+        <div className="flex flex-wrap gap-6 mt-5">
+          {[
+            { label: `${TIME_RANGE_LABELS[timeRange]} Income`, value: `+${fmtFull(totalIncome)}`, color: '#00ff88' },
+            { label: `${TIME_RANGE_LABELS[timeRange]} Spent`, value: `-${fmtFull(totalExpenses)}`, color: '#f87171' },
+            { label: 'Savings Rate', value: totalIncome > 0 ? `${Math.round(((totalIncome - totalExpenses) / totalIncome) * 100)}%` : '—', color: totalIncome > 0 && (totalIncome - totalExpenses) / totalIncome >= 0.2 ? '#00ff88' : '#f59e0b' },
+            { label: 'Total Debt', value: fmtFull(totalDebt), color: '#f59e0b' },
+            { label: 'Accounts', value: String(accounts.length), color: '#e5e5e5' },
+          ].map(({ label, value, color }) => (
+            <div key={label}>
+              <p className="font-mono text-[10px] uppercase tracking-widest text-white/25">{label}</p>
+              <p className="font-mono text-lg font-bold mt-0.5" style={{ color }}>{value}</p>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Tabs + Time Range */}
       <div className="flex flex-wrap items-center gap-2 justify-between">
-        <div className="flex gap-1 p-1 bg-secondary/50 rounded-xl overflow-x-auto">
+        <div className="flex gap-1 p-1 rounded-xl overflow-x-auto" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
           {tabs.map(t => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all",
-                tab === t.id
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[11px] uppercase tracking-widest font-medium whitespace-nowrap transition-all"
+              style={tab === t.id ? {
+                background: 'rgba(0,255,136,0.1)',
+                color: '#00ff88',
+                border: '1px solid rgba(0,255,136,0.2)',
+              } : { color: 'rgba(255,255,255,0.3)' }}>
               {t.icon} {t.label}
             </button>
           ))}
         </div>
         {(tab === 'overview' || tab === 'transactions') && (
-          <div className="flex gap-1 p-1 bg-secondary/50 rounded-xl">
+          <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
             {(Object.keys(TIME_RANGE_LABELS) as TimeRange[]).map(r => (
               <button key={r} onClick={() => setTimeRange(r)}
-                className={cn("px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all",
-                  timeRange === r ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                )}>
+                className="px-2.5 py-1 rounded-lg font-mono text-[10px] uppercase tracking-widest font-medium whitespace-nowrap transition-all"
+                style={timeRange === r ? {
+                  background: 'rgba(0,255,136,0.1)',
+                  color: '#00ff88',
+                  border: '1px solid rgba(0,255,136,0.2)',
+                } : { color: 'rgba(255,255,255,0.3)' }}>
                 {TIME_RANGE_LABELS[r]}
               </button>
             ))}
@@ -561,6 +550,7 @@ export function VaultView() {
         )}
       </AnimatePresence>
     </div>
+    </div>
   );
 }
 
@@ -627,17 +617,21 @@ function HealthScorePanel({ score, breakdown }: {
   const label = score >= 80 ? 'Excellent' : score >= 60 ? 'Good' : score >= 40 ? 'Fair' : 'Needs Work';
 
   return (
-    <div className="p-4 rounded-2xl bg-card border border-border/50 space-y-3">
+    <div className="p-4 rounded-2xl space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-sm">Financial Health</h3>
-        <button onClick={() => setExpanded(p => !p)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+        <h3 className="font-mono font-semibold text-sm" style={{ color: '#e5e5e5' }}>Financial Health</h3>
+        <button onClick={() => setExpanded(p => !p)}
+          className="text-xs transition-colors"
+          style={{ color: 'rgba(255,255,255,0.35)' }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e5e5e5'}
+          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.35)'}>
           {expanded ? 'Hide tips ↑' : 'Show tips ↓'}
         </button>
       </div>
       <div className="flex items-center gap-5">
         <div className="relative flex-shrink-0">
           <svg width="96" height="96" className="-rotate-90">
-            <circle cx="48" cy="48" r={r} fill="none" stroke="hsl(var(--secondary))" strokeWidth="8" />
+            <circle cx="48" cy="48" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
             <circle cx="48" cy="48" r={r} fill="none" stroke={scoreColor} strokeWidth="8"
               strokeDasharray={`${filled} ${circ - filled}`} strokeLinecap="round"
               style={{ transition: 'stroke-dasharray 0.6s ease' }} />
@@ -645,7 +639,7 @@ function HealthScorePanel({ score, breakdown }: {
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="font-mono text-xl font-bold leading-none" style={{ color: scoreColor }}>{grade}</span>
             <span className="font-mono text-[11px] font-medium" style={{ color: scoreColor }}>{score}</span>
-            <span className="text-[9px] text-muted-foreground">/100</span>
+            <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.3)' }}>/100</span>
           </div>
         </div>
         <div className="flex-1 space-y-2">
@@ -656,10 +650,10 @@ function HealthScorePanel({ score, breakdown }: {
             return (
               <div key={b.label}>
                 <div className="flex justify-between text-xs mb-0.5">
-                  <span className="text-muted-foreground">{b.label}</span>
-                  <span className="font-medium text-xs">{b.pts}/{b.max} · {b.note}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>{b.label}</span>
+                  <span className="font-medium text-xs" style={{ color: '#e5e5e5' }}>{b.pts}/{b.max} · {b.note}</span>
                 </div>
-                <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
                   <div className="h-full rounded-full transition-all duration-500"
                     style={{ width: `${pct}%`, backgroundColor: barColor }} />
                 </div>
@@ -669,13 +663,13 @@ function HealthScorePanel({ score, breakdown }: {
         </div>
       </div>
       {expanded && (
-        <div className="space-y-2 pt-2 border-t border-border/40">
+        <div className="space-y-2 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
           {breakdown.filter(b => b.pts < b.max).map((b, i) => (
             <div key={b.label} className="flex items-start gap-2 text-xs">
               <span style={{ color: COMPONENT_COLORS[i] }} className="flex-shrink-0 mt-0.5">↑</span>
               <div>
-                <span className="font-medium">{b.label}:</span>{' '}
-                <span className="text-muted-foreground">{HEALTH_TIPS[b.label]}</span>
+                <span className="font-medium" style={{ color: '#e5e5e5' }}>{b.label}:</span>{' '}
+                <span style={{ color: 'rgba(255,255,255,0.4)' }}>{HEALTH_TIPS[b.label]}</span>
               </div>
             </div>
           ))}
@@ -712,30 +706,30 @@ function CashFlowPanel({ accounts, transactions, subscriptions }: {
   const eomForecast = liquidBalance - projectedRemaining;
 
   return (
-    <div className="p-4 rounded-2xl bg-card border border-border/50">
-      <h3 className="font-semibold text-sm mb-3">Cash Flow Forecast</h3>
+    <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      <h3 className="font-mono font-semibold text-sm mb-3" style={{ color: '#e5e5e5' }}>Cash Flow Forecast</h3>
       <div className="space-y-2.5">
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Liquid Balance</span>
-          <span className="font-semibold">{fmtFull(liquidBalance)}</span>
+          <span style={{ color: 'rgba(255,255,255,0.4)' }}>Liquid Balance</span>
+          <span className="font-semibold" style={{ color: '#e5e5e5' }}>{fmtFull(liquidBalance)}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Avg Daily Spend</span>
+          <span style={{ color: 'rgba(255,255,255,0.4)' }}>Avg Daily Spend</span>
           <span className="font-medium text-red-400">{fmtFull(avgDailyExpense)}/day</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Projected ({daysLeft}d left)</span>
+          <span style={{ color: 'rgba(255,255,255,0.4)' }}>Projected ({daysLeft}d left)</span>
           <span className="font-medium text-amber-400">-{fmtFull(projectedRemaining)}</span>
         </div>
         {activeSubMonthly > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Subscriptions/mo</span>
+            <span style={{ color: 'rgba(255,255,255,0.4)' }}>Subscriptions/mo</span>
             <span className="font-medium text-red-400">-{fmtFull(activeSubMonthly)}</span>
           </div>
         )}
-        <div className="h-px bg-border/40" />
+        <div className="h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
         <div className="flex justify-between text-sm font-semibold">
-          <span>End of Month Est.</span>
+          <span style={{ color: '#e5e5e5' }}>End of Month Est.</span>
           <span className={eomForecast >= 0 ? 'text-emerald-500' : 'text-red-400'}>{fmtFull(eomForecast)}</span>
         </div>
       </div>
@@ -803,21 +797,21 @@ type VaultChatMsg = { role: 'user' | 'assistant'; content: string; timestamp: st
 
 const MD_COMPONENTS: React.ComponentProps<typeof ReactMarkdown>['components'] = {
   p:          ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-  strong:     ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+  strong:     ({ children }) => <strong className="font-semibold" style={{ color: '#e5e5e5' }}>{children}</strong>,
   em:         ({ children }) => <em className="italic">{children}</em>,
   ul:         ({ children }) => <ul className="mt-1 mb-2 space-y-1 pl-1">{children}</ul>,
   ol:         ({ children }) => <ol className="mt-1 mb-2 space-y-1 pl-1">{children}</ol>,
   li:         ({ children }) => (
     <li className="flex items-start gap-1.5">
-      <span className="text-primary flex-shrink-0 mt-1 text-[8px] select-none">●</span>
+      <span className="flex-shrink-0 mt-1 text-[8px] select-none" style={{ color: '#00ff88' }}>●</span>
       <span>{children}</span>
     </li>
   ),
-  h1:         ({ children }) => <p className="font-bold text-foreground text-sm mb-1">{children}</p>,
-  h2:         ({ children }) => <p className="font-semibold text-foreground mb-1">{children}</p>,
-  h3:         ({ children }) => <p className="font-medium text-foreground mb-0.5">{children}</p>,
-  code:       ({ children }) => <code className="bg-background rounded px-1 py-0.5 font-mono text-[10px]">{children}</code>,
-  blockquote: ({ children }) => <div className="border-l-2 border-primary/40 pl-2 text-muted-foreground italic">{children}</div>,
+  h1:         ({ children }) => <p className="font-bold text-sm mb-1" style={{ color: '#e5e5e5' }}>{children}</p>,
+  h2:         ({ children }) => <p className="font-semibold mb-1" style={{ color: '#e5e5e5' }}>{children}</p>,
+  h3:         ({ children }) => <p className="font-medium mb-0.5" style={{ color: '#e5e5e5' }}>{children}</p>,
+  code:       ({ children }) => <code className="rounded px-1 py-0.5 font-mono text-[10px]" style={{ background: 'rgba(255,255,255,0.08)', color: '#00ff88' }}>{children}</code>,
+  blockquote: ({ children }) => <div className="pl-2 italic" style={{ borderLeft: '2px solid rgba(0,255,136,0.4)', color: 'rgba(255,255,255,0.4)' }}>{children}</div>,
 };
 
 function VaultAIChat({ transactions, budgets, debts, goals, subscriptions, accounts }: {
@@ -947,21 +941,30 @@ function VaultAIChat({ transactions, budgets, debts, goals, subscriptions, accou
   const showRetry = lastMsg?.isError && !isLoading;
 
   return (
-    <div className="p-4 rounded-2xl bg-card border border-border/50 space-y-3">
+    <div className="p-4 rounded-2xl space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-sm">AI Finance Advisor</h3>
+        <h3 className="font-mono font-semibold text-sm" style={{ color: '#e5e5e5' }}>AI Finance Advisor</h3>
         <div className="flex items-center gap-2">
-          <button onClick={openHistory} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={openHistory}
+            className="text-xs transition-colors"
+            style={{ color: 'rgba(255,255,255,0.35)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e5e5e5'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.35)'}>
             History
           </button>
-          <button onClick={newChat} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={newChat}
+            className="text-xs transition-colors"
+            style={{ color: 'rgba(255,255,255,0.35)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e5e5e5'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.35)'}>
             New Chat
           </button>
           <select
             value={model}
             onChange={e => setModel(e.target.value)}
-            className="text-xs px-2 py-1 rounded-lg border border-border bg-background focus:outline-none"
+            className="text-xs px-2 py-1 rounded-lg focus:outline-none"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#e5e5e5' }}
           >
             {VAULT_AI_MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
           </select>
@@ -970,23 +973,32 @@ function VaultAIChat({ transactions, budgets, debts, goals, subscriptions, accou
 
       {/* History panel */}
       {showHistory && (
-        <div className="rounded-xl border border-border/50 bg-secondary/30 overflow-hidden">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-border/40">
-            <p className="text-xs font-medium">Past Conversations</p>
-            <button onClick={() => setShowHistory(false)} className="text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
+        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
+          <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+            <p className="text-xs font-mono font-medium" style={{ color: '#e5e5e5' }}>Past Conversations</p>
+            <button onClick={() => setShowHistory(false)} style={{ color: 'rgba(255,255,255,0.35)' }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e5e5e5'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.35)'}>
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
           <div className="max-h-48 overflow-y-auto">
             {loadingHistory ? (
-              <p className="text-xs text-muted-foreground p-3">Loading...</p>
+              <p className="text-xs p-3" style={{ color: 'rgba(255,255,255,0.35)' }}>Loading...</p>
             ) : history.length === 0 ? (
-              <p className="text-xs text-muted-foreground p-3">No saved conversations yet.</p>
+              <p className="text-xs p-3" style={{ color: 'rgba(255,255,255,0.35)' }}>No saved conversations yet.</p>
             ) : history.map(c => (
-              <div key={c.id} className="flex items-center justify-between px-3 py-2 hover:bg-secondary/50 transition-colors group">
+              <div key={c.id} className="flex items-center justify-between px-3 py-2 transition-colors group"
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
                 <button className="flex-1 text-left min-w-0" onClick={() => loadChat(c as any)}>
-                  <p className="text-xs font-medium truncate">{c.title}</p>
-                  <p className="text-[10px] text-muted-foreground">{new Date(c.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                  <p className="text-xs font-medium truncate" style={{ color: '#e5e5e5' }}>{c.title}</p>
+                  <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>{new Date(c.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                 </button>
-                <button onClick={() => deleteChat(c.id)} className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-red-400 transition-all ml-2">
+                <button onClick={() => deleteChat(c.id)} className="opacity-0 group-hover:opacity-100 p-1 transition-all ml-2"
+                  style={{ color: 'rgba(255,255,255,0.35)' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#f87171'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.35)'}>
                   <Trash2 className="w-3 h-3" />
                 </button>
               </div>
@@ -1000,7 +1012,10 @@ function VaultAIChat({ transactions, budgets, debts, goals, subscriptions, accou
         <div className="flex flex-wrap gap-1.5">
           {VAULT_QUICK_PROMPTS.map(q => (
             <button key={q} onClick={() => send(q)} disabled={isLoading}
-              className="text-xs px-2.5 py-1.5 rounded-lg bg-secondary hover:bg-secondary/70 text-muted-foreground hover:text-foreground transition-colors">
+              className="text-xs px-2.5 py-1.5 rounded-lg transition-colors"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLElement).style.color = '#e5e5e5'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.5)'; }}>
               {q}
             </button>
           ))}
@@ -1011,22 +1026,24 @@ function VaultAIChat({ transactions, budgets, debts, goals, subscriptions, accou
       {messages.length > 0 && (
         <div ref={scrollRef} className="space-y-2 max-h-80 overflow-y-auto pr-1">
           {messages.map((m, i) => (
-            <div key={i} className={cn(
-              "text-xs rounded-2xl px-3 py-2.5 leading-relaxed",
-              m.role === 'user' ? "bg-primary/10 text-foreground ml-6" : "bg-secondary/50 text-foreground mr-6",
-              m.isError && "border border-red-500/30 bg-red-500/5"
-            )}>
+            <div key={i} className="text-xs rounded-2xl px-3 py-2.5 leading-relaxed"
+              style={m.role === 'user'
+                ? { background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.15)', color: '#e5e5e5', marginLeft: '1.5rem' }
+                : m.isError
+                  ? { background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', color: '#e5e5e5', marginRight: '1.5rem' }
+                  : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', color: '#e5e5e5', marginRight: '1.5rem' }
+              }>
               {m.role === 'user' ? m.content : (
                 <ReactMarkdown components={MD_COMPONENTS}>{m.content}</ReactMarkdown>
               )}
             </div>
           ))}
           {isLoading && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground px-3 py-2 mr-6 bg-secondary/50 rounded-2xl">
+            <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-2xl" style={{ background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.4)', marginRight: '1.5rem' }}>
               <div className="flex gap-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+                <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: 'rgba(0,255,136,0.5)', animationDelay: '0ms' }} />
+                <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: 'rgba(0,255,136,0.5)', animationDelay: '150ms' }} />
+                <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: 'rgba(0,255,136,0.5)', animationDelay: '300ms' }} />
               </div>
               <span>Analyzing your finances...</span>
             </div>
@@ -1037,7 +1054,7 @@ function VaultAIChat({ transactions, budgets, debts, goals, subscriptions, accou
                 className="text-xs px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition-colors font-medium flex items-center gap-1">
                 <RefreshCw className="w-3 h-3" /> Retry
               </button>
-              <span className="text-[10px] text-muted-foreground">Response failed — try a different model or retry</span>
+              <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>Response failed — try a different model or retry</span>
             </div>
           )}
         </div>
@@ -1051,10 +1068,12 @@ function VaultAIChat({ transactions, budgets, debts, goals, subscriptions, accou
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
           placeholder="Ask about your finances..."
           disabled={isLoading}
-          className="flex-1 text-xs px-3 py-2 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary/50 disabled:opacity-60"
+          className="flex-1 text-xs px-3 py-2 rounded-xl focus:outline-none disabled:opacity-60"
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#e5e5e5', caretColor: '#00ff88' }}
         />
         <button onClick={() => send()} disabled={!input.trim() || isLoading}
-          className="text-xs px-3 py-2 rounded-xl bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity">
+          className="text-xs px-3 py-2 rounded-xl font-mono font-medium disabled:opacity-50 transition-all"
+          style={{ background: '#00ff88', color: '#000' }}>
           Send
         </button>
       </div>
@@ -1175,8 +1194,10 @@ function OverviewTab({ accounts, transactions, allTransactions, timeRange, budge
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Accounts</h2>
-            <button onClick={onAddAccount} className="text-xs text-primary flex items-center gap-1 hover:underline">
+            <h2 className="font-mono font-semibold text-sm" style={{ color: '#e5e5e5' }}>Accounts</h2>
+            <button onClick={onAddAccount}
+              className="text-xs flex items-center gap-1 transition-colors"
+              style={{ color: '#00ff88' }}>
               <Plus className="w-3 h-3" /> Add manually
             </button>
           </div>
@@ -1188,11 +1209,15 @@ function OverviewTab({ accounts, transactions, allTransactions, timeRange, budge
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold">
+            <h2 className="font-mono font-semibold text-sm" style={{ color: '#e5e5e5' }}>
               {categoryFilter ? `${categoryFilter} transactions` : 'Recent Activity'}
             </h2>
             {categoryFilter && (
-              <button onClick={() => setCategoryFilter(null)} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+              <button onClick={() => setCategoryFilter(null)}
+                className="text-xs flex items-center gap-1 transition-colors"
+                style={{ color: 'rgba(255,255,255,0.35)' }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#e5e5e5'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.35)'}>
                 <X className="w-3 h-3" /> Clear filter
               </button>
             )}
@@ -1200,7 +1225,11 @@ function OverviewTab({ accounts, transactions, allTransactions, timeRange, budge
           {recent.length === 0
             ? <EmptyState icon={<ArrowUpRight className="w-8 h-8" />} label="No transactions" sub="Sync your bank or add manually" />
             : recent.map(tx => (
-                <div key={tx.id} className="p-3 rounded-xl bg-card border border-border/50 hover:border-border cursor-pointer transition-colors" onClick={() => onTxClick(tx)}>
+                <div key={tx.id} className="p-3 rounded-xl cursor-pointer transition-colors"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'}
+                  onClick={() => onTxClick(tx)}>
                   <TxRow tx={tx} onUpdateCategory={onUpdateCategory} />
                 </div>
               ))
@@ -1247,13 +1276,15 @@ function TransactionsTab({ transactions, accounts, rules, onAdd, onDelete, onUpd
     <div className="space-y-4">
       {/* Rules panel */}
       {showRules && (
-        <div className="p-4 rounded-2xl bg-card border border-border/50 space-y-3">
+        <div className="p-4 rounded-2xl space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-semibold text-sm">Auto-categorization Rules</p>
-              <p className="text-xs text-muted-foreground">Merchant/description contains → assign category</p>
+              <p className="font-mono font-semibold text-sm" style={{ color: '#e5e5e5' }}>Auto-categorization Rules</p>
+              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>Merchant/description contains → assign category</p>
             </div>
-            <button onClick={onApplyRules} className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90">
+            <button onClick={onApplyRules}
+              className="text-xs px-3 py-1.5 rounded-lg font-mono transition-all"
+              style={{ background: 'rgba(0,255,136,0.12)', border: '1px solid rgba(0,255,136,0.3)', color: '#00ff88' }}>
               Apply to all transactions
             </button>
           </div>
@@ -1263,12 +1294,14 @@ function TransactionsTab({ transactions, accounts, rules, onAdd, onDelete, onUpd
               value={newPattern}
               onChange={e => setNewPattern(e.target.value)}
               placeholder="e.g. Netflix, Chipotle, Amazon..."
-              className="flex-1 text-xs px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
+              className="flex-1 text-xs px-3 py-2 rounded-lg focus:outline-none"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#e5e5e5', caretColor: '#00ff88' }}
             />
             <select
               value={newCategory}
               onChange={e => setNewCategory(e.target.value)}
-              className="text-xs px-2 py-2 rounded-lg border border-border bg-background focus:outline-none"
+              className="text-xs px-2 py-2 rounded-lg focus:outline-none"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#e5e5e5' }}
             >
               {CATEGORIES.map(c => <option key={c}>{c}</option>)}
             </select>
@@ -1282,9 +1315,13 @@ function TransactionsTab({ transactions, accounts, rules, onAdd, onDelete, onUpd
           {rules.length > 0 && (
             <div className="space-y-1.5">
               {rules.map(r => (
-                <div key={r.id} className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-secondary/50">
-                  <span><span className="font-medium">"{r.pattern}"</span> → <span className="text-primary">{r.category}</span></span>
-                  <button onClick={() => onDeleteRule(r.id)} className="text-muted-foreground hover:text-red-400 transition-colors ml-2">
+                <div key={r.id} className="flex items-center justify-between text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <span style={{ color: '#e5e5e5' }}><span className="font-medium">"{r.pattern}"</span> → <span style={{ color: '#00ff88' }}>{r.category}</span></span>
+                  <button onClick={() => onDeleteRule(r.id)}
+                    className="transition-colors ml-2"
+                    style={{ color: 'rgba(255,255,255,0.35)' }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#f87171'}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.35)'}>
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -1296,12 +1333,13 @@ function TransactionsTab({ transactions, accounts, rules, onAdd, onDelete, onUpd
 
       <div className="flex flex-wrap items-center gap-2 justify-between">
         <div className="flex flex-wrap gap-2">
-          <div className="flex gap-1 p-1 bg-secondary/50 rounded-lg">
+          <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)' }}>
             {(['all', 'income', 'expense', 'transfer'] as const).map(f => (
               <button key={f} onClick={() => setFilter(f)}
-                className={cn("px-3 py-1 rounded-md text-sm capitalize transition-all",
-                  filter === f ? "bg-background shadow-sm font-medium" : "text-muted-foreground"
-                )}>
+                className="px-3 py-1 rounded-md text-sm capitalize transition-all font-mono"
+                style={filter === f
+                  ? { background: 'rgba(0,255,136,0.15)', color: '#00ff88', border: '1px solid rgba(0,255,136,0.3)' }
+                  : { color: 'rgba(255,255,255,0.4)' }}>
                 {f}
               </button>
             ))}
@@ -1310,7 +1348,8 @@ function TransactionsTab({ transactions, accounts, rules, onAdd, onDelete, onUpd
             <select
               value={accountFilter}
               onChange={e => setAccountFilter(e.target.value)}
-              className="px-3 py-1.5 rounded-lg text-sm bg-secondary/50 border-0 text-muted-foreground focus:outline-none focus:ring-1 focus:ring-border"
+              className="px-3 py-1.5 rounded-lg text-sm focus:outline-none"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
             >
               <option value="all">All accounts</option>
               {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -1321,15 +1360,17 @@ function TransactionsTab({ transactions, accounts, rules, onAdd, onDelete, onUpd
             placeholder="Search..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-sm bg-secondary/50 border-0 placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-border w-36"
+            className="px-3 py-1.5 rounded-lg text-sm focus:outline-none w-36"
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#e5e5e5' }}
           />
         </div>
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setRecurringOnly(p => !p)}
-            className={cn("flex items-center gap-1 px-3 py-2 rounded-xl border text-sm transition-colors",
-              recurringOnly ? "border-blue-500 text-blue-500 bg-blue-500/5" : "border-border hover:bg-secondary"
-            )}
+            className="flex items-center gap-1 px-3 py-2 rounded-xl border text-sm transition-colors"
+            style={recurringOnly
+              ? { border: '1px solid #3b82f6', color: '#3b82f6', background: 'rgba(59,130,246,0.07)' }
+              : { border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
             title="Show only recurring payments"
           >
             <Repeat className="w-3.5 h-3.5" />
@@ -1337,22 +1378,26 @@ function TransactionsTab({ transactions, accounts, rules, onAdd, onDelete, onUpd
           </button>
           <button
             onClick={() => setHideTransfers(p => !p)}
-            className={cn("flex items-center gap-1 px-3 py-2 rounded-xl border text-sm transition-colors",
-              !hideTransfers ? "border-amber-500 text-amber-500 bg-amber-500/5" : "border-border hover:bg-secondary"
-            )}
+            className="flex items-center gap-1 px-3 py-2 rounded-xl border text-sm transition-colors"
+            style={!hideTransfers
+              ? { border: '1px solid #f59e0b', color: '#f59e0b', background: 'rgba(245,158,11,0.07)' }
+              : { border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
             title="Toggle transfers visibility (Zelle, Venmo, etc.)"
           >
             {hideTransfers ? 'Show' : 'Hide'} Transfers
           </button>
           <button
             onClick={() => setShowRules(p => !p)}
-            className={cn("flex items-center gap-1 px-3 py-2 rounded-xl border text-sm transition-colors",
-              showRules ? "border-primary text-primary" : "border-border hover:bg-secondary"
-            )}
+            className="flex items-center gap-1 px-3 py-2 rounded-xl border text-sm transition-colors"
+            style={showRules
+              ? { border: '1px solid rgba(0,255,136,0.4)', color: '#00ff88' }
+              : { border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
           >
             Rules {uncategorized > 0 && <span className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{uncategorized}</span>}
           </button>
-          <button onClick={onAdd} className="flex items-center gap-1 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+          <button onClick={onAdd}
+            className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-mono font-medium"
+            style={{ background: '#00ff88', color: '#000' }}>
             <Plus className="w-4 h-4" /> Add
           </button>
         </div>
@@ -1365,11 +1410,18 @@ function TransactionsTab({ transactions, accounts, rules, onAdd, onDelete, onUpd
             {filtered.map(tx => (
               <div
                 key={tx.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50 hover:border-border transition-colors group cursor-pointer"
+                className="flex items-center justify-between p-3 rounded-xl transition-colors group cursor-pointer"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'}
                 onClick={() => onTxClick(tx)}
               >
                 <TxRow tx={tx} onUpdateCategory={onUpdateCategory} />
-                <button onClick={e => { e.stopPropagation(); onDelete(tx.id); }} className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-all ml-2 flex-shrink-0">
+                <button onClick={e => { e.stopPropagation(); onDelete(tx.id); }}
+                  className="opacity-0 group-hover:opacity-100 p-1 transition-all ml-2 flex-shrink-0"
+                  style={{ color: 'rgba(255,255,255,0.4)' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#f87171'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)'}>
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -1412,31 +1464,31 @@ function BudgetTab({ budgets, onAdd, onDelete, onUpdate }: {
         />
       )}
       {/* Budget Summary Banner */}
-      <div className="p-4 rounded-2xl bg-card border border-border/50">
+      <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
         <div className="flex items-center justify-between mb-3">
           <div>
-            <p className="text-sm text-muted-foreground">Monthly Budget</p>
+            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>Monthly Budget</p>
             <p className="font-mono text-2xl font-bold">
-              <span className={isOverBudget ? 'text-red-400' : 'text-foreground'}>{fmtFull(totalSpent)}</span>
-              <span className="text-muted-foreground text-base font-normal"> / {fmtFull(totalBudgeted)}</span>
+              <span className={isOverBudget ? 'text-red-400' : ''} style={isOverBudget ? {} : { color: '#e5e5e5' }}>{fmtFull(totalSpent)}</span>
+              <span className="text-base font-normal" style={{ color: 'rgba(255,255,255,0.3)' }}> / {fmtFull(totalBudgeted)}</span>
             </p>
           </div>
           <div className="text-right">
             <p className={cn("font-mono text-2xl font-bold", isOverBudget ? "text-red-400" : "text-emerald-500")}>
               {overallPct}%
             </p>
-            <p className="text-xs text-muted-foreground">{isOverBudget ? 'over budget' : 'used'}</p>
+            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{isOverBudget ? 'over budget' : 'used'}</p>
           </div>
         </div>
-        <div className="relative h-3 bg-secondary rounded-full overflow-hidden">
+        <div className="relative h-3 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
           <div
             className={cn("h-full rounded-full transition-all duration-500", isOverBudget ? "bg-red-500" : "bg-emerald-500")}
             style={{ width: `${Math.min(100, overallPct)}%` }}
           />
           {/* Month pacing marker */}
-          <div className="absolute top-0 bottom-0 w-0.5 bg-foreground/40" style={{ left: `${monthPacingPct}%` }} />
+          <div className="absolute top-0 bottom-0 w-0.5" style={{ left: `${monthPacingPct}%`, background: 'rgba(255,255,255,0.4)' }} />
         </div>
-        <div className="flex justify-between text-xs text-muted-foreground mt-2">
+        <div className="flex justify-between text-xs mt-2" style={{ color: 'rgba(255,255,255,0.35)' }}>
           <span>Day {dayOfMonth} of {daysInMonth} · {monthPacingPct}% through month</span>
           {totalBudgeted > 0 && !isOverBudget
             ? <span>{fmtFull(totalBudgeted - totalSpent)} remaining</span>
@@ -1446,17 +1498,19 @@ function BudgetTab({ budgets, onAdd, onDelete, onUpdate }: {
         {budgets.length > 0 && (
           <p className="text-xs mt-1">
             <span className="text-emerald-500 font-medium">{onTrackCount}/{budgets.length}</span>
-            <span className="text-muted-foreground"> categories on pace</span>
+            <span style={{ color: 'rgba(255,255,255,0.35)' }}> categories on pace</span>
           </p>
         )}
       </div>
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <p className="text-sm text-muted-foreground font-medium">Categories <span className="text-xs">(click to edit)</span></p>
+          <p className="text-sm font-mono font-medium" style={{ color: 'rgba(255,255,255,0.4)' }}>Categories <span className="text-xs">(click to edit)</span></p>
           <BudgetInfoTip />
         </div>
-        <button onClick={onAdd} className="flex items-center gap-1 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+        <button onClick={onAdd}
+          className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-mono font-medium"
+          style={{ background: '#00ff88', color: '#000' }}>
           <Plus className="w-4 h-4" /> Category
         </button>
       </div>
@@ -1473,26 +1527,29 @@ function BudgetTab({ budgets, onAdd, onDelete, onUpdate }: {
               return (
                 <div
                   key={b.id}
-                  className="p-4 rounded-xl bg-card border border-border/50 hover:border-border cursor-pointer transition-all group"
+                  className="p-4 rounded-xl cursor-pointer transition-all group"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'}
                   onClick={() => setEditingBudget(b)}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <span className="text-xl">{b.emoji}</span>
-                      <span className="font-medium text-sm">{b.name}</span>
+                      <span className="font-medium text-sm" style={{ color: '#e5e5e5' }}>{b.name}</span>
                     </div>
-                    <Pencil className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all" />
+                    <Pencil className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-all" style={{ color: 'rgba(255,255,255,0.35)' }} />
                   </div>
-                  <div className="flex justify-between text-xs text-muted-foreground mb-2">
+                  <div className="flex justify-between text-xs mb-2" style={{ color: 'rgba(255,255,255,0.4)' }}>
                     <span>{fmtFull(spent)} spent</span>
                     <span className={over ? 'text-red-400 font-medium' : ''}>{fmtFull(b.monthlyLimit)} limit</span>
                   </div>
-                  <div className="relative h-2 bg-secondary rounded-full overflow-hidden">
+                  <div className="relative h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
                     <div
                       className={cn("h-full rounded-full transition-all", over ? "bg-red-500" : overpacing ? "bg-amber-500" : "")}
                       style={{ width: `${Math.min(100, progress)}%`, backgroundColor: over ? undefined : overpacing ? undefined : b.color }}
                     />
-                    <div className="absolute top-0 bottom-0 w-0.5 bg-foreground/30" style={{ left: `${Math.min(99, monthPacingPct)}%` }} />
+                    <div className="absolute top-0 bottom-0 w-0.5" style={{ left: `${Math.min(99, monthPacingPct)}%`, background: 'rgba(255,255,255,0.3)' }} />
                   </div>
                   {over ? (
                     <p className="text-xs text-red-400 mt-1.5 flex items-center gap-1">
@@ -1564,17 +1621,23 @@ function DebtTab({ debts, onAdd, onDelete, onUpdate, onImport }: {
       )}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-muted-foreground">Total Debt Remaining</p>
+          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>Total Debt Remaining</p>
           <p className="font-mono text-2xl font-bold text-red-400">{fmtFull(totalDebt)}</p>
           {totalOriginal > 0 && (
-            <p className="text-xs text-muted-foreground mt-0.5">{overallPct}% paid off overall</p>
+            <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>{overallPct}% paid off overall</p>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowImport(true)} className="flex items-center gap-1 px-3 py-2 rounded-xl border border-border text-sm hover:bg-secondary transition-colors">
+          <button onClick={() => setShowImport(true)}
+            className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm transition-colors"
+            style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
             <Upload className="w-4 h-4" /> Import CSV
           </button>
-          <button onClick={onAdd} className="flex items-center gap-1 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+          <button onClick={onAdd}
+            className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-mono font-medium"
+            style={{ background: '#00ff88', color: '#000' }}>
             <Plus className="w-4 h-4" /> Add Debt
           </button>
         </div>
@@ -1592,34 +1655,37 @@ function DebtTab({ debts, onAdd, onDelete, onUpdate, onImport }: {
               return (
                 <div
                   key={debt.id}
-                  className="p-4 rounded-xl bg-card border border-border/50 hover:border-border cursor-pointer transition-all group"
+                  className="p-4 rounded-xl cursor-pointer transition-all group"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'}
                   onClick={() => setEditingDebt(debt)}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div>
-                      <p className="font-medium">{debt.name}</p>
-                      <p className="text-xs text-muted-foreground capitalize">
+                      <p className="font-medium" style={{ color: '#e5e5e5' }}>{debt.name}</p>
+                      <p className="text-xs capitalize" style={{ color: 'rgba(255,255,255,0.4)' }}>
                         {debt.type.replace('_', ' ')} · {debt.interestRate}% APR
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         <p className="font-mono font-bold text-red-400">{fmtFull(debt.balance)}</p>
-                        <p className="text-xs text-muted-foreground">of {fmtFull(debt.originalBalance)}</p>
+                        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>of {fmtFull(debt.originalBalance)}</p>
                       </div>
-                      <Pencil className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all" />
+                      <Pencil className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-all" style={{ color: 'rgba(255,255,255,0.35)' }} />
                     </div>
                   </div>
-                  <div className="h-2 bg-secondary rounded-full overflow-hidden mb-2">
-                    <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${progress}%`, backgroundColor: debt.color || '#10b981' }} />
+                  <div className="h-2 rounded-full overflow-hidden mb-2" style={{ background: 'rgba(255,255,255,0.07)' }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, backgroundColor: debt.color || '#10b981' }} />
                   </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
+                  <div className="flex justify-between text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
                     <span>{progress}% paid off · {fmtFull(paid)} cleared</span>
                     <span>Min. {fmtFull(debt.minimumPayment)}/mo</span>
                   </div>
                   {projection && (
-                    <div className="flex items-center gap-3 mt-2 pt-2 border-t border-border/40 text-xs">
-                      <span className="text-muted-foreground flex items-center gap-1">
+                    <div className="flex items-center gap-3 mt-2 pt-2 text-xs" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                      <span className="flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.4)' }}>
                         <CalendarClock className="w-3 h-3" />
                         {projection.months < 120
                           ? `Payoff in ~${projection.months} mo`
@@ -1629,7 +1695,7 @@ function DebtTab({ debts, onAdd, onDelete, onUpdate, onImport }: {
                         <span className="text-amber-500">{fmtFull(projection.totalInterest)} in interest</span>
                       )}
                       {monthlyInterest > 0 && (
-                        <span className="text-muted-foreground">{fmtFull(monthlyInterest)}/mo interest</span>
+                        <span style={{ color: 'rgba(255,255,255,0.4)' }}>{fmtFull(monthlyInterest)}/mo interest</span>
                       )}
                     </div>
                   )}
@@ -1663,11 +1729,13 @@ function GoalsTab({ goals, onAdd, onDelete, onUpdate }: {
         />
       )}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>
           {goals.length} goal{goals.length !== 1 ? 's' : ''} ·{' '}
           {fmtFull(goals.reduce((s, g) => s + g.currentAmount, 0))} saved total
         </p>
-        <button onClick={onAdd} className="flex items-center gap-1 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+        <button onClick={onAdd}
+          className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-mono font-medium"
+          style={{ background: '#00ff88', color: '#000' }}>
           <Plus className="w-4 h-4" /> Add Goal
         </button>
       </div>
@@ -1688,30 +1756,33 @@ function GoalsTab({ goals, onAdd, onDelete, onUpdate }: {
               return (
                 <div
                   key={goal.id}
-                  className="p-4 rounded-xl bg-card border border-border/50 hover:border-border cursor-pointer transition-all group"
+                  className="p-4 rounded-xl cursor-pointer transition-all group"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'}
                   onClick={() => setEditingGoal(goal)}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <span className="text-2xl">{goal.emoji}</span>
                       <div>
-                        <p className="font-medium text-sm">{goal.name}</p>
+                        <p className="font-medium text-sm" style={{ color: '#e5e5e5' }}>{goal.name}</p>
                         {goal.deadline && (
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
                             by {new Date(goal.deadline).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                             {monthsLeft && <span className="ml-1">({monthsLeft} mo left)</span>}
                           </p>
                         )}
                       </div>
                     </div>
-                    <Pencil className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all" />
+                    <Pencil className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-all" style={{ color: 'rgba(255,255,255,0.35)' }} />
                   </div>
 
                   <div className="flex justify-between text-sm mb-2">
-                    <span className="font-semibold">{fmtFull(goal.currentAmount)}</span>
-                    <span className="text-muted-foreground">{fmtFull(goal.targetAmount)}</span>
+                    <span className="font-semibold" style={{ color: '#e5e5e5' }}>{fmtFull(goal.currentAmount)}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.4)' }}>{fmtFull(goal.targetAmount)}</span>
                   </div>
-                  <div className="h-2 bg-secondary rounded-full overflow-hidden mb-2">
+                  <div className="h-2 rounded-full overflow-hidden mb-2" style={{ background: 'rgba(255,255,255,0.07)' }}>
                     <div
                       className={cn("h-full rounded-full transition-all", done ? "bg-emerald-500" : "")}
                       style={{ width: `${progress}%`, backgroundColor: done ? undefined : goal.color }}
@@ -1719,13 +1790,13 @@ function GoalsTab({ goals, onAdd, onDelete, onUpdate }: {
                   </div>
 
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">{progress}% · {fmtFull(remaining)} to go</span>
+                    <span style={{ color: 'rgba(255,255,255,0.4)' }}>{progress}% · {fmtFull(remaining)} to go</span>
                     {done ? (
                       <span className="text-emerald-500 flex items-center gap-1">
                         <Check className="w-3 h-3" /> Complete!
                       </span>
                     ) : monthlyNeeded ? (
-                      <span className="text-primary">{fmtFull(monthlyNeeded)}/mo needed</span>
+                      <span style={{ color: '#00ff88' }}>{fmtFull(monthlyNeeded)}/mo needed</span>
                     ) : null}
                   </div>
                 </div>
@@ -1742,25 +1813,32 @@ function GoalsTab({ goals, onAdd, onDelete, onUpdate }: {
 function AccountCard({ account, onDelete }: { account: VaultAccount; onDelete: () => void }) {
   const isLiability = account.type === 'credit' || account.type === 'loan';
   return (
-    <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50 hover:border-border transition-colors group">
+    <div className="flex items-center justify-between p-3 rounded-xl transition-colors group"
+      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+      onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'}
+      onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'}>
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0"
           style={{ backgroundColor: account.color }}>
           {ACCOUNT_ICONS[account.type]}
         </div>
         <div>
-          <p className="font-medium text-sm">{account.name}</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="font-medium text-sm" style={{ color: '#e5e5e5' }}>{account.name}</p>
+          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
             {account.institution}{account.mask ? ` ··${account.mask}` : ''}
             {account.isTellerLinked && <span className="ml-1 text-emerald-500">· Linked</span>}
           </p>
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <p className={cn("font-semibold", isLiability ? "text-red-400" : "text-foreground")}>
+        <p className={cn("font-semibold", isLiability ? "text-red-400" : "")} style={isLiability ? {} : { color: '#e5e5e5' }}>
           {isLiability ? '-' : ''}{fmtFull(account.balance)}
         </p>
-        <button onClick={onDelete} className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-all">
+        <button onClick={onDelete}
+          className="opacity-0 group-hover:opacity-100 p-1 transition-all"
+          style={{ color: 'rgba(255,255,255,0.4)' }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#f87171'}
+          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)'}>
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -1796,10 +1874,14 @@ function TxRow({ tx, onUpdateCategory }: { tx: VaultTransaction; onUpdateCategor
                   + Add category
                 </button>
                 {showCatPicker && (
-                  <div className="absolute left-0 top-5 z-20 bg-card border border-border rounded-xl shadow-xl p-2 grid grid-cols-2 gap-1 w-56">
+                  <div className="absolute left-0 top-5 z-20 rounded-xl shadow-xl p-2 grid grid-cols-2 gap-1 w-56"
+                    style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)' }}>
                     {CATEGORIES.map(cat => (
                       <button key={cat} onClick={() => { onUpdateCategory(tx.id, cat); setShowCatPicker(false); }}
-                        className="text-xs px-2 py-1.5 rounded-lg hover:bg-secondary text-left transition-colors truncate">
+                        className="text-xs px-2 py-1.5 rounded-lg text-left transition-colors truncate"
+                        style={{ color: 'rgba(255,255,255,0.7)' }}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)'}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
                         {cat}
                       </button>
                     ))}
@@ -1809,20 +1891,27 @@ function TxRow({ tx, onUpdateCategory }: { tx: VaultTransaction; onUpdateCategor
             ) : (
               <button
                 onClick={() => onUpdateCategory && setShowCatPicker(p => !p)}
-                className={cn("text-xs text-muted-foreground", onUpdateCategory && "hover:text-foreground cursor-pointer")}
+                className="text-xs transition-colors"
+                style={{ color: 'rgba(255,255,255,0.4)', cursor: onUpdateCategory ? 'pointer' : 'default' }}
+                onMouseEnter={e => onUpdateCategory && ((e.currentTarget as HTMLElement).style.color = '#e5e5e5')}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)'}
               >
                 {tx.category}
               </button>
             )}
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
               · {new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               {tx.isPending && <span className="ml-1 text-amber-500">· Pending</span>}
             </span>
             {!needsCategory && onUpdateCategory && showCatPicker && (
-              <div className="absolute left-0 top-5 z-20 bg-card border border-border rounded-xl shadow-xl p-2 grid grid-cols-2 gap-1 w-56">
+              <div className="absolute left-0 top-5 z-20 rounded-xl shadow-xl p-2 grid grid-cols-2 gap-1 w-56"
+                style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)' }}>
                 {CATEGORIES.map(cat => (
                   <button key={cat} onClick={() => { onUpdateCategory(tx.id, cat); setShowCatPicker(false); }}
-                    className="text-xs px-2 py-1.5 rounded-lg hover:bg-secondary text-left transition-colors truncate">
+                    className="text-xs px-2 py-1.5 rounded-lg text-left transition-colors truncate"
+                    style={{ color: 'rgba(255,255,255,0.7)' }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
                     {cat}
                   </button>
                 ))}
@@ -1831,7 +1920,8 @@ function TxRow({ tx, onUpdateCategory }: { tx: VaultTransaction; onUpdateCategor
           </div>
         </div>
       </div>
-      <p className={cn("font-semibold text-sm flex-shrink-0 ml-3", isIncome ? "text-emerald-500" : "text-foreground")}>
+      <p className={cn("font-semibold text-sm flex-shrink-0 ml-3", isIncome ? "text-emerald-500" : "")}
+        style={isIncome ? {} : { color: '#e5e5e5' }}>
         {isIncome ? '+' : '-'}{fmtFull(tx.amount)}
       </p>
     </div>
@@ -1844,27 +1934,31 @@ function BudgetInfoTip() {
     <div className="relative">
       <button
         onClick={() => setShow(p => !p)}
-        className="w-4 h-4 rounded-full bg-secondary text-muted-foreground text-[10px] font-bold flex items-center justify-center hover:bg-primary/20 hover:text-primary transition-colors"
+        className="w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center transition-colors"
+        style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(0,255,136,0.15)'; (e.currentTarget as HTMLElement).style.color = '#00ff88'; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)'; }}
       >
         ?
       </button>
       {show && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShow(false)} />
-          <div className="absolute left-0 top-6 z-50 w-72 p-3 rounded-xl bg-card border border-border shadow-xl text-xs space-y-2">
-            <p className="font-semibold">How budgets work</p>
-            <p className="text-muted-foreground">
-              A budget sets a <span className="text-foreground font-medium">monthly spending limit</span> per category.
+          <div className="absolute left-0 top-6 z-50 w-72 p-3 rounded-xl shadow-xl text-xs space-y-2"
+            style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <p className="font-semibold" style={{ color: '#e5e5e5' }}>How budgets work</p>
+            <p style={{ color: 'rgba(255,255,255,0.5)' }}>
+              A budget sets a <span style={{ color: '#e5e5e5' }} className="font-medium">monthly spending limit</span> per category.
               Transactions you categorize (e.g. "Food & Drink") automatically count toward that budget.
             </p>
-            <p className="text-muted-foreground">
-              The <span className="text-foreground font-medium">tick mark</span> on the bar shows where you <em>should</em> be today if spending evenly through the month.
+            <p style={{ color: 'rgba(255,255,255,0.5)' }}>
+              The <span style={{ color: '#e5e5e5' }} className="font-medium">tick mark</span> on the bar shows where you <em>should</em> be today if spending evenly through the month.
               Red = over limit. Amber = ahead of pace.
             </p>
-            <p className="text-muted-foreground border-t border-border/40 pt-2">
-              💡 For <span className="text-foreground font-medium">saving toward something</span> (vacation, new laptop, emergency fund) — use the <span className="text-primary font-medium">Goals</span> tab instead.
+            <p className="pt-2" style={{ color: 'rgba(255,255,255,0.5)', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+              For <span style={{ color: '#e5e5e5' }} className="font-medium">saving toward something</span> (vacation, new laptop, emergency fund) — use the <span style={{ color: '#00ff88' }} className="font-medium">Goals</span> tab instead.
             </p>
-            <button onClick={() => setShow(false)} className="text-xs text-primary hover:underline">Got it</button>
+            <button onClick={() => setShow(false)} className="text-xs hover:underline" style={{ color: '#00ff88' }}>Got it</button>
           </div>
         </>
       )}
@@ -1876,12 +1970,14 @@ function EmptyState({ icon, label, sub, action, onAction }: {
   icon: React.ReactNode; label: string; sub: string; action?: string; onAction?: () => void;
 }) {
   return (
-    <div className="text-center py-12 text-muted-foreground">
+    <div className="text-center py-12" style={{ color: 'rgba(255,255,255,0.3)' }}>
       <div className="flex justify-center mb-3 opacity-30">{icon}</div>
-      <p className="font-medium text-foreground">{label}</p>
+      <p className="font-medium" style={{ color: '#e5e5e5' }}>{label}</p>
       <p className="text-sm mt-1">{sub}</p>
       {action && onAction && (
-        <button onClick={onAction} className="mt-4 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+        <button onClick={onAction}
+          className="mt-4 px-4 py-2 rounded-xl text-sm font-mono font-medium"
+          style={{ background: '#00ff88', color: '#000' }}>
           {action}
         </button>
       )}
@@ -1993,36 +2089,39 @@ function SubscriptionsTab({ transactions, subscriptions, onSave, onUpdate, onDel
 
       {/* Summary */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="p-4 rounded-xl bg-card border border-border/50 text-center">
-          <p className="text-xs text-muted-foreground mb-1">Tracked</p>
-          <p className="font-mono text-2xl font-bold">{subscriptions.filter(s => s.isActive).length}</p>
-          <p className="text-xs text-muted-foreground">active subs</p>
+        <div className="p-4 rounded-xl text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Tracked</p>
+          <p className="font-mono text-2xl font-bold" style={{ color: '#e5e5e5' }}>{subscriptions.filter(s => s.isActive).length}</p>
+          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>active subs</p>
         </div>
-        <div className="p-4 rounded-xl bg-card border border-border/50 text-center">
-          <p className="text-xs text-muted-foreground mb-1">Monthly</p>
+        <div className="p-4 rounded-xl text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Monthly</p>
           <p className="font-mono text-2xl font-bold text-red-400">{fmtFull(savedMonthly)}</p>
-          <p className="text-xs text-muted-foreground">per month</p>
+          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>per month</p>
         </div>
-        <div className="p-4 rounded-xl bg-card border border-border/50 text-center">
-          <p className="text-xs text-muted-foreground mb-1">Annual</p>
+        <div className="p-4 rounded-xl text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Annual</p>
           <p className="font-mono text-2xl font-bold text-amber-500">{fmtFull(savedAnnual)}</p>
-          <p className="text-xs text-muted-foreground">per year</p>
+          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>per year</p>
         </div>
       </div>
 
       {/* Tabs + Add */}
       <div className="flex items-center justify-between">
-        <div className="flex gap-1 p-1 bg-secondary/50 rounded-xl">
+        <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)' }}>
           {(['saved', 'detected'] as const).map(t => (
             <button key={t} onClick={() => setActiveTab(t)}
-              className={cn("px-3 py-1.5 rounded-lg text-sm capitalize transition-all",
-                activeTab === t ? "bg-background shadow-sm font-medium" : "text-muted-foreground"
-              )}>
+              className="px-3 py-1.5 rounded-lg text-sm capitalize transition-all font-mono"
+              style={activeTab === t
+                ? { background: 'rgba(0,255,136,0.12)', color: '#00ff88', border: '1px solid rgba(0,255,136,0.25)' }
+                : { color: 'rgba(255,255,255,0.4)' }}>
               {t === 'saved' ? `My Subs (${subscriptions.length})` : `Detected (${allDetected.length})`}
             </button>
           ))}
         </div>
-        <button onClick={() => setShowAdd(true)} className="flex items-center gap-1 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+        <button onClick={() => setShowAdd(true)}
+          className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-mono font-medium"
+          style={{ background: '#00ff88', color: '#000' }}>
           <Plus className="w-4 h-4" /> Add
         </button>
       </div>
@@ -2035,7 +2134,10 @@ function SubscriptionsTab({ transactions, subscriptions, onSave, onUpdate, onDel
               {subscriptions.map(sub => (
                 <div
                   key={sub.id}
-                  className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50 hover:border-border cursor-pointer transition-colors group"
+                  className="flex items-center justify-between p-3 rounded-xl cursor-pointer transition-colors group"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'}
                   onClick={() => setEditingSub(sub)}
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -2044,10 +2146,10 @@ function SubscriptionsTab({ transactions, subscriptions, onSave, onUpdate, onDel
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm truncate">{sub.name}</p>
-                        {!sub.isActive && <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">Inactive</span>}
+                        <p className="font-medium text-sm truncate" style={{ color: '#e5e5e5' }}>{sub.name}</p>
+                        {!sub.isActive && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.4)' }}>Inactive</span>}
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2 text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
                         <span className="capitalize px-1.5 py-0.5 rounded-md" style={{ backgroundColor: (FREQ_COLOR[sub.frequency] || '#6b7280') + '20', color: FREQ_COLOR[sub.frequency] || '#6b7280' }}>
                           {sub.frequency}
                         </span>
@@ -2057,11 +2159,11 @@ function SubscriptionsTab({ transactions, subscriptions, onSave, onUpdate, onDel
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0 ml-3">
-                    <p className="font-semibold text-sm">{fmtFull(sub.amount)}</p>
+                    <p className="font-semibold text-sm" style={{ color: '#e5e5e5' }}>{fmtFull(sub.amount)}</p>
                     {sub.frequency !== 'monthly' && (
-                      <p className="text-xs text-muted-foreground">~{fmtFull(toMonthly(sub.amount, sub.frequency))}/mo</p>
+                      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>~{fmtFull(toMonthly(sub.amount, sub.frequency))}/mo</p>
                     )}
-                    <Pencil className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 ml-auto mt-0.5" />
+                    <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 ml-auto mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }} />
                   </div>
                 </div>
               ))}
@@ -2074,22 +2176,23 @@ function SubscriptionsTab({ transactions, subscriptions, onSave, onUpdate, onDel
           ? <EmptyState icon={<Repeat className="w-8 h-8" />} label="No recurring charges detected" sub="Sync more transactions to detect subscriptions" />
           : (
             <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">Auto-detected · click "Confirm" to add to your tracked subscriptions</p>
+              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>Auto-detected · click "Confirm" to add to your tracked subscriptions</p>
               {allDetected.map((r, i) => {
                 const alreadySaved = subscriptions.some(s =>
                   s.name.toLowerCase().includes((r as any).knownName?.toLowerCase() || '') ||
                   (s.merchantPattern && r.merchant?.toLowerCase().includes(s.merchantPattern.toLowerCase()))
                 );
                 return (
-                  <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50">
+                  <div key={i} className="flex items-center justify-between p-3 rounded-xl"
+                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg"
                         style={{ backgroundColor: ((r as any).knownColor || FREQ_COLOR[r.frequency] || '#6b7280') + '20' }}>
                         {(r as any).knownEmoji || (r as any).emoji || '🔄'}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-sm truncate">{(r as any).knownName || r.merchant}</p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <p className="font-medium text-sm truncate" style={{ color: '#e5e5e5' }}>{(r as any).knownName || r.merchant}</p>
+                        <div className="flex items-center gap-2 text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
                           <span className="capitalize px-1.5 py-0.5 rounded-md" style={{ backgroundColor: (FREQ_COLOR[r.frequency] || '#6b7280') + '20', color: FREQ_COLOR[r.frequency] || '#6b7280' }}>
                             {r.frequency}
                           </span>
@@ -2100,9 +2203,9 @@ function SubscriptionsTab({ transactions, subscriptions, onSave, onUpdate, onDel
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0 ml-3">
                       <div className="text-right">
-                        <p className="font-semibold text-sm">{fmtFull(r.amount)}</p>
+                        <p className="font-semibold text-sm" style={{ color: '#e5e5e5' }}>{fmtFull(r.amount)}</p>
                         {r.frequency !== 'monthly' && (
-                          <p className="text-xs text-muted-foreground">~{fmtFull(r.estimatedMonthly)}/mo</p>
+                          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>~{fmtFull(r.estimatedMonthly)}/mo</p>
                         )}
                       </div>
                       {!alreadySaved && (
@@ -2123,7 +2226,7 @@ function SubscriptionsTab({ transactions, subscriptions, onSave, onUpdate, onDel
                           Confirm
                         </button>
                       )}
-                      {alreadySaved && <span className="text-xs text-muted-foreground px-2">✓ Saved</span>}
+                      {alreadySaved && <span className="text-xs px-2" style={{ color: 'rgba(255,255,255,0.4)' }}>✓ Saved</span>}
                     </div>
                   </div>
                 );
@@ -2151,37 +2254,37 @@ function TransactionDetailModal({ tx, onClose, onUpdateCategory, onCreateRule, o
 
   return (
     <ModalShell title="Transaction Details" onClose={onClose}>
-      <div className="flex items-center gap-4 p-3 rounded-xl bg-secondary/30">
+      <div className="flex items-center gap-4 p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)' }}>
         <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
           isIncome ? "bg-emerald-500/10" : "bg-red-500/10"
         )}>
           {isIncome ? <ArrowDownRight className="w-6 h-6 text-emerald-500" /> : <ArrowUpRight className="w-6 h-6 text-red-400" />}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-lg">{isIncome ? '+' : '-'}{fmtFull(tx.amount)}</p>
-          <p className="font-medium truncate">{tx.merchant || tx.description}</p>
+          <p className="font-semibold text-lg" style={{ color: '#e5e5e5' }}>{isIncome ? '+' : '-'}{fmtFull(tx.amount)}</p>
+          <p className="font-medium truncate" style={{ color: '#e5e5e5' }}>{tx.merchant || tx.description}</p>
           {tx.merchant && tx.description && tx.merchant !== tx.description && (
-            <p className="text-xs text-muted-foreground truncate">{tx.description}</p>
+            <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.4)' }}>{tx.description}</p>
           )}
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-sm">
-        <div className="p-3 rounded-xl bg-secondary/30">
-          <p className="text-xs text-muted-foreground mb-1">Date</p>
-          <p className="font-medium">{new Date(tx.date).toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}</p>
+        <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)' }}>
+          <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Date</p>
+          <p className="font-medium" style={{ color: '#e5e5e5' }}>{new Date(tx.date).toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}</p>
         </div>
-        <div className="p-3 rounded-xl bg-secondary/30">
-          <p className="text-xs text-muted-foreground mb-1">Account</p>
-          <p className="font-medium truncate">{tx.accountName || '—'}</p>
+        <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)' }}>
+          <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Account</p>
+          <p className="font-medium truncate" style={{ color: '#e5e5e5' }}>{tx.accountName || '—'}</p>
         </div>
-        <div className="p-3 rounded-xl bg-secondary/30">
-          <p className="text-xs text-muted-foreground mb-1">Type</p>
-          <p className="font-medium capitalize">{tx.type}</p>
+        <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)' }}>
+          <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Type</p>
+          <p className="font-medium capitalize" style={{ color: '#e5e5e5' }}>{tx.type}</p>
         </div>
-        <div className="p-3 rounded-xl bg-secondary/30">
-          <p className="text-xs text-muted-foreground mb-1">Status</p>
-          <p className="font-medium">{tx.isPending ? '⏳ Pending' : '✓ Cleared'}</p>
+        <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)' }}>
+          <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Status</p>
+          <p className="font-medium" style={{ color: '#e5e5e5' }}>{tx.isPending ? '⏳ Pending' : '✓ Cleared'}</p>
         </div>
       </div>
 
@@ -2190,23 +2293,25 @@ function TransactionDetailModal({ tx, onClose, onUpdateCategory, onCreateRule, o
         <select
           value={category}
           onChange={e => setCategory(e.target.value)}
-          className={selectCls}
+          className={selectCls} style={inputStyle}
         >
           {CATEGORIES.map(c => <option key={c}>{c}</option>)}
         </select>
         <div className="flex gap-2">
           <button
             onClick={() => onUpdateCategory(tx.id, category)}
-            className="flex-1 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
+            className="flex-1 py-2 rounded-xl text-sm font-mono font-medium"
+            style={{ background: '#00ff88', color: '#000' }}
           >
             Save Category
           </button>
           {rulePattern && (
             <button
               onClick={() => setMakeRule(p => !p)}
-              className={cn("px-3 py-2 rounded-xl border text-sm transition-colors",
-                makeRule ? "border-primary text-primary" : "border-border hover:bg-secondary"
-              )}
+              className="px-3 py-2 rounded-xl border text-sm transition-colors"
+              style={makeRule
+                ? { border: '1px solid rgba(0,255,136,0.4)', color: '#00ff88' }
+                : { border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}
               title="Always categorize this merchant this way"
             >
               Auto-rule
@@ -2214,8 +2319,8 @@ function TransactionDetailModal({ tx, onClose, onUpdateCategory, onCreateRule, o
           )}
         </div>
         {makeRule && rulePattern && (
-          <div className="p-3 rounded-xl bg-secondary/30 text-xs space-y-2">
-            <p>Always categorize <span className="font-semibold">"{rulePattern}"</span> as <span className="text-primary font-semibold">{category}</span>?</p>
+          <div className="p-3 rounded-xl text-xs space-y-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
+            <p style={{ color: 'rgba(255,255,255,0.7)' }}>Always categorize <span className="font-semibold" style={{ color: '#e5e5e5' }}>"{rulePattern}"</span> as <span className="font-semibold" style={{ color: '#00ff88' }}>{category}</span>?</p>
             <button
               onClick={() => { onCreateRule(rulePattern, category); }}
               className="px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600"
@@ -2229,10 +2334,18 @@ function TransactionDetailModal({ tx, onClose, onUpdateCategory, onCreateRule, o
       {confirmDelete ? (
         <div className="flex gap-2">
           <button onClick={() => onDelete(tx.id)} className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium">Confirm Delete</button>
-          <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2 rounded-xl border border-border text-sm hover:bg-secondary">Cancel</button>
+          <button onClick={() => setConfirmDelete(false)}
+            className="flex-1 py-2 rounded-xl text-sm transition-colors"
+            style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>Cancel</button>
         </div>
       ) : (
-        <button onClick={() => setConfirmDelete(true)} className="w-full py-2 rounded-xl border border-border text-sm text-muted-foreground hover:text-red-400 hover:border-red-400/50 transition-colors">
+        <button onClick={() => setConfirmDelete(true)}
+          className="w-full py-2 rounded-xl text-sm transition-colors"
+          style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#f87171'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(248,113,113,0.4)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)'; }}>
           Delete Transaction
         </button>
       )}
@@ -2282,17 +2395,17 @@ function EditSubscriptionModal({ subscription, onClose, onSave, onUpdate, onDele
         </Field>
         <div className="flex-1">
           <Field label="Name">
-            <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Netflix, Gym, Adobe" />
+            <input className={inputCls} style={inputStyle} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Netflix, Gym, Adobe" />
           </Field>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Amount ($)">
-          <input className={inputCls} type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" />
+          <input className={inputCls} style={inputStyle} type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" />
         </Field>
         <Field label="Frequency">
-          <select className={selectCls} value={frequency} onChange={e => setFrequency(e.target.value as SubscriptionFrequency)}>
+          <select className={selectCls} style={inputStyle} value={frequency} onChange={e => setFrequency(e.target.value as SubscriptionFrequency)}>
             <option value="monthly">Monthly</option>
             <option value="weekly">Weekly</option>
             <option value="bi-weekly">Bi-weekly</option>
@@ -2303,30 +2416,31 @@ function EditSubscriptionModal({ subscription, onClose, onSave, onUpdate, onDele
       </div>
 
       {frequency !== 'monthly' && parseFloat(amount) > 0 && (
-        <p className="text-xs text-muted-foreground bg-secondary/50 rounded-xl px-3 py-2">
+        <p className="text-xs rounded-xl px-3 py-2" style={{ color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.05)' }}>
           ~{fmtFull(monthly)}/mo · {fmtFull(monthly * 12)}/year
         </p>
       )}
 
       <Field label="Category">
-        <select className={selectCls} value={category} onChange={e => setCategory(e.target.value)}>
+        <select className={selectCls} style={inputStyle} value={category} onChange={e => setCategory(e.target.value)}>
           {CATEGORIES.map(c => <option key={c}>{c}</option>)}
         </select>
       </Field>
 
       <Field label="Next Billing Date (optional)">
-        <input className={inputCls} type="date" value={nextBilling} onChange={e => setNextBilling(e.target.value)} />
+        <input className={inputCls} style={inputStyle} type="date" value={nextBilling} onChange={e => setNextBilling(e.target.value)} />
       </Field>
 
       <Field label="Notes (optional)">
-        <input className={inputCls} value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. Family plan, can cancel anytime" />
+        <input className={inputCls} style={inputStyle} value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. Family plan, can cancel anytime" />
       </Field>
 
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium">Active</label>
         <button
           onClick={() => setIsActive(p => !p)}
-          className={cn("relative w-11 h-6 rounded-full transition-colors", isActive ? "bg-emerald-500" : "bg-secondary")}
+          className="relative w-11 h-6 rounded-full transition-colors"
+          style={{ background: isActive ? '#10b981' : 'rgba(255,255,255,0.1)' }}
         >
           <div className={cn("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", isActive ? "left-6" : "left-1")} />
         </button>
@@ -2340,7 +2454,7 @@ function EditSubscriptionModal({ subscription, onClose, onSave, onUpdate, onDele
         </div>
       </Field>
 
-      <button onClick={handleSave} disabled={!name || !amount} className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50">
+      <button onClick={handleSave} disabled={!name || !amount} className="w-full py-2.5 rounded-xl font-mono font-medium disabled:opacity-50 transition-all" style={{ background: '#00ff88', color: '#000' }}>
         {isEdit ? 'Save Changes' : 'Add Subscription'}
       </button>
 
@@ -2348,10 +2462,16 @@ function EditSubscriptionModal({ subscription, onClose, onSave, onUpdate, onDele
         confirmDelete ? (
           <div className="flex gap-2">
             <button onClick={() => onDelete(subscription.id)} className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium">Confirm Delete</button>
-            <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2 rounded-xl border border-border text-sm hover:bg-secondary">Cancel</button>
+            <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2 rounded-xl text-sm transition-colors"
+            style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>Cancel</button>
           </div>
         ) : (
-          <button onClick={() => setConfirmDelete(true)} className="w-full py-2 rounded-xl border border-border text-sm text-muted-foreground hover:text-red-400 hover:border-red-400/50 transition-colors">
+          <button onClick={() => setConfirmDelete(true)} className="w-full py-2 rounded-xl text-sm transition-colors"
+          style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#f87171'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(248,113,113,0.4)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)'; }}>
             Delete Subscription
           </button>
         )
@@ -2370,11 +2490,16 @@ function ModalShell({ title, onClose, children }: {
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 40 }}
-        className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
+        className="w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+        style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.1)' }}
       >
-        <div className="flex items-center justify-between p-5 border-b border-border">
-          <h3 className="font-semibold">{title}</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
+        <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          <h3 className="font-mono font-semibold" style={{ color: '#e5e5e5' }}>{title}</h3>
+          <button onClick={onClose}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'rgba(255,255,255,0.4)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -2384,13 +2509,14 @@ function ModalShell({ title, onClose, children }: {
   );
 }
 
-const inputCls = "w-full px-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50";
-const selectCls = "w-full px-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50";
+const inputCls = "w-full px-3 py-2 rounded-xl text-sm focus:outline-none";
+const selectCls = "w-full px-3 py-2 rounded-xl text-sm focus:outline-none";
+const inputStyle = { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#e5e5e5' } as React.CSSProperties;
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium">{label}</label>
+      <label className="text-sm font-mono font-medium" style={{ color: 'rgba(255,255,255,0.6)' }}>{label}</label>
       {children}
     </div>
   );
@@ -2408,25 +2534,25 @@ function AddAccountModal({ onClose, onSave }: {
   return (
     <ModalShell title="Add Account" onClose={onClose}>
       <Field label="Account Name">
-        <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Chase Checking" />
+        <input className={inputCls} style={inputStyle} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Chase Checking" />
       </Field>
       <Field label="Type">
-        <select className={selectCls} value={type} onChange={e => setType(e.target.value as AccountType)}>
+        <select className={selectCls} style={inputStyle} value={type} onChange={e => setType(e.target.value as AccountType)}>
           {(['checking', 'savings', 'credit', 'loan', 'investment', 'cash'] as AccountType[]).map(t => (
             <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
           ))}
         </select>
       </Field>
       <Field label="Current Balance ($)">
-        <input className={inputCls} type="number" value={balance} onChange={e => setBalance(e.target.value)} placeholder="0.00" />
+        <input className={inputCls} style={inputStyle} type="number" value={balance} onChange={e => setBalance(e.target.value)} placeholder="0.00" />
       </Field>
       <Field label="Institution (optional)">
-        <input className={inputCls} value={institution} onChange={e => setInstitution(e.target.value)} placeholder="e.g. Chase Bank" />
+        <input className={inputCls} style={inputStyle} value={institution} onChange={e => setInstitution(e.target.value)} placeholder="e.g. Chase Bank" />
       </Field>
       <button
         onClick={() => onSave({ name, type, balance: parseFloat(balance) || 0, institution, currency: 'USD', isTellerLinked: false, color: ACCOUNT_COLORS[type] })}
         disabled={!name || !balance}
-        className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+        className="w-full py-2.5 rounded-xl font-mono font-medium disabled:opacity-50 transition-all" style={{ background: '#00ff88', color: '#000' }}
       >
         Save Account
       </button>
@@ -2450,14 +2576,14 @@ function AddTransactionModal({ accounts, onClose, onSave }: {
   return (
     <ModalShell title="Add Transaction" onClose={onClose}>
       <Field label="Description">
-        <input className={inputCls} value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. Chipotle" />
+        <input className={inputCls} style={inputStyle} value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. Chipotle" />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Amount ($)">
-          <input className={inputCls} type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" />
+          <input className={inputCls} style={inputStyle} type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" />
         </Field>
         <Field label="Type">
-          <select className={selectCls} value={type} onChange={e => setType(e.target.value as TransactionType)}>
+          <select className={selectCls} style={inputStyle} value={type} onChange={e => setType(e.target.value as TransactionType)}>
             <option value="expense">Expense</option>
             <option value="income">Income</option>
             <option value="transfer">Transfer</option>
@@ -2465,24 +2591,24 @@ function AddTransactionModal({ accounts, onClose, onSave }: {
         </Field>
       </div>
       <Field label="Category">
-        <select className={selectCls} value={category} onChange={e => setCategory(e.target.value)}>
+        <select className={selectCls} style={inputStyle} value={category} onChange={e => setCategory(e.target.value)}>
           {CATS.map(c => <option key={c}>{c}</option>)}
         </select>
       </Field>
       {accounts.length > 0 && (
         <Field label="Account">
-          <select className={selectCls} value={accountId} onChange={e => setAccountId(e.target.value)}>
+          <select className={selectCls} style={inputStyle} value={accountId} onChange={e => setAccountId(e.target.value)}>
             {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
         </Field>
       )}
       <Field label="Date">
-        <input className={inputCls} type="date" value={date} onChange={e => setDate(e.target.value)} />
+        <input className={inputCls} style={inputStyle} type="date" value={date} onChange={e => setDate(e.target.value)} />
       </Field>
       <button
         onClick={() => onSave({ description, amount: parseFloat(amount) || 0, type, category, accountId, date: new Date(date), isPending: false })}
         disabled={!description || !amount}
-        className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+        className="w-full py-2.5 rounded-xl font-mono font-medium disabled:opacity-50 transition-all" style={{ background: '#00ff88', color: '#000' }}
       >
         Save Transaction
       </button>
@@ -2559,16 +2685,19 @@ function DebtCsvImportModal({ onClose, onImport }: {
     <ModalShell title="Import Debts from CSV" onClose={onClose}>
       <div className="space-y-4">
         {/* Instructions */}
-        <div className="p-3 rounded-xl bg-secondary/50 text-xs text-muted-foreground space-y-1">
-          <p className="font-medium text-foreground flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Expected columns (any order, flexible names):</p>
-          <p><span className="text-foreground">Name</span> · <span className="text-foreground">Balance</span> · Original Balance · <span className="text-foreground">Interest Rate</span> · Min Payment · Type</p>
-          <p className="text-muted-foreground/70">Works with exports from MOHELA, Navient, SoFi, and most bank CSV exports.</p>
+        <div className="p-3 rounded-xl text-xs space-y-1" style={{ background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.45)' }}>
+          <p className="font-mono font-medium flex items-center gap-1.5" style={{ color: '#e5e5e5' }}><FileText className="w-3.5 h-3.5" /> Expected columns (any order, flexible names):</p>
+          <p><span style={{ color: '#e5e5e5' }}>Name</span> · <span style={{ color: '#e5e5e5' }}>Balance</span> · Original Balance · <span style={{ color: '#e5e5e5' }}>Interest Rate</span> · Min Payment · Type</p>
+          <p style={{ color: 'rgba(255,255,255,0.3)' }}>Works with exports from MOHELA, Navient, SoFi, and most bank CSV exports.</p>
         </div>
 
         {/* File picker */}
-        <label className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all">
-          <Upload className="w-6 h-6 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">{fileName || 'Click to select a .csv file'}</span>
+        <label className="flex flex-col items-center justify-center gap-2 p-6 rounded-xl cursor-pointer transition-all"
+          style={{ border: '2px dashed rgba(255,255,255,0.12)' }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(0,255,136,0.4)'}
+          onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'}>
+          <Upload className="w-6 h-6" style={{ color: 'rgba(255,255,255,0.35)' }} />
+          <span className="text-sm" style={{ color: 'rgba(255,255,255,0.35)' }}>{fileName || 'Click to select a .csv file'}</span>
           <input type="file" accept=".csv" className="hidden" onChange={handleFile} />
         </label>
 
@@ -2577,13 +2706,14 @@ function DebtCsvImportModal({ onClose, onImport }: {
         {/* Preview */}
         {rows.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs text-muted-foreground font-medium">{rows.length} debt{rows.length !== 1 ? 's' : ''} found — preview:</p>
+            <p className="text-xs font-mono font-medium" style={{ color: 'rgba(255,255,255,0.4)' }}>{rows.length} debt{rows.length !== 1 ? 's' : ''} found — preview:</p>
             <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
               {rows.map((r, i) => (
-                <div key={i} className="flex items-center justify-between p-2.5 rounded-xl bg-card border border-border/50 text-xs">
+                <div key={i} className="flex items-center justify-between p-2.5 rounded-xl text-xs"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                   <div>
-                    <p className="font-medium">{r.name}</p>
-                    <p className="text-muted-foreground capitalize">{r.type.replace('_', ' ')} · {r.interestRate}% APR</p>
+                    <p className="font-medium" style={{ color: '#e5e5e5' }}>{r.name}</p>
+                    <p className="capitalize" style={{ color: 'rgba(255,255,255,0.4)' }}>{r.type.replace('_', ' ')} · {r.interestRate}% APR</p>
                   </div>
                   <p className="font-semibold text-red-400">{fmtFull(r.balance)}</p>
                 </div>
@@ -2591,7 +2721,8 @@ function DebtCsvImportModal({ onClose, onImport }: {
             </div>
             <button
               onClick={() => onImport(rows)}
-              className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90"
+              className="w-full py-2.5 rounded-xl font-mono font-medium"
+              style={{ background: '#00ff88', color: '#000' }}
             >
               Import {rows.length} Debt{rows.length !== 1 ? 's' : ''}
             </button>
@@ -2637,34 +2768,35 @@ function AddDebtModal({ onClose, onSave }: {
       <div className="grid grid-cols-5 gap-1">
         {DEBT_PRESETS.map(p => (
           <button key={p.type} onClick={() => setType(p.type)}
-            className={cn("py-2 px-1 rounded-xl text-[10px] font-medium text-center transition-all border",
-              type === p.type ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-border/80"
-            )}>
+            className="py-2 px-1 rounded-xl text-[10px] font-mono font-medium text-center transition-all"
+            style={type === p.type
+              ? { border: '1px solid rgba(0,255,136,0.4)', background: 'rgba(0,255,136,0.1)', color: '#00ff88' }
+              : { border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}>
             {p.label}
           </button>
         ))}
       </div>
 
       <Field label="Name">
-        <input className={inputCls} value={name} onChange={e => setName(e.target.value)}
+        <input className={inputCls} style={inputStyle} value={name} onChange={e => setName(e.target.value)}
           placeholder={selectedPreset?.placeholder || 'Debt name'} />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Current Balance ($)">
-          <input className={inputCls} type="number" value={balance} onChange={e => setBalance(e.target.value)} placeholder="0.00" />
+          <input className={inputCls} style={inputStyle} type="number" value={balance} onChange={e => setBalance(e.target.value)} placeholder="0.00" />
         </Field>
         <Field label="Original Balance ($)">
-          <input className={inputCls} type="number" value={originalBalance} onChange={e => setOriginalBalance(e.target.value)} placeholder="Same as current" />
+          <input className={inputCls} style={inputStyle} type="number" value={originalBalance} onChange={e => setOriginalBalance(e.target.value)} placeholder="Same as current" />
         </Field>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Interest Rate (%)">
-          <input className={inputCls} type="number" step="0.01" value={interestRate} onChange={e => setInterestRate(e.target.value)} placeholder="e.g. 6.5" />
+          <input className={inputCls} style={inputStyle} type="number" step="0.01" value={interestRate} onChange={e => setInterestRate(e.target.value)} placeholder="e.g. 6.5" />
         </Field>
         <Field label="Min. Monthly Payment ($)">
-          <input className={inputCls} type="number" value={minimumPayment} onChange={e => setMinimumPayment(e.target.value)} placeholder="0.00" />
+          <input className={inputCls} style={inputStyle} type="number" value={minimumPayment} onChange={e => setMinimumPayment(e.target.value)} placeholder="0.00" />
         </Field>
       </div>
 
@@ -2676,7 +2808,7 @@ function AddDebtModal({ onClose, onSave }: {
       )}
 
       <Field label="Target Payoff Date (optional)">
-        <input className={inputCls} type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} />
+        <input className={inputCls} style={inputStyle} type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} />
       </Field>
 
       <button
@@ -2690,7 +2822,7 @@ function AddDebtModal({ onClose, onSave }: {
           color: DEBT_COLORS[type],
         })}
         disabled={!name || !balance}
-        className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+        className="w-full py-2.5 rounded-xl font-mono font-medium disabled:opacity-50 transition-all" style={{ background: '#00ff88', color: '#000' }}
       >
         Save Debt
       </button>
@@ -2732,13 +2864,16 @@ function AddGoalModal({ onClose, onSave }: {
     <ModalShell title="Add Savings Goal" onClose={onClose}>
       {/* Quick presets */}
       <div>
-        <p className="text-xs text-muted-foreground mb-2">Quick presets</p>
+        <p className="text-xs font-mono mb-2" style={{ color: 'rgba(255,255,255,0.4)' }}>Quick presets</p>
         <div className="grid grid-cols-4 gap-1.5">
           {GOAL_PRESETS.map(p => (
             <button key={p.name} onClick={() => { setEmoji(p.emoji); setName(p.name); }}
-              className="flex flex-col items-center gap-1 p-2 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all text-center">
+              className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all text-center"
+              style={{ border: '1px solid rgba(255,255,255,0.1)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(0,255,136,0.3)'; (e.currentTarget as HTMLElement).style.background = 'rgba(0,255,136,0.05)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)'; (e.currentTarget as HTMLElement).style.background = 'transparent'; }}>
               <span className="text-lg">{p.emoji}</span>
-              <span className="text-[9px] text-muted-foreground leading-tight">{p.name.split(' ')[0]}</span>
+              <span className="text-[9px] leading-tight" style={{ color: 'rgba(255,255,255,0.4)' }}>{p.name.split(' ')[0]}</span>
             </button>
           ))}
         </div>
@@ -2750,22 +2885,22 @@ function AddGoalModal({ onClose, onSave }: {
         </Field>
         <div className="flex-1">
           <Field label="Goal Name">
-            <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Emergency Fund" />
+            <input className={inputCls} style={inputStyle} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Emergency Fund" />
           </Field>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Target ($)">
-          <input className={inputCls} type="number" value={targetAmount} onChange={e => setTargetAmount(e.target.value)} placeholder="0.00" />
+          <input className={inputCls} style={inputStyle} type="number" value={targetAmount} onChange={e => setTargetAmount(e.target.value)} placeholder="0.00" />
         </Field>
         <Field label="Already Saved ($)">
-          <input className={inputCls} type="number" value={currentAmount} onChange={e => setCurrentAmount(e.target.value)} placeholder="0.00" />
+          <input className={inputCls} style={inputStyle} type="number" value={currentAmount} onChange={e => setCurrentAmount(e.target.value)} placeholder="0.00" />
         </Field>
       </div>
 
       <Field label="Target Date (optional)">
-        <input className={inputCls} type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
+        <input className={inputCls} style={inputStyle} type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
       </Field>
 
       {monthlyNeeded && monthlyNeeded > 0 && (
@@ -2785,7 +2920,7 @@ function AddGoalModal({ onClose, onSave }: {
       <button
         onClick={() => onSave({ name, emoji, targetAmount: target, currentAmount: current, deadline: deadline ? new Date(deadline) : undefined, color })}
         disabled={!name || !targetAmount}
-        className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+        className="w-full py-2.5 rounded-xl font-mono font-medium disabled:opacity-50 transition-all" style={{ background: '#00ff88', color: '#000' }}
       >
         Save Goal
       </button>
@@ -2818,13 +2953,16 @@ function AddBudgetModal({ onClose, onSave }: {
     <ModalShell title="Add Budget Category" onClose={onClose}>
       {/* Quick presets */}
       <div>
-        <p className="text-xs text-muted-foreground mb-2">Quick presets</p>
+        <p className="text-xs font-mono mb-2" style={{ color: 'rgba(255,255,255,0.4)' }}>Quick presets</p>
         <div className="grid grid-cols-4 gap-1.5">
           {BUDGET_PRESETS.map(p => (
             <button key={p.name} onClick={() => { setEmoji(p.emoji); setName(p.name); setColor(p.color); setMonthlyLimit(String(p.limit)); }}
-              className="flex flex-col items-center gap-1 p-2 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all text-center">
+              className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all text-center"
+              style={{ border: '1px solid rgba(255,255,255,0.1)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(0,255,136,0.3)'; (e.currentTarget as HTMLElement).style.background = 'rgba(0,255,136,0.05)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)'; (e.currentTarget as HTMLElement).style.background = 'transparent'; }}>
               <span className="text-lg">{p.emoji}</span>
-              <span className="text-[9px] text-muted-foreground leading-tight">{p.name.split(' ')[0]}</span>
+              <span className="text-[9px] leading-tight" style={{ color: 'rgba(255,255,255,0.4)' }}>{p.name.split(' ')[0]}</span>
             </button>
           ))}
         </div>
@@ -2836,13 +2974,13 @@ function AddBudgetModal({ onClose, onSave }: {
         </Field>
         <div className="flex-1">
           <Field label="Category Name">
-            <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Food & Drink" />
+            <input className={inputCls} style={inputStyle} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Food & Drink" />
           </Field>
         </div>
       </div>
 
       <Field label="Monthly Limit ($)">
-        <input className={inputCls} type="number" value={monthlyLimit} onChange={e => setMonthlyLimit(e.target.value)} placeholder="0.00" />
+        <input className={inputCls} style={inputStyle} type="number" value={monthlyLimit} onChange={e => setMonthlyLimit(e.target.value)} placeholder="0.00" />
       </Field>
 
       <Field label="Color">
@@ -2856,7 +2994,7 @@ function AddBudgetModal({ onClose, onSave }: {
       <button
         onClick={() => onSave({ name, emoji, monthlyLimit: parseFloat(monthlyLimit) || 0, color })}
         disabled={!name || !monthlyLimit}
-        className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+        className="w-full py-2.5 rounded-xl font-mono font-medium disabled:opacity-50 transition-all" style={{ background: '#00ff88', color: '#000' }}
       >
         Save Category
       </button>
@@ -2895,33 +3033,34 @@ function EditDebtModal({ debt, onClose, onSave, onDelete }: {
       <div className="grid grid-cols-5 gap-1">
         {DEBT_PRESETS.map(p => (
           <button key={p.type} onClick={() => setType(p.type)}
-            className={cn("py-2 px-1 rounded-xl text-[10px] font-medium text-center transition-all border",
-              type === p.type ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-border/80"
-            )}>
+            className="py-2 px-1 rounded-xl text-[10px] font-mono font-medium text-center transition-all"
+            style={type === p.type
+              ? { border: '1px solid rgba(0,255,136,0.4)', background: 'rgba(0,255,136,0.1)', color: '#00ff88' }
+              : { border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}>
             {p.label}
           </button>
         ))}
       </div>
 
       <Field label="Name">
-        <input className={inputCls} value={name} onChange={e => setName(e.target.value)} />
+        <input className={inputCls} style={inputStyle} value={name} onChange={e => setName(e.target.value)} />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Current Balance ($)">
-          <input className={inputCls} type="number" value={balance} onChange={e => setBalance(e.target.value)} />
+          <input className={inputCls} style={inputStyle} type="number" value={balance} onChange={e => setBalance(e.target.value)} />
         </Field>
         <Field label="Original Balance ($)">
-          <input className={inputCls} type="number" value={originalBalance} onChange={e => setOriginalBalance(e.target.value)} />
+          <input className={inputCls} style={inputStyle} type="number" value={originalBalance} onChange={e => setOriginalBalance(e.target.value)} />
         </Field>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Interest Rate (%)">
-          <input className={inputCls} type="number" step="0.01" value={interestRate} onChange={e => setInterestRate(e.target.value)} />
+          <input className={inputCls} style={inputStyle} type="number" step="0.01" value={interestRate} onChange={e => setInterestRate(e.target.value)} />
         </Field>
         <Field label="Min. Payment ($)">
-          <input className={inputCls} type="number" value={minimumPayment} onChange={e => setMinimumPayment(e.target.value)} />
+          <input className={inputCls} style={inputStyle} type="number" value={minimumPayment} onChange={e => setMinimumPayment(e.target.value)} />
         </Field>
       </div>
 
@@ -2942,7 +3081,7 @@ function EditDebtModal({ debt, onClose, onSave, onDelete }: {
       )}
 
       <Field label="Target Payoff Date (optional)">
-        <input className={inputCls} type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} />
+        <input className={inputCls} style={inputStyle} type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} />
       </Field>
 
       <button
@@ -2956,7 +3095,7 @@ function EditDebtModal({ debt, onClose, onSave, onDelete }: {
           color: DEBT_COLORS[type],
         })}
         disabled={!name || !balance}
-        className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+        className="w-full py-2.5 rounded-xl font-mono font-medium disabled:opacity-50 transition-all" style={{ background: '#00ff88', color: '#000' }}
       >
         Save Changes
       </button>
@@ -2966,12 +3105,19 @@ function EditDebtModal({ debt, onClose, onSave, onDelete }: {
           <button onClick={onDelete} className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600">
             Confirm Delete
           </button>
-          <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2 rounded-xl border border-border text-sm hover:bg-secondary">
+          <button onClick={() => setConfirmDelete(false)}
+            className="flex-1 py-2 rounded-xl text-sm transition-colors"
+            style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
             Cancel
           </button>
         </div>
       ) : (
-        <button onClick={() => setConfirmDelete(true)} className="w-full py-2 rounded-xl border border-border text-sm text-muted-foreground hover:text-red-400 hover:border-red-400/50 transition-colors">
+        <button onClick={() => setConfirmDelete(true)} className="w-full py-2 rounded-xl text-sm transition-colors"
+          style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#f87171'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(248,113,113,0.4)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)'; }}>
           Delete Debt
         </button>
       )}
@@ -3000,13 +3146,13 @@ function EditBudgetModal({ budget, onClose, onSave, onDelete }: {
         </Field>
         <div className="flex-1">
           <Field label="Category Name">
-            <input className={inputCls} value={name} onChange={e => setName(e.target.value)} />
+            <input className={inputCls} style={inputStyle} value={name} onChange={e => setName(e.target.value)} />
           </Field>
         </div>
       </div>
 
       <Field label="Monthly Limit ($)">
-        <input className={inputCls} type="number" value={monthlyLimit} onChange={e => setMonthlyLimit(e.target.value)} />
+        <input className={inputCls} style={inputStyle} type="number" value={monthlyLimit} onChange={e => setMonthlyLimit(e.target.value)} />
       </Field>
 
       <Field label="Color">
@@ -3020,7 +3166,7 @@ function EditBudgetModal({ budget, onClose, onSave, onDelete }: {
       <button
         onClick={() => onSave({ name, emoji, monthlyLimit: parseFloat(monthlyLimit) || 0, color })}
         disabled={!name || !monthlyLimit}
-        className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+        className="w-full py-2.5 rounded-xl font-mono font-medium disabled:opacity-50 transition-all" style={{ background: '#00ff88', color: '#000' }}
       >
         Save Changes
       </button>
@@ -3028,10 +3174,16 @@ function EditBudgetModal({ budget, onClose, onSave, onDelete }: {
       {confirmDelete ? (
         <div className="flex gap-2">
           <button onClick={onDelete} className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600">Confirm Delete</button>
-          <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2 rounded-xl border border-border text-sm hover:bg-secondary">Cancel</button>
+          <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2 rounded-xl text-sm transition-colors"
+            style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>Cancel</button>
         </div>
       ) : (
-        <button onClick={() => setConfirmDelete(true)} className="w-full py-2 rounded-xl border border-border text-sm text-muted-foreground hover:text-red-400 hover:border-red-400/50 transition-colors">
+        <button onClick={() => setConfirmDelete(true)} className="w-full py-2 rounded-xl text-sm transition-colors"
+          style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#f87171'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(248,113,113,0.4)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)'; }}>
           Delete Category
         </button>
       )}
@@ -3069,22 +3221,22 @@ function EditGoalModal({ goal, onClose, onSave, onDelete }: {
         </Field>
         <div className="flex-1">
           <Field label="Goal Name">
-            <input className={inputCls} value={name} onChange={e => setName(e.target.value)} />
+            <input className={inputCls} style={inputStyle} value={name} onChange={e => setName(e.target.value)} />
           </Field>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Target ($)">
-          <input className={inputCls} type="number" value={targetAmount} onChange={e => setTargetAmount(e.target.value)} />
+          <input className={inputCls} style={inputStyle} type="number" value={targetAmount} onChange={e => setTargetAmount(e.target.value)} />
         </Field>
         <Field label="Already Saved ($)">
-          <input className={inputCls} type="number" value={currentAmount} onChange={e => setCurrentAmount(e.target.value)} />
+          <input className={inputCls} style={inputStyle} type="number" value={currentAmount} onChange={e => setCurrentAmount(e.target.value)} />
         </Field>
       </div>
 
       <Field label="Target Date (optional)">
-        <input className={inputCls} type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
+        <input className={inputCls} style={inputStyle} type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
       </Field>
 
       {monthlyNeeded && monthlyNeeded > 0 && (
@@ -3104,7 +3256,7 @@ function EditGoalModal({ goal, onClose, onSave, onDelete }: {
       <button
         onClick={() => onSave({ name, emoji, targetAmount: target, currentAmount: current, deadline: deadline ? new Date(deadline) : undefined, color })}
         disabled={!name || !targetAmount}
-        className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+        className="w-full py-2.5 rounded-xl font-mono font-medium disabled:opacity-50 transition-all" style={{ background: '#00ff88', color: '#000' }}
       >
         Save Changes
       </button>
@@ -3112,10 +3264,16 @@ function EditGoalModal({ goal, onClose, onSave, onDelete }: {
       {confirmDelete ? (
         <div className="flex gap-2">
           <button onClick={onDelete} className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600">Confirm Delete</button>
-          <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2 rounded-xl border border-border text-sm hover:bg-secondary">Cancel</button>
+          <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2 rounded-xl text-sm transition-colors"
+            style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>Cancel</button>
         </div>
       ) : (
-        <button onClick={() => setConfirmDelete(true)} className="w-full py-2 rounded-xl border border-border text-sm text-muted-foreground hover:text-red-400 hover:border-red-400/50 transition-colors">
+        <button onClick={() => setConfirmDelete(true)} className="w-full py-2 rounded-xl text-sm transition-colors"
+          style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#f87171'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(248,113,113,0.4)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)'; }}>
           Delete Goal
         </button>
       )}

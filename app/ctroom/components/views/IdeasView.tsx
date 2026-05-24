@@ -7,6 +7,8 @@
  * - Multiple block types (text, headings, lists, images, links)
  * - Floating AI assistant
  */
+'use client';
+
 import React, { useState, useRef, useEffect, KeyboardEvent, useCallback } from 'react';
 import {
     Plus, FileText, User, Bot, Send, Sparkles, X, Loader2,

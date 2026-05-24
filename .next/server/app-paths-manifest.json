@@ -1,4 +1,6 @@
 {
-  "/api/teller/sync/route": "app/api/teller/sync/route.js",
+  "/api/ctroom/auth/verify/route": "app/api/ctroom/auth/verify/route.js",
+  "/api/ctroom/settings/key-status/route": "app/api/ctroom/settings/key-status/route.js",
+  "/api/ctroom/github/repos/route": "app/api/ctroom/github/repos/route.js",
   "/ctroom/page": "app/ctroom/page.js"
 }

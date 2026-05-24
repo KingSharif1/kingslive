@@ -7,6 +7,8 @@
  * - Functional sidebar navigation (Inbox, Today, Upcoming, Categories)
  * - Confetti on completion
  */
+'use client';
+
 import React, { useState, useRef } from 'react';
 import {
     CheckCircle2, Calendar as CalendarIcon, Plus, MoreHorizontal,
