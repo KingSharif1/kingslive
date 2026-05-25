@@ -15,48 +15,58 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ summary: 'No commits to summarize.' });
         }
 
-        const apiKey = process.env.ANTHROPIC_API_KEY;
+        const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
         if (!apiKey) {
-            return NextResponse.json({ error: 'Anthropic API key not configured' }, { status: 503 });
+            return NextResponse.json({ summary: 'AI summary unavailable (Gemini API key not configured).' });
         }
 
         const commitList = commits
-            .slice(0, 20)
-            .map((c, i) => `${i + 1}. [${c.sha}] ${c.message}${c.author ? ` — by ${c.author}` : ''}${c.date ? ` (${new Date(c.date).toLocaleDateString()})` : ''}`)
+            .slice(0, 15)
+            .map((c, i) => `${i + 1}. ${c.message.split('\n')[0]}${c.author ? ` — ${c.author}` : ''}${c.date ? ` (${new Date(c.date).toLocaleDateString()})` : ''}`)
             .join('\n');
 
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01',
-                'content-type': 'application/json',
-            },
-            body: JSON.stringify({
-                model: 'claude-haiku-4-5-20251001',
-                max_tokens: 256,
-                messages: [
-                    {
-                        role: 'user',
-                        content: `Summarize these Git commits in 2–3 plain-English sentences for a project overview dashboard. Focus on what was built or fixed, not technical commit IDs. Be concise and human-readable.\n\nCommits:\n${commitList}`,
-                    },
-                ],
-            }),
-        });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 12000);
+
+        let res: Response;
+        try {
+            res = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+                {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            role: 'user',
+                            parts: [{
+                                text: `Summarize these Git commits in 2 short plain-English sentences for a project overview. Focus on what changed. Be concise and skip commit IDs.\n\n${commitList}`,
+                            }],
+                        }],
+                        generationConfig: { maxOutputTokens: 150, temperature: 0.4 },
+                    }),
+                    signal: controller.signal,
+                }
+            );
+        } finally {
+            clearTimeout(timeout);
+        }
 
         if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            return NextResponse.json(
-                { error: (err as any).error?.message || `Claude error ${res.status}` },
-                { status: 500 }
-            );
+            const errBody = await res.json().catch(() => ({}));
+            const errMsg = (errBody as any)?.error?.message || `Gemini API error ${res.status}`;
+            console.error('[ai-summary] Gemini error:', errMsg);
+            return NextResponse.json({ summary: 'Could not generate summary.' });
         }
 
         const data = await res.json();
-        const summary = data.content?.[0]?.text?.trim() || 'Could not generate summary.';
-
+        const summary = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Could not generate summary.';
         return NextResponse.json({ summary });
+
     } catch (err: any) {
-        return NextResponse.json({ error: err.message || 'Failed to generate summary' }, { status: 500 });
+        const isTimeout = err?.name === 'AbortError';
+        console.error('[ai-summary] Error:', err?.message || err);
+        return NextResponse.json({
+            summary: isTimeout ? 'Summary timed out — try again.' : 'Could not generate summary.',
+        });
     }
 }

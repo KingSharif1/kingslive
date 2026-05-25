@@ -231,6 +231,7 @@ export const MissionFormModal = ({ isOpen, onClose, onSubmit, initialData }: Mis
                                 onChange={e => setStatus(e.target.value as Mission['status'])}
                                 className="w-full bg-secondary/50 border border-border/50 rounded-xl px-3 py-2.5 text-sm outline-none"
                             >
+                                <option value="idea">Idea</option>
                                 <option value="active">Active</option>
                                 <option value="on-hold">On Hold</option>
                                 <option value="completed">Completed</option>

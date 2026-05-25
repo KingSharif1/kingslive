@@ -68,6 +68,18 @@ export function Footer() {
                 Contact
               </button>
             )}
+            <Link
+              href="/privacy"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Privacy
+            </Link>
+            <Link
+              href="/terms"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Terms
+            </Link>
           </nav>
 
           {/* Right side - Social links */}

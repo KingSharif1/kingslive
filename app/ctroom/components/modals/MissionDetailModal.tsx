@@ -96,10 +96,9 @@ export function MissionDetailModal({
         : null;
 
     const tabs: { id: Tab; icon: React.ElementType; label: string }[] = [
-        { id: 'work',     icon: CheckSquare,  label: 'Work'     },
-        { id: 'logs',     icon: FileText,     label: 'Logs'     },
-        { id: 'github',   icon: Github,       label: 'GitHub'   },
-        { id: 'settings', icon: Settings,     label: 'Settings' },
+        { id: 'work',     icon: CheckSquare, label: 'Tasks'    },
+        { id: 'github',   icon: Github,      label: 'GitHub'   },
+        { id: 'settings', icon: Settings,    label: 'Settings' },
     ];
 
     return (
@@ -150,32 +149,6 @@ export function MissionDetailModal({
                                     <span>{format(new Date(local.targetDate), 'MMM d, yyyy')}</span>
                                 </div>
                             )}
-                            {local.domainUrl && local.domainStatus && (
-                                <div className={cn(
-                                    "flex items-center gap-1.5 px-2.5 py-1 border rounded-lg text-xs backdrop-blur-sm",
-                                    local.domainStatus.isOnline
-                                        ? "bg-emerald-400/10 border-emerald-400/30 text-emerald-400"
-                                        : "bg-red-400/10 border-red-400/30 text-red-400"
-                                )}>
-                                    {local.domainStatus.isOnline ? <CheckCircle size={11} /> : <AlertTriangle size={11} />}
-                                    <span>{local.domainStatus.isOnline ? 'Online' : 'Offline'}</span>
-                                    {local.domainStatus.isOnline && local.domainStatus.responseTime && (
-                                        <span className="font-mono">{local.domainStatus.responseTime}ms</span>
-                                    )}
-                                </div>
-                            )}
-                            {local.domainUrl && (
-                                <a
-                                    href={local.domainUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="flex items-center gap-1.5 px-2.5 py-1 bg-background/60 border border-border rounded-lg text-xs backdrop-blur-sm hover:border-primary/40 transition-colors"
-                                >
-                                    <Globe size={11} />
-                                    <span>Live Site</span>
-                                    <ArrowUpRight size={10} />
-                                </a>
-                            )}
                             {local.repoUrl && (
                                 <a
                                     href={local.repoUrl}
@@ -222,9 +195,6 @@ export function MissionDetailModal({
                             onDeleteTask={onDeleteTask}
                             onUpdate={saveField}
                         />
-                    )}
-                    {activeTab === 'logs' && (
-                        <LogsTab mission={local} />
                     )}
                     {activeTab === 'github' && (
                         <GitHubTab repoOwnerRepo={repoOwnerRepo} token={githubToken} />

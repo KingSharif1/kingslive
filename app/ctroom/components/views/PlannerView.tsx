@@ -5,7 +5,8 @@ import {
     CheckCircle2, Plus, Inbox, Sun, CalendarDays, ChevronLeft,
     ChevronRight, Flame, Repeat, MoreHorizontal, Edit2,
     Trash2, Archive, Copy, Zap, Trophy, Target, Clock,
-    ChevronDown, ChevronUp, TrendingUp, FileText, BookOpen, Send, X, Loader2
+    ChevronDown, ChevronUp, TrendingUp, FileText, BookOpen, Send, X, Loader2,
+    LayoutGrid, List, Circle, ArrowRight,
 } from 'lucide-react';
 import {
     format, isToday, isTomorrow, isPast, isAfter, isSameDay,
@@ -138,6 +139,8 @@ export const PlannerView = ({
     const [collapsedSections, setCollapsedSections] = useState<string[]>([]);
     const [streak, setStreak] = useState(0);
     const [showDoneToday, setShowDoneToday] = useState(false);
+
+    const [boardMode, setBoardMode] = useState<'board' | 'list'>('board');
 
     // ── Log / Reflection state ──
     const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
@@ -480,7 +483,7 @@ export const PlannerView = ({
                         onSlotClick={(_hour) => { openItemModal(); }}
                     />
                 ) : (
-                    <div className="flex-1 overflow-y-auto hq-scroll p-6 max-w-3xl mx-auto w-full">
+                    <div className={`flex-1 overflow-y-auto hq-scroll p-6 w-full ${plannerTab === 'tasks' && boardMode === 'board' ? '' : 'max-w-3xl mx-auto'}`}>
 
                         {/* HQ Header */}
                         <div className="flex items-center justify-between mb-6">
@@ -521,27 +524,57 @@ export const PlannerView = ({
                             )}
                         </div>
 
-                        {/* Tab switcher */}
-                        <div className="flex items-center gap-1 mb-5 rounded-xl p-1 w-fit" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                            {([
-                                { id: 'tasks' as PlannerTab,      icon: CheckCircle2, label: 'Tasks'   },
-                                { id: 'log' as PlannerTab,        icon: FileText,     label: 'Log'     },
-                                { id: 'reflection' as PlannerTab, icon: BookOpen,     label: 'Reflect' },
-                            ]).map(({ id, icon: Icon, label }) => (
-                                <button key={id} onClick={() => setPlannerTab(id)}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[11px] uppercase tracking-widest font-medium transition-all"
-                                    style={plannerTab === id ? {
-                                        background: 'rgba(0,255,136,0.1)',
-                                        color: '#00ff88',
-                                        border: '1px solid rgba(0,255,136,0.2)',
-                                    } : { color: 'rgba(255,255,255,0.3)' }}>
-                                    <Icon size={11} /> {label}
-                                </button>
-                            ))}
+                        {/* Tab switcher + view toggle */}
+                        <div className="flex items-center justify-between mb-5">
+                            <div className="flex items-center gap-1 rounded-xl p-1 w-fit" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                                {([
+                                    { id: 'tasks' as PlannerTab,      icon: CheckCircle2, label: 'Tasks'   },
+                                    { id: 'log' as PlannerTab,        icon: FileText,     label: 'Log'     },
+                                    { id: 'reflection' as PlannerTab, icon: BookOpen,     label: 'Reflect' },
+                                ]).map(({ id, icon: Icon, label }) => (
+                                    <button key={id} onClick={() => setPlannerTab(id)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[11px] uppercase tracking-widest font-medium transition-all"
+                                        style={plannerTab === id ? {
+                                            background: 'rgba(0,255,136,0.1)',
+                                            color: '#00ff88',
+                                            border: '1px solid rgba(0,255,136,0.2)',
+                                        } : { color: 'rgba(255,255,255,0.3)' }}>
+                                        <Icon size={11} /> {label}
+                                    </button>
+                                ))}
+                            </div>
+                            {plannerTab === 'tasks' && (
+                                <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                                    <button onClick={() => setBoardMode('board')}
+                                        className="p-1.5 rounded-lg transition-all"
+                                        style={boardMode === 'board' ? { background: 'rgba(0,255,136,0.1)', color: '#00ff88' } : { color: 'rgba(255,255,255,0.3)' }}
+                                        title="Board view">
+                                        <LayoutGrid size={13} />
+                                    </button>
+                                    <button onClick={() => setBoardMode('list')}
+                                        className="p-1.5 rounded-lg transition-all"
+                                        style={boardMode === 'list' ? { background: 'rgba(0,255,136,0.1)', color: '#00ff88' } : { color: 'rgba(255,255,255,0.3)' }}
+                                        title="List view">
+                                        <List size={13} />
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
-                        {/* ── Tasks Tab ── */}
-                        {(nav !== 'today' || plannerTab === 'tasks') && (
+                        {/* ── Board view ── */}
+                        {plannerTab === 'tasks' && boardMode === 'board' && (
+                            <KanbanBoard
+                                actionItems={actionItems}
+                                missions={missions}
+                                openItemModal={openItemModal}
+                                onToggleStatus={toggleItemStatus}
+                                onEditItem={onEditItem}
+                                onDeleteItem={onDeleteItem}
+                            />
+                        )}
+
+                        {/* ── Tasks Tab (list mode) ── */}
+                        {plannerTab === 'tasks' && boardMode === 'list' && (
                             <div className="space-y-1">
                                 {overdue.length > 0 && (
                                     <TaskSection label="Overdue" items={[...overdue].sort(byPriority)}
@@ -1351,5 +1384,222 @@ function CalendarPanel({ calDate, setCalDate, calView, setCalView, weekDays, mon
                 </div>
             )}
         </div>
+    );
+}
+
+// ─── Kanban Board ─────────────────────────────────────────────────────────────
+
+const PRIORITY_BORDER: Record<ActionItemPriority, string> = {
+    critical: '#ef4444',
+    high:     '#f97316',
+    medium:   '#3b82f6',
+    low:      '#71717a',
+};
+
+interface KanbanBoardProps {
+    actionItems: ActionItem[];
+    missions: Mission[];
+    openItemModal: () => void;
+    onToggleStatus: (id: string) => void;
+    onEditItem: (item: ActionItem) => void;
+    onDeleteItem: (id: string) => void;
+}
+
+function KanbanBoard({ actionItems, missions, openItemModal, onToggleStatus, onEditItem, onDeleteItem }: KanbanBoardProps) {
+    const pending    = actionItems.filter(i => i.status === 'todo');
+    const inProgress = actionItems.filter(i => i.status === 'in-progress');
+    const done       = actionItems.filter(i => i.status === 'done');
+
+    const cols = [
+        { id: 'todo',        label: 'To Do',       color: '#60a5fa', accent: 'rgba(96,165,250,0.12)', items: pending    },
+        { id: 'in-progress', label: 'In Progress',  color: '#f59e0b', accent: 'rgba(245,158,11,0.12)', items: inProgress },
+        { id: 'done',        label: 'Done',         color: '#10b981', accent: 'rgba(16,185,129,0.12)', items: done       },
+    ];
+
+    return (
+        <div className="flex gap-4 overflow-x-auto pb-4 h-full" style={{ minHeight: '400px' }}>
+            {cols.map(col => (
+                <KanbanColumn
+                    key={col.id}
+                    label={col.label}
+                    color={col.color}
+                    accent={col.accent}
+                    items={col.items}
+                    missions={missions}
+                    openItemModal={openItemModal}
+                    onToggleStatus={onToggleStatus}
+                    onEditItem={onEditItem}
+                    onDeleteItem={onDeleteItem}
+                />
+            ))}
+        </div>
+    );
+}
+
+function KanbanColumn({
+    label, color, accent, items, missions, openItemModal, onToggleStatus, onEditItem, onDeleteItem,
+}: {
+    label: string; color: string; accent: string;
+    items: ActionItem[]; missions: Mission[];
+    openItemModal: () => void;
+    onToggleStatus: (id: string) => void;
+    onEditItem: (item: ActionItem) => void;
+    onDeleteItem: (id: string) => void;
+}) {
+    return (
+        <div className="flex flex-col rounded-2xl flex-shrink-0 w-72"
+            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            {/* Column header */}
+            <div className="flex items-center justify-between px-4 py-3 rounded-t-2xl"
+                style={{ background: accent, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ background: color }} />
+                    <span className="font-mono text-[11px] uppercase tracking-widest font-bold" style={{ color }}>
+                        {label}
+                    </span>
+                    <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full"
+                        style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}>
+                        {items.length}
+                    </span>
+                </div>
+                <button onClick={openItemModal}
+                    className="w-6 h-6 rounded-lg flex items-center justify-center transition-all hover:bg-white/10"
+                    style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    <Plus size={13} />
+                </button>
+            </div>
+
+            {/* Cards */}
+            <div className="flex-1 overflow-y-auto hq-scroll p-3 space-y-2">
+                <AnimatePresence>
+                    {items.map(item => (
+                        <KanbanCard
+                            key={item.id}
+                            item={item}
+                            missions={missions}
+                            onToggleStatus={onToggleStatus}
+                            onEditItem={onEditItem}
+                            onDeleteItem={onDeleteItem}
+                        />
+                    ))}
+                </AnimatePresence>
+                {items.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-10 text-center">
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-2"
+                            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                            <CheckCircle2 size={14} style={{ color: 'rgba(255,255,255,0.2)' }} />
+                        </div>
+                        <p className="font-mono text-[10px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.2)' }}>Empty</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Quick add */}
+            <button onClick={openItemModal}
+                className="flex items-center gap-2 px-4 py-3 text-xs font-mono transition-all hover:bg-white/5 rounded-b-2xl"
+                style={{ color: 'rgba(255,255,255,0.25)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <Plus size={13} /> Add task
+            </button>
+        </div>
+    );
+}
+
+function KanbanCard({
+    item, missions, onToggleStatus, onEditItem, onDeleteItem,
+}: {
+    item: ActionItem; missions: Mission[];
+    onToggleStatus: (id: string) => void;
+    onEditItem: (item: ActionItem) => void;
+    onDeleteItem: (id: string) => void;
+}) {
+    const mission  = missions.find(m => m.id === item.missionId);
+    const isDone   = item.status === 'done';
+    const isOverdue = !isDone && isPast(item.date) && !isToday(item.date);
+    const isDueToday = !isDone && isToday(item.date);
+    const [menuOpen, setMenuOpen] = useState(false);
+
+    return (
+        <motion.div
+            layout
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            className="group relative rounded-xl p-3 cursor-default transition-all"
+            style={{
+                background: isDone ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.07)',
+                borderLeft: `3px solid ${isDone ? 'rgba(16,185,129,0.4)' : PRIORITY_BORDER[item.priority]}`,
+            }}
+            onMouseLeave={() => setMenuOpen(false)}
+        >
+            <div className="flex items-start gap-2.5">
+                {/* Checkbox */}
+                <button
+                    onClick={() => onToggleStatus(item.id)}
+                    className="mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all"
+                    style={isDone ? {
+                        background: '#10b981', borderColor: '#10b981',
+                    } : {
+                        borderColor: PRIORITY_BORDER[item.priority] + '80',
+                    }}
+                >
+                    {isDone && <CheckCircle2 size={10} className="text-white" />}
+                </button>
+
+                {/* Title */}
+                <p className={`text-sm flex-1 leading-snug ${isDone ? 'line-through text-white/25' : 'text-white/80'}`}>
+                    {item.title}
+                </p>
+
+                {/* Menu */}
+                <div className="relative opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                        onClick={e => { e.stopPropagation(); setMenuOpen(v => !v); }}
+                        className="p-1 rounded-lg hover:bg-white/10 text-white/30 hover:text-white/70 transition-all">
+                        <MoreHorizontal size={12} />
+                    </button>
+                    {menuOpen && (
+                        <div className="absolute right-0 top-6 z-20 w-32 rounded-xl shadow-2xl overflow-hidden"
+                            style={{ background: '#1a1a1d', border: '1px solid rgba(255,255,255,0.1)' }}
+                            onClick={e => e.stopPropagation()}>
+                            <button onClick={() => { onEditItem(item); setMenuOpen(false); }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/60 hover:bg-white/5 transition-colors">
+                                <Edit2 size={11} /> Edit
+                            </button>
+                            <button onClick={() => { onDeleteItem(item.id); setMenuOpen(false); }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-red-400/10 transition-colors">
+                                <Trash2 size={11} /> Delete
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Meta row */}
+            <div className="flex items-center gap-2 mt-2 pl-6 flex-wrap">
+                {mission && (
+                    <span className="font-mono text-[9px] px-1.5 py-0.5 rounded-full font-medium uppercase tracking-wide"
+                        style={{ background: `${mission.color}18`, color: mission.color }}>
+                        {mission.name.slice(0, 12)}
+                    </span>
+                )}
+                {isOverdue && (
+                    <span className="font-mono text-[9px] text-red-400 font-medium">
+                        {format(item.date, 'MMM d')} overdue
+                    </span>
+                )}
+                {isDueToday && (
+                    <span className="font-mono text-[9px] text-amber-400 font-medium">Due today</span>
+                )}
+                {!isOverdue && !isDueToday && !isDone && (
+                    <span className="font-mono text-[9px] text-white/25">{format(item.date, 'MMM d')}</span>
+                )}
+                {item.dueTime && (
+                    <span className="font-mono text-[9px] text-white/25 flex items-center gap-0.5">
+                        <Clock size={8} /> {item.dueTime}
+                    </span>
+                )}
+            </div>
+        </motion.div>
     );
 }

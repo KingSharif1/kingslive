@@ -787,7 +787,7 @@ export function CtroomDashboard() {
                                 setTaskForm({
                                     title: '',
                                     description: '',
-                                    taskType: 'action',
+                                    taskType: 'task' as any,
                                     category: 'work',
                                     priority: 'medium',
                                     dueDate: new Date(),

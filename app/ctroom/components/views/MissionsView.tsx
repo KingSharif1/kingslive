@@ -3,10 +3,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Plus, Github, ArrowUpRight, ExternalLink, Flame,
-    MoreHorizontal, CheckCircle2, Pause, Archive,
-    TrendingUp, Pencil, Trash2, Globe, AlertTriangle, CheckCircle,
-    GitCommit, Clock, Loader2, Target,
+    Plus, Github, Flame,
+    MoreHorizontal, Pencil, Trash2,
+    GitCommit, Loader2, Target,
 } from 'lucide-react';
 import { Mission, ActionItem } from '../../types';
 import { CtroomDataService } from '../../services/ctroomDataService';
@@ -23,6 +22,7 @@ interface MissionsViewProps {
 type FilterTab = 'active' | 'ideas' | 'all' | 'completed';
 
 const STATUS_CONFIG: Record<Mission['status'], { label: string; class: string }> = {
+    idea:      { label: 'Idea',        class: 'bg-violet-500/10 text-violet-400 border-violet-500/20' },
     active:    { label: 'In Progress', class: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
     'on-hold': { label: 'On Hold',     class: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
     completed: { label: 'Completed',   class: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
@@ -30,6 +30,7 @@ const STATUS_CONFIG: Record<Mission['status'], { label: string; class: string }>
 };
 
 const MILO_COLOR: Record<Mission['status'], string> = {
+    idea:      '#a855f7',
     active:    '#3b82f6',
     'on-hold': '#f59e0b',
     completed: '#10b981',
@@ -43,6 +44,7 @@ export const MissionsView = ({ onMissionClick, githubToken }: MissionsViewProps)
     const [filter, setFilter] = useState<FilterTab>('all');
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [editingMission, setEditingMission] = useState<Mission | undefined>(undefined);
+    const [formDefaults, setFormDefaults] = useState<Partial<Mission> | undefined>(undefined);
     const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [showGHImport, setShowGHImport] = useState(false);
@@ -124,14 +126,14 @@ export const MissionsView = ({ onMissionClick, githubToken }: MissionsViewProps)
         if (m.status === 'archived') return false;
         if (filter === 'all') return true;
         if (filter === 'active') return m.status === 'active' || m.status === 'on-hold';
-        if (filter === 'ideas') return !m.repoUrl && m.status !== 'completed';
+        if (filter === 'ideas') return m.status === 'idea';
         if (filter === 'completed') return m.status === 'completed';
         return true;
     });
 
     const counts = {
         active: missions.filter(m => m.status === 'active' || m.status === 'on-hold').length,
-        ideas: missions.filter(m => !m.repoUrl && m.status !== 'completed' && m.status !== 'archived').length,
+        ideas: missions.filter(m => m.status === 'idea').length,
         all: missions.filter(m => m.status !== 'archived').length,
         completed: missions.filter(m => m.status === 'completed').length,
     };
@@ -166,12 +168,16 @@ export const MissionsView = ({ onMissionClick, githubToken }: MissionsViewProps)
                         Import from GitHub
                     </button>
                     <button
-                        onClick={() => { setEditingMission(undefined); setIsFormModalOpen(true); }}
+                        onClick={() => {
+                            setEditingMission(undefined);
+                            setFormDefaults(filter === 'ideas' ? { status: 'idea' } : undefined);
+                            setIsFormModalOpen(true);
+                        }}
                         className="flex items-center gap-2 text-sm font-bold px-4 py-2.5 rounded-lg transition-all"
                         style={{ background: '#f4f4f5', color: '#09090b' }}
                     >
                         <Plus size={16} />
-                        New Idea
+                        {filter === 'ideas' ? 'New Idea' : 'New Project'}
                     </button>
                 </div>
             </header>
@@ -211,7 +217,11 @@ export const MissionsView = ({ onMissionClick, githubToken }: MissionsViewProps)
                         {filter === 'ideas' ? 'Add a new idea to get started.' : `No ${filter} projects.`}
                     </p>
                     <button
-                        onClick={() => { setEditingMission(undefined); setIsFormModalOpen(true); }}
+                        onClick={() => {
+                            setEditingMission(undefined);
+                            setFormDefaults(filter === 'ideas' ? { status: 'idea' } : undefined);
+                            setIsFormModalOpen(true);
+                        }}
                         className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all"
                         style={{ background: '#f4f4f5', color: '#09090b' }}
                     >
@@ -253,14 +263,13 @@ export const MissionsView = ({ onMissionClick, githubToken }: MissionsViewProps)
                         onImport={(repoData) => {
                             setShowGHImport(false);
                             setEditingMission(undefined);
-                            setIsFormModalOpen(true);
-                            // Pre-fill the form via MissionFormModal's initialData
-                            setEditingMission({
-                                id: '', name: repoData.name, description: repoData.description || '',
+                            setFormDefaults({
+                                name: repoData.name,
+                                description: repoData.description || '',
                                 color: '#3b82f6', icon: '🚀', status: 'active', priority: 'medium',
-                                progress: 0, focusWeek: false,
-                                repoUrl: repoData.htmlUrl,
-                            } as any);
+                                progress: 0, repoUrl: repoData.htmlUrl,
+                            });
+                            setIsFormModalOpen(true);
                         }}
                         onClose={() => setShowGHImport(false)}
                     />
@@ -270,8 +279,8 @@ export const MissionsView = ({ onMissionClick, githubToken }: MissionsViewProps)
             {/* ── Modals ──────────────────────────────────────── */}
             <MissionFormModal
                 isOpen={isFormModalOpen}
-                onClose={() => { setIsFormModalOpen(false); setEditingMission(undefined); }}
-                initialData={editingMission}
+                onClose={() => { setIsFormModalOpen(false); setEditingMission(undefined); setFormDefaults(undefined); }}
+                initialData={editingMission ?? formDefaults}
                 onSubmit={handleSaveMission}
             />
 
@@ -371,6 +380,8 @@ function ProjectCard({ mission, taskCount, doneCount, index, isMenuOpen, githubT
         return mission.description || `Project is ${mission.progress}% complete.`;
     })();
 
+    const isIdea = mission.status === 'idea';
+
     return (
         <motion.div
             layout
@@ -379,33 +390,29 @@ function ProjectCard({ mission, taskCount, doneCount, index, isMenuOpen, githubT
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ delay: index * 0.05 }}
             onClick={onClick}
-            className="group flex flex-col rounded-2xl cursor-pointer transition-all duration-300 hover:border-zinc-500/30"
+            className="group flex flex-col rounded-2xl cursor-pointer transition-all duration-300"
             style={{
-                background: 'rgba(20,20,23,0.6)',
+                background: isIdea ? 'rgba(139,92,246,0.04)' : 'rgba(20,20,23,0.6)',
                 backdropFilter: 'blur(12px)',
-                border: '1px solid rgba(39,39,42,0.8)',
+                border: isIdea ? '1px dashed rgba(139,92,246,0.25)' : '1px solid rgba(39,39,42,0.8)',
                 padding: '1.25rem',
+                opacity: isIdea ? 0.85 : 1,
             }}
         >
             {/* ── Card Header ── */}
-            <div className="flex justify-between items-start mb-4">
-                <div className="space-y-0.5 min-w-0 flex-1 pr-2">
-                    <h3
-                        className="text-xl font-bold tracking-tight text-white truncate group-hover:text-blue-400 transition-colors"
-                        style={{ fontFamily: "'Young Serif', 'Georgia', serif" }}
-                    >
-                        {mission.icon && <span className="mr-2">{mission.icon}</span>}
-                        {mission.name}
-                    </h3>
-                    {repoPath && (
-                        <p className="font-mono text-[11px] text-zinc-500 uppercase tracking-wider truncate">{repoPath}</p>
-                    )}
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex justify-between items-start mb-3">
+                <h3
+                    className={`text-lg font-bold tracking-tight truncate flex-1 pr-2 transition-colors ${isIdea ? 'text-violet-200' : 'text-white'}`}
+                    style={{ fontFamily: "'Young Serif', 'Georgia', serif" }}
+                >
+                    {mission.icon && <span className="mr-1.5">{mission.icon}</span>}
+                    {mission.name}
+                    {mission.focusWeek && <Flame size={13} className="inline ml-2 text-amber-400" />}
+                </h3>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
                     <span className={cn('text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded border', statusClass)}>
                         {statusLabel}
                     </span>
-                    {/* Menu */}
                     <div className="relative">
                         <button
                             onClick={onOpenMenu}
@@ -441,13 +448,20 @@ function ProjectCard({ mission, taskCount, doneCount, index, isMenuOpen, githubT
                 </div>
             </div>
 
+            {/* ── Description (ideas only) ── */}
+            {isIdea && mission.description && (
+                <p className="text-xs text-zinc-500 leading-relaxed mb-3 line-clamp-2 italic">{mission.description}</p>
+            )}
+
             {/* ── Progress ── */}
-            <div className="space-y-2 mb-4 flex-grow">
+            <div className="space-y-1.5 mb-3">
                 <div className="flex justify-between items-center text-[11px] font-mono">
-                    <span className="text-zinc-400">{mission.progress}% Complete</span>
-                    {taskCount > 0 && <span className="text-zinc-500">{doneCount}/{taskCount} tasks</span>}
+                    <span className="text-zinc-500">{mission.progress}%</span>
+                    {taskCount > 0 && (
+                        <span className="text-zinc-600">{doneCount}/{taskCount} tasks</span>
+                    )}
                 </div>
-                <div className="h-1.5 w-full rounded-full overflow-hidden" style={{ background: 'rgba(39,39,42,1)' }}>
+                <div className="h-1 w-full rounded-full overflow-hidden" style={{ background: 'rgba(39,39,42,1)' }}>
                     <div
                         className="h-full rounded-full transition-all"
                         style={{ width: `${mission.progress}%`, background: miloColor }}
@@ -455,90 +469,38 @@ function ProjectCard({ mission, taskCount, doneCount, index, isMenuOpen, githubT
                 </div>
             </div>
 
-            {/* ── Last Commit Block ── */}
-            {repoPath && (
-                <div className="rounded-xl p-3 mb-3" style={{ background: 'rgba(9,9,11,0.5)', border: '1px solid rgba(39,39,42,0.5)' }}>
+            {/* ── Last Commit ── */}
+            {repoPath && !isIdea && (
+                <div className="flex items-center gap-2 font-mono text-[11px] mt-auto pt-3"
+                    style={{ borderTop: '1px solid rgba(39,39,42,0.6)' }}>
+                    <Github size={11} className="text-zinc-600 flex-shrink-0" />
                     {commitLoading ? (
-                        <div className="flex items-center gap-2 text-zinc-600">
-                            <Loader2 size={11} className="animate-spin" />
-                            <span className="font-mono text-[10px]">fetching latest commit…</span>
-                        </div>
+                        <span className="text-zinc-600">fetching…</span>
                     ) : lastCommit ? (
-                        <div className="flex items-center gap-2 font-mono text-xs text-zinc-300">
-                            <Github size={12} className="text-zinc-500 flex-shrink-0" />
-                            <span className="truncate flex-1">{lastCommit.message}</span>
+                        <>
+                            <span className="truncate flex-1 text-zinc-400">{lastCommit.message}</span>
                             <span className="text-zinc-600 flex-shrink-0">{lastCommit.timeAgo}</span>
-                        </div>
+                        </>
                     ) : (
-                        <div className="flex items-center gap-2 font-mono text-xs text-zinc-600">
-                            <GitCommit size={11} />
-                            <span>No commits found</span>
-                        </div>
+                        <span className="text-zinc-700">No commits yet</span>
                     )}
                 </div>
             )}
 
-            {/* ── Milo Insight ── */}
-            <div className="rounded-r-lg p-3 mb-4" style={{ background: 'rgba(39,39,42,0.2)', borderLeft: `2px solid ${miloColor}50` }}>
-                <div className="flex gap-2.5">
-                    <div
-                        className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white"
-                        style={{ background: miloColor }}
-                    >
-                        M
-                    </div>
-                    <p className="text-xs leading-relaxed text-zinc-300">
-                        <span className="font-semibold" style={{ color: miloColor }}>Milo: </span>
-                        {commitLoading ? <span className="text-zinc-500">Checking project status…</span> : miloInsight}
-                    </p>
-                </div>
-            </div>
-
-            {/* ── Actions ── */}
-            <div className="flex gap-2 mt-auto">
-                <button
-                    onClick={onClick}
-                    className="flex-1 text-center py-2 text-xs font-semibold rounded-lg transition-colors"
-                    style={{ background: 'rgba(39,39,42,0.8)', border: '1px solid rgba(63,63,70,0.5)', color: '#f4f4f5' }}
-                >
-                    View Details
-                </button>
-                {mission.repoUrl && (
+            {/* ── GitHub link (shown only when no commit line, or for ideas with a repo) ── */}
+            {mission.repoUrl && (isIdea || !repoPath) && (
+                <div className="mt-auto pt-3" style={{ borderTop: '1px solid rgba(39,39,42,0.6)' }}>
                     <a
                         href={mission.repoUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={e => e.stopPropagation()}
-                        className="px-3 py-2 rounded-lg transition-colors flex items-center justify-center"
-                        style={{ background: 'rgba(39,39,42,0.5)', border: '1px solid rgba(39,39,42,0.3)', color: '#71717a' }}
+                        className="flex items-center gap-1.5 font-mono text-[11px] text-zinc-600 hover:text-zinc-400 transition-colors"
                     >
-                        <ExternalLink size={14} />
+                        <Github size={11} /> Open repo
                     </a>
-                )}
-                {mission.domainUrl && (
-                    <a
-                        href={mission.domainUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={e => e.stopPropagation()}
-                        className="px-3 py-2 rounded-lg transition-colors flex items-center justify-center"
-                        style={{ background: 'rgba(39,39,42,0.5)', border: '1px solid rgba(39,39,42,0.3)', color: '#71717a' }}
-                        title={mission.domainStatus?.isOnline ? 'Site online' : 'Visit site'}
-                    >
-                        {mission.domainStatus?.isOnline
-                            ? <CheckCircle size={14} className="text-emerald-400" />
-                            : mission.domainStatus
-                            ? <AlertTriangle size={14} className="text-red-400" />
-                            : <Globe size={14} />
-                        }
-                    </a>
-                )}
-                {mission.focusWeek && (
-                    <div className="px-2 py-2 flex items-center" title="Focus week">
-                        <Flame size={13} className="text-amber-400" />
-                    </div>
-                )}
-            </div>
+                </div>
+            )}
         </motion.div>
     );
 }

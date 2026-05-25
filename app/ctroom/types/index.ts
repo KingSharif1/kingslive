@@ -90,7 +90,7 @@ export interface Mission {
   description?: string;
   
   // Status Tracking
-  status: 'active' | 'on-hold' | 'completed' | 'archived';
+  status: 'idea' | 'active' | 'on-hold' | 'completed' | 'archived';
   priority: 'low' | 'medium' | 'high' | 'critical';
   progress: number; // 0-100
   

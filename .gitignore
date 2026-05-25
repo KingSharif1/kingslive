@@ -70,3 +70,13 @@ supabase/*
 
 # Claude MCP config (contains API tokens)
 .claude.json
+
+*.png
+
+.playwright-mcp/*
+
+.claude/*
+
+.portfolio-mocks/*
+
+.next/*

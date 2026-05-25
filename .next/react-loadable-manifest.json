@@ -6,6 +6,15 @@
       "static/chunks/_app-pages-browser_app_ctroom_components_views_VaultCharts_tsx.js"
     ]
   },
+  "app\\page.tsx -> @/components/ContactForm": {
+    "id": "app\\page.tsx -> @/components/ContactForm",
+    "files": [
+      "static/chunks/framer-motion.js",
+      "static/chunks/vendor.js",
+      "static/chunks/common.js",
+      "static/chunks/_app-pages-browser_components_ContactForm_tsx.js"
+    ]
+  },
   "components\\ParticleBackgroundWrapper.tsx -> @/components/ParticleBackground": {
     "id": "components\\ParticleBackgroundWrapper.tsx -> @/components/ParticleBackground",
     "files": [

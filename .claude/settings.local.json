@@ -63,7 +63,22 @@
       "Bash(superdesign --version)",
       "Bash(superdesign list-projects *)",
       "Bash(superdesign fetch-design-nodes *)",
-      "Bash(superdesign list-design-systems *)"
+      "Bash(superdesign list-design-systems *)",
+      "Bash(findstr /i \"github\")",
+      "WebFetch(domain:share.google)",
+      "WebFetch(domain:www.google.com)",
+      "WebFetch(domain:docs.google.com)",
+      "WebFetch(domain:doc-0k-ag-docstext.googleusercontent.com)",
+      "WebFetch(domain:polotno.com)",
+      "Bash(npx supabase *)",
+      "Bash(Select-String -Path 'app\\\\ctroom\\\\components\\\\views\\\\VaultView.tsx' -Pattern '\\(OverviewTab|SubscriptionsTab\\)')",
+      "Bash(Select-Object -First 20)",
+      "Bash(powershell -c \"\\(Get-Content 'c:\\\\Users\\\\kings\\\\wrkspace\\\\kingslive\\\\app\\\\ctroom\\\\components\\\\views\\\\PlannerView.tsx'\\).Count\")",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_evaluate",
+      "mcp__supabase__get_project",
+      "mcp__supabase__get_advisors"
     ]
   },
   "enableAllProjectMcpServers": true,

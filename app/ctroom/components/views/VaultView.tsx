@@ -249,6 +249,180 @@ function detectRecurring(transactions: VaultTransaction[]): RecurringItem[] {
   return results.sort((a, b) => b.estimatedMonthly - a.estimatedMonthly);
 }
 
+function getNextPaymentDate(lastDate: Date, frequency: string): Date {
+  const now = new Date();
+  const next = new Date(lastDate);
+  const step = () => {
+    if (frequency === 'weekly')    next.setDate(next.getDate() + 7);
+    else if (frequency === 'bi-weekly') next.setDate(next.getDate() + 14);
+    else if (frequency === 'monthly')   next.setMonth(next.getMonth() + 1);
+    else if (frequency === 'quarterly') next.setMonth(next.getMonth() + 3);
+    else if (frequency === 'annual')    next.setFullYear(next.getFullYear() + 1);
+  };
+  step();
+  while (next < now) step();
+  return next;
+}
+
+interface UpcomingPayment {
+  key: string;
+  name: string;
+  emoji: string;
+  amount: number;
+  nextDate: Date;
+  frequency: string;
+  color?: string;
+}
+
+function buildUpcoming(allTransactions: VaultTransaction[], subscriptions: Subscription[]): UpcomingPayment[] {
+  const items: UpcomingPayment[] = [];
+  const seen = new Set<string>();
+
+  // From auto-detected recurring transactions
+  detectRecurring(allTransactions).forEach(r => {
+    const key = r.merchant.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    const known = matchKnownSub(r.merchant);
+    const nextDate = getNextPaymentDate(r.lastDate, r.frequency);
+    items.push({
+      key,
+      name: known?.name || r.merchant,
+      emoji: known?.emoji || '💳',
+      amount: r.amount,
+      nextDate,
+      frequency: r.frequency,
+      color: known?.color,
+    });
+  });
+
+  // From manually saved subscriptions (override auto-detected if same merchant)
+  subscriptions.filter(s => s.isActive).forEach(s => {
+    const key = s.name.toLowerCase();
+    seen.add(key);
+    const nextDate = s.nextBillingDate
+      ? new Date(s.nextBillingDate)
+      : getNextPaymentDate(new Date(), s.frequency || 'monthly');
+    // Remove auto-detected duplicate
+    const existing = items.findIndex(i => i.key === key || i.name.toLowerCase() === key);
+    if (existing !== -1) items.splice(existing, 1);
+    items.push({
+      key,
+      name: s.name,
+      emoji: s.emoji || '💳',
+      amount: s.amount,
+      nextDate,
+      frequency: s.frequency || 'monthly',
+      color: s.color,
+    });
+  });
+
+  return items
+    .filter(i => {
+      const days = Math.ceil((i.nextDate.getTime() - Date.now()) / 86400000);
+      return days >= 0 && days <= 45;
+    })
+    .sort((a, b) => a.nextDate.getTime() - b.nextDate.getTime());
+}
+
+function UpcomingPayments({ allTransactions, subscriptions }: {
+  allTransactions: VaultTransaction[];
+  subscriptions: Subscription[];
+}) {
+  const upcoming = buildUpcoming(allTransactions, subscriptions);
+  if (upcoming.length === 0) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Build 30-day calendar grid
+  const calDays = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const payments = upcoming.filter(u => {
+      const nd = new Date(u.nextDate);
+      nd.setHours(0, 0, 0, 0);
+      return nd.getTime() === d.getTime();
+    });
+    return { date: d, payments };
+  });
+
+  const daysLabel = (d: Date) => {
+    const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+    if (diff === 0) return 'Today';
+    if (diff === 1) return 'Tomorrow';
+    return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  };
+
+  return (
+    <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="flex items-center justify-between mb-4">
+        <p className="font-mono text-[11px] uppercase tracking-widest text-white/40 flex items-center gap-1.5">
+          <CalendarClock className="w-3.5 h-3.5" /> Upcoming Payments
+        </p>
+        <p className="font-mono text-[10px] text-white/25">next 45 days</p>
+      </div>
+
+      {/* 30-day strip */}
+      <div className="flex gap-1 mb-5 overflow-x-auto pb-1">
+        {calDays.map(({ date, payments }, i) => {
+          const isToday = i === 0;
+          const hasPayment = payments.length > 0;
+          const totalAmt = payments.reduce((s, p) => s + p.amount, 0);
+          return (
+            <div key={i} className="flex-shrink-0 flex flex-col items-center gap-1"
+              style={{ minWidth: 32 }}>
+              <span className="font-mono text-[9px] text-white/20">
+                {date.toLocaleDateString('en-US', { weekday: 'narrow' })}
+              </span>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-mono text-[10px] relative transition-all ${
+                isToday ? 'text-black font-bold' : hasPayment ? 'text-white' : 'text-white/25'
+              }`} style={{
+                background: isToday ? '#00ff88' : hasPayment ? 'rgba(248,113,113,0.15)' : 'rgba(255,255,255,0.03)',
+                border: hasPayment && !isToday ? '1px solid rgba(248,113,113,0.3)' : isToday ? 'none' : '1px solid rgba(255,255,255,0.05)',
+              }}>
+                {date.getDate()}
+                {hasPayment && !isToday && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-400" />
+                )}
+              </div>
+              {hasPayment && (
+                <span className="font-mono text-[8px] text-red-400/70">
+                  ${Math.round(totalAmt)}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* List */}
+      <div className="space-y-2">
+        {upcoming.slice(0, 8).map(p => {
+          const diff = Math.round((p.nextDate.getTime() - today.getTime()) / 86400000);
+          const isUrgent = diff <= 3;
+          return (
+            <div key={p.key} className="flex items-center gap-3 py-2 px-3 rounded-xl transition-all"
+              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+              <span className="text-lg flex-shrink-0">{p.emoji}</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-mono text-xs text-white/80 truncate">{p.name}</p>
+                <p className="font-mono text-[10px] text-white/30 capitalize">{p.frequency}</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="font-mono text-sm font-bold text-white">{fmtFull(p.amount)}</p>
+                <p className="font-mono text-[10px]" style={{ color: isUrgent ? '#f87171' : 'rgba(255,255,255,0.3)' }}>
+                  {daysLabel(p.nextDate)}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── VaultView ─────────────────────────────────────────────────────────────────
 export function VaultView() {
   const [tab, setTab] = useState<VaultTab>('overview');
@@ -1167,6 +1341,9 @@ function OverviewTab({ accounts, transactions, allTransactions, timeRange, budge
         <HealthScorePanel score={score} breakdown={breakdown} />
         <CashFlowPanel accounts={accounts} transactions={transactions} subscriptions={subscriptions} />
       </div>
+
+      {/* Upcoming Payments */}
+      <UpcomingPayments allTransactions={allTransactions} subscriptions={subscriptions} />
 
       {/* AI Finance Advisor */}
       <VaultAIChat

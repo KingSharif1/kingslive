@@ -9,6 +9,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
     Send, Settings, ChevronDown, X, Zap, Brain, Sparkles, Globe,
     Github, Code, Check, RefreshCw, Clock, ChevronRight, DollarSign, TrendingDown, Mic,
+    Volume2, VolumeX, Copy,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Message, AIModel, ChatTool, ChatSpeed, ChatContext, ActionItem, Mission } from '../../types/index';
@@ -185,6 +186,35 @@ export const ChatView = ({
 
     const [isListening, setIsListening] = useState(false);
     const [hasSpeechAPI] = useState(() => typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window));
+    const [speakingId, setSpeakingId] = useState<string | null>(null);
+    const [copiedId, setCopiedId]     = useState<string | null>(null);
+
+    const speakMessage = (id: string, text: string) => {
+        if (!window.speechSynthesis) return;
+        if (speakingId === id) {
+            window.speechSynthesis.cancel();
+            setSpeakingId(null);
+            return;
+        }
+        window.speechSynthesis.cancel();
+        const utt = new SpeechSynthesisUtterance(text);
+        utt.rate = 1.05; utt.pitch = 1.0;
+        // prefer a deeper voice if available
+        const voices = window.speechSynthesis.getVoices();
+        const preferred = voices.find(v => v.name.toLowerCase().includes('daniel') || v.name.toLowerCase().includes('google uk') || v.name.toLowerCase().includes('alex'));
+        if (preferred) utt.voice = preferred;
+        utt.onend = () => setSpeakingId(null);
+        utt.onerror = () => setSpeakingId(null);
+        setSpeakingId(id);
+        window.speechSynthesis.speak(utt);
+    };
+
+    const copyMessage = (id: string, text: string) => {
+        navigator.clipboard.writeText(text).then(() => {
+            setCopiedId(id);
+            setTimeout(() => setCopiedId(null), 2000);
+        });
+    };
 
     const [selectedModel, setSelectedModel] = useState(AI_MODELS[0]);
     const [selectedSpeed, setSelectedSpeed] = useState<ChatSpeed>('balanced');
@@ -580,10 +610,24 @@ export const ChatView = ({
                                                     ))}
                                                 </div>
                                             )}
-                                            <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-white/20">
+                                            <div className="mt-1.5 flex items-center gap-3 font-mono text-[10px] text-white/20">
                                                 <Clock className="w-3 h-3" />
                                                 <span>{format(msg.timestamp, 'h:mm a')}</span>
                                                 {msg.model && <span>· {msg.model}</span>}
+                                                <div className="flex-1" />
+                                                <button onClick={() => copyMessage(msg.id, msg.content)}
+                                                    title="Copy" className="hover:text-white/60 transition-colors">
+                                                    {copiedId === msg.id ? <Check className="w-3 h-3 text-[#00ff88]" /> : <Copy className="w-3 h-3" />}
+                                                </button>
+                                                {typeof window !== 'undefined' && 'speechSynthesis' in window && (
+                                                    <button onClick={() => speakMessage(msg.id, msg.content)}
+                                                        title={speakingId === msg.id ? 'Stop' : 'Read aloud'}
+                                                        className="hover:text-white/60 transition-colors">
+                                                        {speakingId === msg.id
+                                                            ? <VolumeX className="w-3 h-3 text-[#00ff88]" />
+                                                            : <Volume2 className="w-3 h-3" />}
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
