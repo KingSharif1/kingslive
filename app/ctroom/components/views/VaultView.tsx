@@ -7,7 +7,8 @@ import {
   CreditCard, PiggyBank, Target, X, Check,
   DollarSign, AlertCircle, Trash2, Upload, FileText,
   ArrowUpRight, ArrowDownRight, Building2, Landmark, Pencil,
-  Repeat, CalendarClock
+  Repeat, CalendarClock, LayoutDashboard, ListOrdered,
+  PieChart, Flag, Sparkles, Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTellerConnect, TellerConnectEnrollment } from 'teller-connect-react';
@@ -16,7 +17,7 @@ import { VaultDataService } from '../../services/vaultDataService';
 import {
   VaultAccount, VaultTransaction, BudgetCategory,
   DebtEntry, SavingsGoal, AccountType, TransactionType,
-  TransactionRule, Subscription, SubscriptionFrequency
+  TransactionRule, Subscription, SubscriptionFrequency, VaultAiNudge
 } from '../../types/index';
 import { cn } from '@/lib/utils';
 import dynamic from 'next/dynamic';
@@ -45,7 +46,7 @@ const ACCOUNT_ICONS: Record<AccountType, React.ReactNode> = {
   cash:       <DollarSign className="w-4 h-4" />,
 };
 
-type VaultTab = 'overview' | 'transactions' | 'budget' | 'debt' | 'goals' | 'subscriptions';
+type VaultTab = 'overview' | 'transactions' | 'budget' | 'debt' | 'goals' | 'recurring';
 type TimeRange = 'today' | 'week' | 'month' | 'last_month' | '3months' | '6months' | 'all';
 
 const TIME_RANGE_LABELS: Record<TimeRange, string> = {
@@ -438,6 +439,8 @@ export function VaultView() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
+  const [nudges, setNudges] = useState<VaultAiNudge[]>([]);
+  const [dismissedNudges, setDismissedNudges] = useState<Set<string>>(new Set());
 
   // modals
   const [showAddAccount, setShowAddAccount] = useState(false);
@@ -451,7 +454,6 @@ export function VaultView() {
   const rangedTxs = filterByRange(transactions, timeRange);
   const totalIncome   = rangedTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalExpenses = rangedTxs.filter(isRealExpense).reduce((s, t) => s + t.amount, 0);
-  const totalDebt = VaultDataService.computeTotalDebt(debts);
 
   const handleUpdateCategory = useCallback(async (id: string, category: string) => {
     await VaultDataService.updateTransaction(id, { category });
@@ -489,9 +491,68 @@ export function VaultView() {
     setRules(ruleList);
     setSubscriptions(subList);
     setIsLoading(false);
+
+    // Fetch AI nudges after data loads (non-blocking)
+    fetchNudges(txs, debtList, goalList);
+  }, []);
+
+  const fetchNudges = useCallback(async (
+    txs: VaultTransaction[],
+    debtList: DebtEntry[],
+    goalList: SavingsGoal[],
+  ) => {
+    try {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 30);
+      const recent = txs.filter(t => new Date(t.date) >= cutoff);
+      if (recent.length === 0 && debtList.length === 0 && goalList.length === 0) return;
+
+      const res = await fetch('/api/ctroom/vault/ai-nudges', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactions: recent.map(t => ({
+            description: t.description,
+            merchant: t.merchant,
+            amount: t.amount,
+            type: t.type,
+            category: t.category,
+            date: new Date(t.date).toISOString().split('T')[0],
+            accountName: t.accountName,
+          })),
+          debts: debtList.map(d => ({ id: d.id, name: d.name, type: d.type, balance: d.balance, minimumPayment: d.minimumPayment })),
+          goals: goalList.map(g => ({ id: g.id, name: g.name, targetAmount: g.targetAmount, currentAmount: g.currentAmount, emoji: g.emoji })),
+        }),
+      });
+      const data = await res.json();
+      if (data.nudges?.length) setNudges(data.nudges);
+    } catch {
+      // silently fail — nudges are advisory
+    }
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // ── nudge helpers (declared after loadAll to avoid hoisting error) ──────
+  const dismissNudge = useCallback((id: string) => {
+    setDismissedNudges(prev => new Set(Array.from(prev).concat(id)));
+  }, []);
+
+  const applyDebtNudge = useCallback(async (nudge: VaultAiNudge) => {
+    if (!nudge.debtId || nudge.suggestedBalance === undefined) return;
+    await VaultDataService.updateDebt(nudge.debtId, { balance: nudge.suggestedBalance });
+    dismissNudge(nudge.id);
+    loadAll();
+  }, [dismissNudge, loadAll]);
+
+  const applyGoalNudge = useCallback(async (nudge: VaultAiNudge) => {
+    if (!nudge.goalId || nudge.suggestedAmount === undefined) return;
+    await VaultDataService.updateSavingsGoal(nudge.goalId, { currentAmount: nudge.suggestedAmount });
+    dismissNudge(nudge.id);
+    loadAll();
+  }, [dismissNudge, loadAll]);
+
+  const activeNudges = nudges.filter(n => !dismissedNudges.has(n.id));
 
   // ── sync ─────────────────────────────────────────────────────────────────
   const handleSync = async () => {
@@ -525,12 +586,12 @@ export function VaultView() {
   };
 
   const tabs: { id: VaultTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'overview',       label: 'Overview',       icon: <Wallet className="w-4 h-4" /> },
-    { id: 'transactions',   label: 'Transactions',   icon: <ArrowUpRight className="w-4 h-4" /> },
-    { id: 'budget',         label: 'Budget',         icon: <Target className="w-4 h-4" /> },
-    { id: 'debt',           label: 'Debt',           icon: <TrendingDown className="w-4 h-4" /> },
-    { id: 'goals',          label: 'Goals',          icon: <PiggyBank className="w-4 h-4" /> },
-    { id: 'subscriptions',  label: 'Subscriptions',  icon: <Repeat className="w-4 h-4" /> },
+    { id: 'overview',      label: 'Overview',      icon: <LayoutDashboard className="w-4 h-4" /> },
+    { id: 'transactions',  label: 'Transactions',  icon: <ListOrdered className="w-4 h-4" /> },
+    { id: 'budget',        label: 'Budget',        icon: <PieChart className="w-4 h-4" /> },
+    { id: 'debt',          label: 'Debt',          icon: <TrendingDown className="w-4 h-4" /> },
+    { id: 'goals',         label: 'Goals',         icon: <Flag className="w-4 h-4" /> },
+    { id: 'recurring',     label: 'Recurring',     icon: <Repeat className="w-4 h-4" /> },
   ];
 
   if (isLoading) {
@@ -542,169 +603,178 @@ export function VaultView() {
   }
 
   return (
-    <div className="h-full flex flex-col hq-scroll overflow-y-auto" style={{ background: '#080808', color: '#e5e5e5' }}>
-      {/* HQ breadcrumb */}
-      <div className="flex items-center justify-between px-6 py-3 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.4)' }}>
-        <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-white/25">
-          <span>CTROOM</span><span>/</span><span style={{ color: '#00ff88' }}>VAULT</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {syncMessage && (
-            <span className="font-mono text-[10px] text-white/30 animate-pulse">{syncMessage}</span>
-          )}
-          <button onClick={handleSync} disabled={isSyncing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[11px] uppercase tracking-widest transition-all text-white/40 hover:text-white hover:bg-white/5"
-            style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
-            <RefreshCw className={cn("w-3 h-3", isSyncing && "animate-spin")} />
-            <span className="hidden sm:inline">Sync</span>
-          </button>
-          <TellerConnectButton onSuccess={() => { loadAll(); handleSync(); }} />
-        </div>
-      </div>
+    <div className="h-full flex flex-col overflow-hidden" style={{ background: '#080808' }}>
 
-    <div className="max-w-5xl mx-auto space-y-6 p-6">
+      {/* ── HEADER ──────────────────────────────────────────────────────────── */}
+      <div className="flex-shrink-0 px-6 pt-4 pb-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
 
-      {/* Header */}
-      <div>
-        <div className="font-mono text-xl font-bold text-white tracking-tighter uppercase">VAULT</div>
-        <div className="font-mono text-[11px] text-white/25 mt-1">Personal finance hub — real data, real time.</div>
-      </div>
-
-      {/* Net Worth Banner */}
-      <div className="rounded-2xl p-6" style={{ background: 'rgba(0,255,136,0.04)', border: '1px solid rgba(0,255,136,0.12)' }}>
-        <p className="font-mono text-[10px] uppercase tracking-widest text-white/30 mb-2">Net Worth</p>
-        <p className={cn("font-mono text-4xl font-bold tracking-tight", netWorth >= 0 ? "text-white" : "text-red-400")}>
-          {fmtFull(netWorth)}
-        </p>
-        <div className="flex flex-wrap gap-6 mt-5">
-          {[
-            { label: `${TIME_RANGE_LABELS[timeRange]} Income`, value: `+${fmtFull(totalIncome)}`, color: '#00ff88' },
-            { label: `${TIME_RANGE_LABELS[timeRange]} Spent`, value: `-${fmtFull(totalExpenses)}`, color: '#f87171' },
-            { label: 'Savings Rate', value: totalIncome > 0 ? `${Math.round(((totalIncome - totalExpenses) / totalIncome) * 100)}%` : '—', color: totalIncome > 0 && (totalIncome - totalExpenses) / totalIncome >= 0.2 ? '#00ff88' : '#f59e0b' },
-            { label: 'Total Debt', value: fmtFull(totalDebt), color: '#f59e0b' },
-            { label: 'Accounts', value: String(accounts.length), color: '#e5e5e5' },
-          ].map(({ label, value, color }) => (
-            <div key={label}>
-              <p className="font-mono text-[10px] uppercase tracking-widest text-white/25">{label}</p>
-              <p className="font-mono text-lg font-bold mt-0.5" style={{ color }}>{value}</p>
+        {/* Row 1: brand + stats + actions */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+                style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.2)' }}>
+                <Wallet className="w-4 h-4" style={{ color: '#00ff88' }} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white leading-none">Vault</p>
+                <p className="text-[10px] mt-0.5 leading-none" style={{ color: 'rgba(255,255,255,0.35)' }}>Personal Finance</p>
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Tabs + Time Range */}
-      <div className="flex flex-wrap items-center gap-2 justify-between">
-        <div className="flex gap-1 p-1 rounded-xl overflow-x-auto" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          {tabs.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[11px] uppercase tracking-widest font-medium whitespace-nowrap transition-all"
-              style={tab === t.id ? {
-                background: 'rgba(0,255,136,0.1)',
-                color: '#00ff88',
-                border: '1px solid rgba(0,255,136,0.2)',
-              } : { color: 'rgba(255,255,255,0.3)' }}>
-              {t.icon} {t.label}
+            {/* Net worth strip */}
+            <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-xl"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div>
+                <p className="text-[9px] uppercase tracking-widest mb-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>Net Worth</p>
+                <p className={cn("font-mono font-bold text-sm leading-none", netWorth >= 0 ? "text-white" : "text-red-400")}>{fmtFull(netWorth)}</p>
+              </div>
+              <div className="w-px h-6" style={{ background: 'rgba(255,255,255,0.08)' }} />
+              <div>
+                <p className="text-[9px] uppercase tracking-widest mb-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>Income</p>
+                <p className="font-mono font-bold text-xs leading-none text-emerald-400">+{fmtFull(totalIncome)}</p>
+              </div>
+              <div className="w-px h-6" style={{ background: 'rgba(255,255,255,0.08)' }} />
+              <div>
+                <p className="text-[9px] uppercase tracking-widest mb-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>Spent</p>
+                <p className="font-mono font-bold text-xs leading-none text-red-400">-{fmtFull(totalExpenses)}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2">
+            {syncMessage && <span className="text-xs font-mono text-emerald-400">{syncMessage}</span>}
+            <TellerConnectButton onSuccess={() => { loadAll(); handleSync(); }} />
+            <button onClick={handleSync} disabled={isSyncing}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}>
+              <RefreshCw className={cn("w-3.5 h-3.5", isSyncing && "animate-spin")} />
+              <span className="hidden sm:inline">Sync</span>
             </button>
-          ))}
+          </div>
         </div>
-        {(tab === 'overview' || tab === 'transactions') && (
-          <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            {(Object.keys(TIME_RANGE_LABELS) as TimeRange[]).map(r => (
-              <button key={r} onClick={() => setTimeRange(r)}
-                className="px-2.5 py-1 rounded-lg font-mono text-[10px] uppercase tracking-widest font-medium whitespace-nowrap transition-all"
-                style={timeRange === r ? {
-                  background: 'rgba(0,255,136,0.1)',
-                  color: '#00ff88',
-                  border: '1px solid rgba(0,255,136,0.2)',
-                } : { color: 'rgba(255,255,255,0.3)' }}>
-                {TIME_RANGE_LABELS[r]}
+
+        {/* Row 2: tabs + time range */}
+        <div className="flex items-center justify-between gap-4 pb-0">
+          <div className="flex gap-0.5 overflow-x-auto">
+            {tabs.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-t-xl text-xs font-semibold whitespace-nowrap transition-all relative"
+                style={tab === t.id
+                  ? { color: '#00ff88', background: 'rgba(0,255,136,0.06)', borderBottom: '2px solid #00ff88' }
+                  : { color: 'rgba(255,255,255,0.4)', borderBottom: '2px solid transparent' }}>
+                <span style={{ color: tab === t.id ? '#00ff88' : 'rgba(255,255,255,0.3)' }}>{t.icon}</span>
+                {t.label}
               </button>
             ))}
           </div>
-        )}
+          {(tab === 'overview' || tab === 'transactions') && (
+            <div className="flex gap-0.5 p-1 rounded-xl flex-shrink-0 mb-1"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              {(Object.keys(TIME_RANGE_LABELS) as TimeRange[]).map(r => (
+                <button key={r} onClick={() => setTimeRange(r)}
+                  className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all"
+                  style={timeRange === r
+                    ? { background: 'rgba(255,255,255,0.09)', color: '#e5e5e5' }
+                    : { color: 'rgba(255,255,255,0.3)' }}>
+                  {TIME_RANGE_LABELS[r]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Tab Content */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={tab}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.15 }}
-        >
-          {tab === 'overview' && (
-            <OverviewTab
-              accounts={accounts}
-              transactions={rangedTxs}
-              allTransactions={transactions}
-              timeRange={timeRange}
-              budgets={budgets}
-              debts={debts}
-              goals={goals}
-              subscriptions={subscriptions}
-              onAddAccount={() => setShowAddAccount(true)}
-              onDeleteAccount={async id => { await VaultDataService.deleteAccount(id); loadAll(); }}
-              onUpdateCategory={handleUpdateCategory}
-              onTxClick={setSelectedTx}
-            />
-          )}
-          {tab === 'transactions' && (
-            <TransactionsTab
-              transactions={rangedTxs}
-              accounts={accounts}
-              rules={rules}
-              onAdd={() => setShowAddTransaction(true)}
-              onDelete={async id => { await VaultDataService.deleteTransaction(id); loadAll(); }}
-              onUpdateCategory={handleUpdateCategory}
-              onTxClick={setSelectedTx}
-              onSaveRule={async (pattern, category) => { await VaultDataService.saveRule(pattern, category); loadAll(); }}
-              onDeleteRule={async id => { await VaultDataService.deleteRule(id); loadAll(); }}
-              onApplyRules={async () => {
-                const r = await VaultDataService.fetchRules();
-                const count = await VaultDataService.applyRulesToDb(r);
-                setSyncMessage(`Applied rules to ${count} transactions`);
-                loadAll();
-                setTimeout(() => setSyncMessage(''), 3000);
-              }}
-            />
-          )}
-          {tab === 'budget' && (
-            <BudgetTab
-              budgets={budgets}
-              onAdd={() => setShowAddBudget(true)}
-              onDelete={async id => { await VaultDataService.deleteBudgetCategory(id); loadAll(); }}
-              onUpdate={async (id, updates) => { await VaultDataService.updateBudgetCategory(id, updates); loadAll(); }}
-            />
-          )}
-          {tab === 'debt' && (
-            <DebtTab
-              debts={debts}
-              onAdd={() => setShowAddDebt(true)}
-              onDelete={async id => { await VaultDataService.deleteDebt(id); loadAll(); }}
-              onUpdate={async (id, updates) => { await VaultDataService.updateDebt(id, updates); loadAll(); }}
-              onImport={async rows => { await Promise.all(rows.map(r => VaultDataService.saveDebt(r))); loadAll(); }}
-            />
-          )}
-          {tab === 'goals' && (
-            <GoalsTab
-              goals={goals}
-              onAdd={() => setShowAddGoal(true)}
-              onDelete={async id => { await VaultDataService.deleteSavingsGoal(id); loadAll(); }}
-              onUpdate={async (id, updates) => { await VaultDataService.updateSavingsGoal(id, updates); loadAll(); }}
-            />
-          )}
-          {tab === 'subscriptions' && (
-            <SubscriptionsTab
-              transactions={transactions}
-              subscriptions={subscriptions}
-              onSave={async s => { await VaultDataService.saveSubscription(s); loadAll(); }}
-              onUpdate={async (id, u) => { await VaultDataService.updateSubscription(id, u); loadAll(); }}
-              onDelete={async id => { await VaultDataService.deleteSubscription(id); loadAll(); }}
-            />
-          )}
-        </motion.div>
-      </AnimatePresence>
+      {/* ── Scrollable content ─────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-6 py-5">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            {tab === 'overview' && (
+              <OverviewTab
+                accounts={accounts}
+                transactions={rangedTxs}
+                allTransactions={transactions}
+                timeRange={timeRange}
+                budgets={budgets}
+                debts={debts}
+                goals={goals}
+                subscriptions={subscriptions}
+                onAddAccount={() => setShowAddAccount(true)}
+                onDeleteAccount={async id => { await VaultDataService.deleteAccount(id); loadAll(); }}
+                onUpdateCategory={handleUpdateCategory}
+                onTxClick={setSelectedTx}
+              />
+            )}
+            {tab === 'transactions' && (
+              <TransactionsTab
+                transactions={rangedTxs}
+                accounts={accounts}
+                rules={rules}
+                onAdd={() => setShowAddTransaction(true)}
+                onDelete={async id => { await VaultDataService.deleteTransaction(id); loadAll(); }}
+                onUpdateCategory={handleUpdateCategory}
+                onTxClick={setSelectedTx}
+                onSaveRule={async (pattern, category) => { await VaultDataService.saveRule(pattern, category); loadAll(); }}
+                onDeleteRule={async id => { await VaultDataService.deleteRule(id); loadAll(); }}
+                onApplyRules={async () => {
+                  const r = await VaultDataService.fetchRules();
+                  const count = await VaultDataService.applyRulesToDb(r);
+                  setSyncMessage(`Applied rules to ${count} transactions`);
+                  loadAll();
+                  setTimeout(() => setSyncMessage(''), 3000);
+                }}
+              />
+            )}
+            {tab === 'budget' && (
+              <BudgetTab
+                budgets={budgets}
+                onAdd={() => setShowAddBudget(true)}
+                onDelete={async id => { await VaultDataService.deleteBudgetCategory(id); loadAll(); }}
+                onUpdate={async (id, updates) => { await VaultDataService.updateBudgetCategory(id, updates); loadAll(); }}
+              />
+            )}
+            {tab === 'debt' && (
+              <DebtTab
+                debts={debts}
+                nudges={activeNudges.filter(n => n.type === 'debt_payment')}
+                onAdd={() => setShowAddDebt(true)}
+                onDelete={async id => { await VaultDataService.deleteDebt(id); loadAll(); }}
+                onUpdate={async (id, updates) => { await VaultDataService.updateDebt(id, updates); loadAll(); }}
+                onImport={async rows => { await Promise.all(rows.map(r => VaultDataService.saveDebt(r))); loadAll(); }}
+                onApplyNudge={applyDebtNudge}
+                onDismissNudge={dismissNudge}
+              />
+            )}
+            {tab === 'goals' && (
+              <GoalsTab
+                goals={goals}
+                nudges={activeNudges.filter(n => n.type === 'goal_contribution')}
+                onAdd={() => setShowAddGoal(true)}
+                onDelete={async id => { await VaultDataService.deleteSavingsGoal(id); loadAll(); }}
+                onUpdate={async (id, updates) => { await VaultDataService.updateSavingsGoal(id, updates); loadAll(); }}
+                onApplyNudge={applyGoalNudge}
+                onDismissNudge={dismissNudge}
+              />
+            )}
+            {tab === 'recurring' && (
+              <RecurringTab
+                transactions={transactions}
+                subscriptions={subscriptions}
+                onSave={async s => { await VaultDataService.saveSubscription(s); loadAll(); }}
+                onUpdate={async (id, u) => { await VaultDataService.updateSubscription(id, u); loadAll(); }}
+                onDelete={async id => { await VaultDataService.deleteSubscription(id); loadAll(); }}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
       {/* Modals */}
       <AnimatePresence>
@@ -723,7 +793,6 @@ export function VaultView() {
           />
         )}
       </AnimatePresence>
-    </div>
     </div>
   );
 }
@@ -1336,6 +1405,28 @@ function OverviewTab({ accounts, transactions, allTransactions, timeRange, budge
 
   return (
     <div className="space-y-6">
+      {/* RM-style SUMMARY row */}
+      {(() => {
+        const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+        const bills = transactions.filter(t => isRealExpense(t) && (t.category === 'Bills & Utilities' || t.category === 'Loan Payments')).reduce((s, t) => s + t.amount, 0);
+        const spending = transactions.filter(isRealExpense).reduce((s, t) => s + t.amount, 0) - bills;
+        return (
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'Income', value: `+${fmtFull(income)}`, color: '#00ff88', sub: 'this period' },
+              { label: 'Bills', value: `-${fmtFull(bills)}`, color: '#f87171', sub: 'utilities & loans' },
+              { label: 'Spending', value: `-${fmtFull(spending)}`, color: '#f87171', sub: 'discretionary' },
+            ].map(({ label, value, color, sub }) => (
+              <div key={label} className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <p className="font-mono text-[10px] uppercase tracking-widest mb-1" style={{ color: 'rgba(255,255,255,0.35)' }}>{label}</p>
+                <p className="font-mono text-lg font-bold truncate" style={{ color }}>{value}</p>
+                <p className="font-mono text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.25)' }}>{sub}</p>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* Health Score + Cash Flow */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <HealthScorePanel score={score} breakdown={breakdown} />
@@ -1640,44 +1731,69 @@ function BudgetTab({ budgets, onAdd, onDelete, onUpdate }: {
           onDelete={() => { onDelete(editingBudget.id); setEditingBudget(null); }}
         />
       )}
-      {/* Budget Summary Banner */}
-      <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>Monthly Budget</p>
-            <p className="font-mono text-2xl font-bold">
-              <span className={isOverBudget ? 'text-red-400' : ''} style={isOverBudget ? {} : { color: '#e5e5e5' }}>{fmtFull(totalSpent)}</span>
-              <span className="text-base font-normal" style={{ color: 'rgba(255,255,255,0.3)' }}> / {fmtFull(totalBudgeted)}</span>
-            </p>
+      {/* Left to Spend — RM-style donut */}
+      <div className="p-5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="flex items-center gap-6">
+          {/* Donut ring */}
+          {(() => {
+            const r = 52, strokeW = 11;
+            const circ = 2 * Math.PI * r;
+            const fillPct = Math.min(100, overallPct);
+            const filled = (fillPct / 100) * circ;
+            const ringColor = isOverBudget ? '#ef4444' : overallPct > monthPacingPct + 10 ? '#f59e0b' : '#10b981';
+            const remaining = totalBudgeted - totalSpent;
+            return (
+              <div className="relative flex-shrink-0">
+                <svg width="128" height="128" className="-rotate-90">
+                  <circle cx="64" cy="64" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={strokeW} />
+                  <circle cx="64" cy="64" r={r} fill="none" stroke={ringColor} strokeWidth={strokeW}
+                    strokeDasharray={`${filled} ${circ - filled}`} strokeLinecap="round"
+                    style={{ transition: 'stroke-dasharray 0.6s ease' }} />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <p className="font-mono text-[10px] uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                    {isOverBudget ? 'over by' : 'left'}
+                  </p>
+                  <p className="font-mono text-lg font-bold leading-tight" style={{ color: isOverBudget ? '#ef4444' : '#e5e5e5' }}>
+                    {isOverBudget ? fmtFull(totalSpent - totalBudgeted) : totalBudgeted > 0 ? fmtFull(Math.abs(remaining)) : '—'}
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+          {/* Labels */}
+          <div className="flex-1 space-y-3">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-widest mb-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                {isOverBudget ? 'Over Budget' : 'Left to Spend'}
+              </p>
+              <p className="font-mono text-2xl font-bold" style={{ color: isOverBudget ? '#ef4444' : '#e5e5e5' }}>
+                {totalBudgeted > 0
+                  ? (isOverBudget ? `-${fmtFull(totalSpent - totalBudgeted)}` : fmtFull(totalBudgeted - totalSpent))
+                  : '—'}
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                of {fmtFull(totalBudgeted)} budget
+              </p>
+            </div>
+            <div className="space-y-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+              <div className="flex justify-between">
+                <span>Spent so far</span>
+                <span className="font-mono font-medium" style={{ color: '#e5e5e5' }}>{fmtFull(totalSpent)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Day {dayOfMonth} of {daysInMonth}</span>
+                <span className="font-mono">{monthPacingPct}% through month</span>
+              </div>
+              {budgets.length > 0 && (
+                <div className="flex justify-between">
+                  <span>On pace</span>
+                  <span className="font-mono font-medium text-emerald-400">{onTrackCount}/{budgets.length} categories</span>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="text-right">
-            <p className={cn("font-mono text-2xl font-bold", isOverBudget ? "text-red-400" : "text-emerald-500")}>
-              {overallPct}%
-            </p>
-            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{isOverBudget ? 'over budget' : 'used'}</p>
-          </div>
         </div>
-        <div className="relative h-3 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
-          <div
-            className={cn("h-full rounded-full transition-all duration-500", isOverBudget ? "bg-red-500" : "bg-emerald-500")}
-            style={{ width: `${Math.min(100, overallPct)}%` }}
-          />
-          {/* Month pacing marker */}
-          <div className="absolute top-0 bottom-0 w-0.5" style={{ left: `${monthPacingPct}%`, background: 'rgba(255,255,255,0.4)' }} />
-        </div>
-        <div className="flex justify-between text-xs mt-2" style={{ color: 'rgba(255,255,255,0.35)' }}>
-          <span>Day {dayOfMonth} of {daysInMonth} · {monthPacingPct}% through month</span>
-          {totalBudgeted > 0 && !isOverBudget
-            ? <span>{fmtFull(totalBudgeted - totalSpent)} remaining</span>
-            : totalBudgeted > 0 && <span className="text-red-400">{fmtFull(totalSpent - totalBudgeted)} over</span>
-          }
-        </div>
-        {budgets.length > 0 && (
-          <p className="text-xs mt-1">
-            <span className="text-emerald-500 font-medium">{onTrackCount}/{budgets.length}</span>
-            <span style={{ color: 'rgba(255,255,255,0.35)' }}> categories on pace</span>
-          </p>
-        )}
       </div>
 
       <div className="flex items-center justify-between">
@@ -1756,7 +1872,7 @@ function debtPayoffProjection(balance: number, rate: number, minPayment: number)
     return { months, totalInterest: 0 };
   }
   const monthlyInterest = balance * monthlyRate;
-  if (minPayment <= monthlyInterest) return null; // Never pays off
+  if (minPayment <= monthlyInterest) return null;
   const months = Math.ceil(-Math.log(1 - (monthlyRate * balance) / minPayment) / Math.log(1 + monthlyRate));
   let rem = balance, totalInterest = 0;
   for (let i = 0; i < months && rem > 0; i++) {
@@ -1767,18 +1883,34 @@ function debtPayoffProjection(balance: number, rate: number, minPayment: number)
   return { months, totalInterest: Math.max(0, totalInterest) };
 }
 
-function DebtTab({ debts, onAdd, onDelete, onUpdate, onImport }: {
+function DebtTab({ debts, nudges, onAdd, onDelete, onUpdate, onImport, onApplyNudge, onDismissNudge }: {
   debts: DebtEntry[];
+  nudges: VaultAiNudge[];
   onAdd: () => void;
   onDelete: (id: string) => void;
   onUpdate: (id: string, updates: Partial<DebtEntry>) => void;
   onImport: (rows: Omit<DebtEntry, 'id'>[]) => void;
+  onApplyNudge: (nudge: VaultAiNudge) => void;
+  onDismissNudge: (id: string) => void;
 }) {
   const totalDebt = debts.reduce((s, d) => s + d.balance, 0);
   const totalOriginal = debts.reduce((s, d) => s + d.originalBalance, 0);
   const overallPct = pct(totalOriginal - totalDebt, totalOriginal);
+  const monthlyTotal = debts.reduce((s, d) => s + d.minimumPayment, 0);
   const [showImport, setShowImport] = useState(false);
   const [editingDebt, setEditingDebt] = useState<DebtEntry | null>(null);
+  const [quickPayDebt, setQuickPayDebt] = useState<DebtEntry | null>(null);
+  const [quickPayAmt, setQuickPayAmt] = useState('');
+
+  const handleQuickPay = async () => {
+    if (!quickPayDebt) return;
+    const amt = parseFloat(quickPayAmt);
+    if (!amt || amt <= 0) return;
+    const newBalance = Math.max(0, quickPayDebt.balance - amt);
+    await onUpdate(quickPayDebt.id, { balance: newBalance });
+    setQuickPayDebt(null);
+    setQuickPayAmt('');
+  };
 
   return (
     <div className="space-y-4">
@@ -1796,32 +1928,115 @@ function DebtTab({ debts, onAdd, onDelete, onUpdate, onImport }: {
           onDelete={() => { onDelete(editingDebt.id); setEditingDebt(null); }}
         />
       )}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>Total Debt Remaining</p>
-          <p className="font-mono text-2xl font-bold text-red-400">{fmtFull(totalDebt)}</p>
-          {totalOriginal > 0 && (
-            <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>{overallPct}% paid off overall</p>
-          )}
+
+      {/* AI Nudges */}
+      {nudges.map(nudge => (
+        <div key={nudge.id} className="flex items-start gap-3 p-4 rounded-2xl"
+          style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.25)' }}>
+          <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-400" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-amber-300">{nudge.message}</p>
+            {nudge.debtName && nudge.suggestedBalance !== undefined && (
+              <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                {nudge.debtName}: {fmtFull(nudge.amount)} payment → new balance {fmtFull(nudge.suggestedBalance)}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button onClick={() => onApplyNudge(nudge)}
+              className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-all"
+              style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)' }}>
+              Apply
+            </button>
+            <button onClick={() => onDismissNudge(nudge.id)}
+              className="p-1 rounded-lg transition-all"
+              style={{ color: 'rgba(255,255,255,0.3)' }}>
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
+      ))}
+
+      {/* Header stats */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="p-4 rounded-2xl" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+          <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Total Remaining</p>
+          <p className="font-mono text-xl font-bold text-red-400">{fmtFull(totalDebt)}</p>
+          {totalOriginal > 0 && <p className="text-xs mt-0.5 text-red-400/60">{overallPct}% paid off</p>}
+        </div>
+        <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Monthly Payments</p>
+          <p className="font-mono text-xl font-bold" style={{ color: '#e5e5e5' }}>{fmtFull(monthlyTotal)}</p>
+          <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>minimum/mo</p>
+        </div>
+        <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Debts Tracked</p>
+          <p className="font-mono text-xl font-bold" style={{ color: '#e5e5e5' }}>{debts.length}</p>
+          <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>accounts</p>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold" style={{ color: '#e5e5e5' }}>Your Debts</p>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowImport(true)}
-            className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all"
             style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}
             onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'}
             onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
-            <Upload className="w-4 h-4" /> Import CSV
+            <Upload className="w-3.5 h-3.5" /> CSV
           </button>
           <button onClick={onAdd}
-            className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-mono font-medium"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
             style={{ background: '#00ff88', color: '#000' }}>
-            <Plus className="w-4 h-4" /> Add Debt
+            <Plus className="w-3.5 h-3.5" /> Add Debt
           </button>
         </div>
       </div>
 
+      {/* Quick pay modal */}
+      {quickPayDebt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}
+          onClick={() => setQuickPayDebt(null)}>
+          <div className="w-full max-w-sm p-5 rounded-2xl space-y-4" style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)' }}
+            onClick={e => e.stopPropagation()}>
+            <p className="font-semibold text-white">Record Payment — {quickPayDebt.name}</p>
+            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+              Current balance: <span className="text-red-400 font-mono">{fmtFull(quickPayDebt.balance)}</span>
+            </p>
+            <input
+              type="number"
+              value={quickPayAmt}
+              onChange={e => setQuickPayAmt(e.target.value)}
+              placeholder={`Payment amount (min. ${fmtFull(quickPayDebt.minimumPayment)})`}
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none font-mono"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#e5e5e5', caretColor: '#00ff88' }}
+              autoFocus
+              onKeyDown={e => e.key === 'Enter' && handleQuickPay()}
+            />
+            {quickPayAmt && parseFloat(quickPayAmt) > 0 && (
+              <p className="text-xs text-emerald-400">
+                New balance: {fmtFull(Math.max(0, quickPayDebt.balance - parseFloat(quickPayAmt)))}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button onClick={handleQuickPay}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+                style={{ background: '#00ff88', color: '#000' }}>
+                Record Payment
+              </button>
+              <button onClick={() => setQuickPayDebt(null)}
+                className="px-4 py-2.5 rounded-xl text-sm transition-all"
+                style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {debts.length === 0
-        ? <EmptyState icon={<TrendingDown className="w-8 h-8" />} label="No debts tracked" sub="Add your debts to see payoff progress" action="Add Debt" onAction={onAdd} />
+        ? <EmptyState icon={<TrendingDown className="w-8 h-8" />} label="No debts tracked" sub="Add your debts to see payoff timelines and track every payment" action="Add Debt" onAction={onAdd} />
         : (
           <div className="space-y-3">
             {debts.map(debt => {
@@ -1829,50 +2044,71 @@ function DebtTab({ debts, onAdd, onDelete, onUpdate, onImport }: {
               const progress = pct(paid, debt.originalBalance);
               const projection = debtPayoffProjection(debt.balance, debt.interestRate, debt.minimumPayment);
               const monthlyInterest = debt.balance * (debt.interestRate / 100) / 12;
+              const payoffDate = projection
+                ? new Date(Date.now() + projection.months * 30.44 * 86400000).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                : null;
               return (
-                <div
-                  key={debt.id}
-                  className="p-4 rounded-xl cursor-pointer transition-all group"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'}
-                  onClick={() => setEditingDebt(debt)}
-                >
-                  <div className="flex items-center justify-between mb-3">
+                <div key={debt.id} className="p-4 rounded-2xl transition-all"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  {/* Top row */}
+                  <div className="flex items-start justify-between mb-3">
                     <div>
-                      <p className="font-medium" style={{ color: '#e5e5e5' }}>{debt.name}</p>
-                      <p className="text-xs capitalize" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                        {debt.type.replace('_', ' ')} · {debt.interestRate}% APR
+                      <p className="font-semibold" style={{ color: '#e5e5e5' }}>{debt.name}</p>
+                      <p className="text-xs capitalize mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                        {debt.type.replace(/_/g, ' ')} · {debt.interestRate}% APR
                       </p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <div className="text-right">
                         <p className="font-mono font-bold text-red-400">{fmtFull(debt.balance)}</p>
-                        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>of {fmtFull(debt.originalBalance)}</p>
+                        <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>of {fmtFull(debt.originalBalance)}</p>
                       </div>
-                      <Pencil className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-all" style={{ color: 'rgba(255,255,255,0.35)' }} />
+                      <button onClick={() => setQuickPayDebt(debt)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all"
+                        style={{ background: 'rgba(0,255,136,0.1)', color: '#00ff88', border: '1px solid rgba(0,255,136,0.2)' }}>
+                        <Zap className="w-3 h-3" /> Pay
+                      </button>
+                      <button onClick={() => setEditingDebt(debt)}
+                        className="p-1.5 rounded-lg transition-all"
+                        style={{ color: 'rgba(255,255,255,0.3)' }}>
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
-                  <div className="h-2 rounded-full overflow-hidden mb-2" style={{ background: 'rgba(255,255,255,0.07)' }}>
-                    <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, backgroundColor: debt.color || '#10b981' }} />
+
+                  {/* Progress bar with paid-off marker */}
+                  <div className="relative h-2.5 rounded-full overflow-hidden mb-2" style={{ background: 'rgba(255,255,255,0.07)' }}>
+                    <div className="h-full rounded-full transition-all duration-700"
+                      style={{ width: `${progress}%`, backgroundColor: debt.color || '#10b981' }} />
                   </div>
-                  <div className="flex justify-between text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                    <span>{progress}% paid off · {fmtFull(paid)} cleared</span>
-                    <span>Min. {fmtFull(debt.minimumPayment)}/mo</span>
+
+                  {/* Stats row */}
+                  <div className="flex items-center justify-between text-xs flex-wrap gap-2">
+                    <div className="flex items-center gap-3" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                      <span className="text-emerald-400 font-semibold">{progress}% paid</span>
+                      <span>{fmtFull(paid)} cleared</span>
+                    </div>
+                    <span style={{ color: 'rgba(255,255,255,0.4)' }}>Min {fmtFull(debt.minimumPayment)}/mo</span>
                   </div>
+
+                  {/* Projection row */}
                   {projection && (
-                    <div className="flex items-center gap-3 mt-2 pt-2 text-xs" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-                      <span className="flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                        <CalendarClock className="w-3 h-3" />
-                        {projection.months < 120
-                          ? `Payoff in ~${projection.months} mo`
-                          : `${Math.round(projection.months / 12)} yrs`}
-                      </span>
+                    <div className="flex items-center gap-4 mt-2.5 pt-2.5 flex-wrap" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div className="flex items-center gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                        <CalendarClock className="w-3 h-3 text-blue-400" />
+                        <span>Payoff <span className="text-blue-300 font-semibold">{payoffDate}</span></span>
+                        <span className="text-blue-400/60">({projection.months} mo)</span>
+                      </div>
                       {projection.totalInterest > 0 && (
-                        <span className="text-amber-500">{fmtFull(projection.totalInterest)} in interest</span>
+                        <div className="text-xs">
+                          <span className="text-amber-500 font-semibold">{fmtFull(projection.totalInterest)}</span>
+                          <span style={{ color: 'rgba(255,255,255,0.35)' }}> in interest</span>
+                        </div>
                       )}
                       {monthlyInterest > 0 && (
-                        <span style={{ color: 'rgba(255,255,255,0.4)' }}>{fmtFull(monthlyInterest)}/mo interest</span>
+                        <span className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                          {fmtFull(monthlyInterest)}/mo accruing
+                        </span>
                       )}
                     </div>
                   )}
@@ -1887,13 +2123,32 @@ function DebtTab({ debts, onAdd, onDelete, onUpdate, onImport }: {
 }
 
 // ── GOALS TAB ─────────────────────────────────────────────────────────────────
-function GoalsTab({ goals, onAdd, onDelete, onUpdate }: {
+function GoalsTab({ goals, nudges, onAdd, onDelete, onUpdate, onApplyNudge, onDismissNudge }: {
   goals: SavingsGoal[];
+  nudges: VaultAiNudge[];
   onAdd: () => void;
   onDelete: (id: string) => void;
   onUpdate: (id: string, updates: Partial<SavingsGoal>) => void;
+  onApplyNudge: (nudge: VaultAiNudge) => void;
+  onDismissNudge: (id: string) => void;
 }) {
   const [editingGoal, setEditingGoal] = useState<SavingsGoal | null>(null);
+  const [quickAddGoal, setQuickAddGoal] = useState<SavingsGoal | null>(null);
+  const [quickAddAmt, setQuickAddAmt] = useState('');
+
+  const totalSaved = goals.reduce((s, g) => s + g.currentAmount, 0);
+  const totalTarget = goals.reduce((s, g) => s + g.targetAmount, 0);
+  const completedCount = goals.filter(g => g.currentAmount >= g.targetAmount).length;
+
+  const handleQuickAdd = async () => {
+    if (!quickAddGoal) return;
+    const amt = parseFloat(quickAddAmt);
+    if (!amt || amt <= 0) return;
+    const newAmount = quickAddGoal.currentAmount + amt;
+    await onUpdate(quickAddGoal.id, { currentAmount: newAmount });
+    setQuickAddGoal(null);
+    setQuickAddAmt('');
+  };
 
   return (
     <div className="space-y-4">
@@ -1905,22 +2160,111 @@ function GoalsTab({ goals, onAdd, onDelete, onUpdate }: {
           onDelete={() => { onDelete(editingGoal.id); setEditingGoal(null); }}
         />
       )}
+
+      {/* AI Nudges */}
+      {nudges.map(nudge => (
+        <div key={nudge.id} className="flex items-start gap-3 p-4 rounded-2xl"
+          style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.25)' }}>
+          <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0 text-emerald-400" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-emerald-300">{nudge.message}</p>
+            {nudge.goalName && nudge.suggestedAmount !== undefined && (
+              <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                {nudge.goalName}: +{fmtFull(nudge.amount)} → new total {fmtFull(nudge.suggestedAmount)}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button onClick={() => onApplyNudge(nudge)}
+              className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-all"
+              style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)' }}>
+              Apply
+            </button>
+            <button onClick={() => onDismissNudge(nudge.id)}
+              className="p-1 rounded-lg" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {/* Summary stats */}
+      {goals.length > 0 && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="p-4 rounded-2xl" style={{ background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.15)' }}>
+            <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Total Saved</p>
+            <p className="font-mono text-xl font-bold text-emerald-400">{fmtFull(totalSaved)}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>of {fmtFull(totalTarget)}</p>
+          </div>
+          <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Goals</p>
+            <p className="font-mono text-xl font-bold" style={{ color: '#e5e5e5' }}>{goals.length}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>active</p>
+          </div>
+          <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Completed</p>
+            <p className="font-mono text-xl font-bold text-emerald-400">{completedCount}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>goals hit</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
-        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>
-          {goals.length} goal{goals.length !== 1 ? 's' : ''} ·{' '}
-          {fmtFull(goals.reduce((s, g) => s + g.currentAmount, 0))} saved total
-        </p>
+        <p className="text-sm font-semibold" style={{ color: '#e5e5e5' }}>Savings Goals</p>
         <button onClick={onAdd}
-          className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-mono font-medium"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
           style={{ background: '#00ff88', color: '#000' }}>
-          <Plus className="w-4 h-4" /> Add Goal
+          <Plus className="w-3.5 h-3.5" /> Add Goal
         </button>
       </div>
 
+      {/* Quick deposit modal */}
+      {quickAddGoal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}
+          onClick={() => setQuickAddGoal(null)}>
+          <div className="w-full max-w-sm p-5 rounded-2xl space-y-4" style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)' }}
+            onClick={e => e.stopPropagation()}>
+            <p className="font-semibold text-white">Add to {quickAddGoal.emoji} {quickAddGoal.name}</p>
+            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+              Current: <span className="text-emerald-400 font-mono">{fmtFull(quickAddGoal.currentAmount)}</span>
+              {' '}/ Target: <span className="font-mono" style={{ color: 'rgba(255,255,255,0.6)' }}>{fmtFull(quickAddGoal.targetAmount)}</span>
+            </p>
+            <input
+              type="number"
+              value={quickAddAmt}
+              onChange={e => setQuickAddAmt(e.target.value)}
+              placeholder="Amount to add..."
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none font-mono"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#e5e5e5', caretColor: '#00ff88' }}
+              autoFocus
+              onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
+            />
+            {quickAddAmt && parseFloat(quickAddAmt) > 0 && (
+              <p className="text-xs text-emerald-400">
+                New total: {fmtFull(quickAddGoal.currentAmount + parseFloat(quickAddAmt))}
+                {' '}({Math.min(100, Math.round(((quickAddGoal.currentAmount + parseFloat(quickAddAmt)) / quickAddGoal.targetAmount) * 100))}%)
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button onClick={handleQuickAdd}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+                style={{ background: '#00ff88', color: '#000' }}>
+                Add Funds
+              </button>
+              <button onClick={() => setQuickAddGoal(null)}
+                className="px-4 py-2.5 rounded-xl text-sm"
+                style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {goals.length === 0
-        ? <EmptyState icon={<PiggyBank className="w-8 h-8" />} label="No savings goals" sub="Set a goal and track your progress" action="Add Goal" onAction={onAdd} />
+        ? <EmptyState icon={<PiggyBank className="w-8 h-8" />} label="No savings goals" sub="Set a goal and watch your progress grow" action="Add Goal" onAction={onAdd} />
         : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {goals.map(goal => {
               const progress = pct(goal.currentAmount, goal.targetAmount);
               const done = goal.currentAmount >= goal.targetAmount;
@@ -1930,51 +2274,71 @@ function GoalsTab({ goals, onAdd, onDelete, onUpdate }: {
                 ? Math.max(1, Math.round((deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30)))
                 : null;
               const monthlyNeeded = monthsLeft && remaining > 0 ? remaining / monthsLeft : null;
+              const isOnTrack = monthlyNeeded
+                ? (goal.currentAmount / goal.targetAmount) >= ((deadlineDate!.getTime() - Date.now() - monthsLeft! * 30.44 * 86400000) / (deadlineDate!.getTime() - (goal.deadline ? new Date(goal.deadline).getTime() : Date.now()) + monthsLeft! * 30.44 * 86400000))
+                : true;
+              // SVG ring
+              const r = 38, sw = 7, circ = 2 * Math.PI * r;
+              const filled = (Math.min(100, progress) / 100) * circ;
+              const ringColor = done ? '#10b981' : progress > 75 ? '#00ff88' : progress > 40 ? '#3b82f6' : '#f59e0b';
+
               return (
-                <div
-                  key={goal.id}
-                  className="p-4 rounded-xl cursor-pointer transition-all group"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'}
-                  onClick={() => setEditingGoal(goal)}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl">{goal.emoji}</span>
-                      <div>
-                        <p className="font-medium text-sm" style={{ color: '#e5e5e5' }}>{goal.name}</p>
-                        {goal.deadline && (
-                          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                            by {new Date(goal.deadline).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                            {monthsLeft && <span className="ml-1">({monthsLeft} mo left)</span>}
-                          </p>
-                        )}
+                <div key={goal.id} className="p-5 rounded-2xl transition-all"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${done ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.07)'}` }}>
+                  <div className="flex items-start gap-4">
+                    {/* Ring */}
+                    <div className="relative flex-shrink-0">
+                      <svg width="96" height="96" className="-rotate-90">
+                        <circle cx="48" cy="48" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={sw} />
+                        <circle cx="48" cy="48" r={r} fill="none" stroke={ringColor} strokeWidth={sw}
+                          strokeDasharray={`${filled} ${circ - filled}`} strokeLinecap="round"
+                          style={{ transition: 'stroke-dasharray 0.6s ease' }} />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-xl leading-none">{goal.emoji || '🎯'}</span>
+                        <span className="font-mono text-xs font-bold mt-0.5" style={{ color: ringColor }}>{progress}%</span>
                       </div>
                     </div>
-                    <Pencil className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-all" style={{ color: 'rgba(255,255,255,0.35)' }} />
-                  </div>
 
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="font-semibold" style={{ color: '#e5e5e5' }}>{fmtFull(goal.currentAmount)}</span>
-                    <span style={{ color: 'rgba(255,255,255,0.4)' }}>{fmtFull(goal.targetAmount)}</span>
-                  </div>
-                  <div className="h-2 rounded-full overflow-hidden mb-2" style={{ background: 'rgba(255,255,255,0.07)' }}>
-                    <div
-                      className={cn("h-full rounded-full transition-all", done ? "bg-emerald-500" : "")}
-                      style={{ width: `${progress}%`, backgroundColor: done ? undefined : goal.color }}
-                    />
-                  </div>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between mb-1">
+                        <p className="font-semibold text-sm" style={{ color: '#e5e5e5' }}>{goal.name}</p>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button onClick={() => setQuickAddGoal(goal)}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                            style={{ background: 'rgba(0,255,136,0.1)', color: '#00ff88', border: '1px solid rgba(0,255,136,0.2)' }}>
+                            <Plus className="w-3 h-3" /> Add
+                          </button>
+                          <button onClick={() => setEditingGoal(goal)}
+                            className="p-1 rounded-lg" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
 
-                  <div className="flex items-center justify-between text-xs">
-                    <span style={{ color: 'rgba(255,255,255,0.4)' }}>{progress}% · {fmtFull(remaining)} to go</span>
-                    {done ? (
-                      <span className="text-emerald-500 flex items-center gap-1">
-                        <Check className="w-3 h-3" /> Complete!
-                      </span>
-                    ) : monthlyNeeded ? (
-                      <span style={{ color: '#00ff88' }}>{fmtFull(monthlyNeeded)}/mo needed</span>
-                    ) : null}
+                      <p className="font-mono text-xs font-bold text-emerald-400">{fmtFull(goal.currentAmount)}</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                        of {fmtFull(goal.targetAmount)}
+                        {done && <span className="text-emerald-400 ml-1">✓ Complete!</span>}
+                      </p>
+
+                      {goal.deadline && (
+                        <p className="text-xs mt-1.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                          by {new Date(goal.deadline).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                          {monthsLeft && <span className="ml-1">· {monthsLeft} mo left</span>}
+                        </p>
+                      )}
+
+                      {!done && monthlyNeeded && (
+                        <div className="mt-2 px-2 py-1.5 rounded-lg inline-flex items-center gap-1.5"
+                          style={{ background: isOnTrack ? 'rgba(0,255,136,0.08)' : 'rgba(251,191,36,0.08)' }}>
+                          <span className="text-[11px] font-semibold" style={{ color: isOnTrack ? '#00ff88' : '#fbbf24' }}>
+                            {fmtFull(monthlyNeeded)}/mo needed
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -2162,7 +2526,7 @@ function EmptyState({ icon, label, sub, action, onAction }: {
   );
 }
 
-// ── SUBSCRIPTIONS TAB ─────────────────────────────────────────────────────────
+// ── RECURRING TAB ─────────────────────────────────────────────────────────────
 const FREQ_COLOR: Record<string, string> = {
   monthly: '#3b82f6', weekly: '#10b981', 'bi-weekly': '#8b5cf6',
   quarterly: '#f59e0b', annual: '#6b7280',
@@ -2177,83 +2541,145 @@ function toMonthly(amount: number, freq: string): number {
   return amount;
 }
 
-function SubscriptionsTab({ transactions, subscriptions, onSave, onUpdate, onDelete }: {
+function RecurringCalendar({ upcoming }: { upcoming: UpcomingPayment[] }) {
+  const [calMonth, setCalMonth] = useState(() => { const d = new Date(); d.setDate(1); return d; });
+  const year = calMonth.getFullYear();
+  const month = calMonth.getMonth();
+  const firstDow = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = new Date();
+  const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+  const paymentsOn = (day: number) => upcoming.filter(p => {
+    const d = new Date(p.nextDate);
+    return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
+  });
+  const monthLabel = calMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <button onClick={() => setCalMonth(new Date(year, month - 1, 1))}
+          className="px-3 py-1.5 rounded-lg font-mono text-xs transition-all"
+          style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)' }}>
+          ← {new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'short' })}
+        </button>
+        <span className="font-semibold text-sm text-white">{monthLabel}</span>
+        <button onClick={() => setCalMonth(new Date(year, month + 1, 1))}
+          className="px-3 py-1.5 rounded-lg font-mono text-xs transition-all"
+          style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)' }}>
+          {new Date(year, month + 1, 1).toLocaleDateString('en-US', { month: 'short' })} →
+        </button>
+      </div>
+      <div className="grid grid-cols-7 mb-1">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+          <div key={d} className="text-center font-mono text-[10px] uppercase tracking-widest py-1" style={{ color: 'rgba(255,255,255,0.25)' }}>{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((day, i) => {
+          if (!day) return <div key={i} className="aspect-square" />;
+          const pms = paymentsOn(day);
+          const isToday = isCurrentMonth && day === today.getDate();
+          const isPast = isCurrentMonth ? day < today.getDate() : new Date(year, month, day) < today;
+          const total = pms.reduce((s, p) => s + p.amount, 0);
+          return (
+            <div key={i} className="flex flex-col items-center py-1.5 rounded-xl gap-1"
+              style={{
+                opacity: isPast && !isToday ? 0.3 : 1,
+                background: isToday ? 'rgba(239,68,68,0.08)' : pms.length ? 'rgba(124,58,237,0.06)' : 'rgba(255,255,255,0.02)',
+                border: isToday ? '1px solid rgba(239,68,68,0.4)' : pms.length ? '1px solid rgba(124,58,237,0.15)' : '1px solid rgba(255,255,255,0.04)',
+                minHeight: 64,
+              }}>
+              <span className="font-mono text-xs font-semibold" style={{ color: isToday ? '#ef4444' : 'rgba(255,255,255,0.7)' }}>{day}</span>
+              {pms.slice(0, 2).map((p, j) => {
+                const letter = (p.name || '?')[0].toUpperCase();
+                const hue = (letter.charCodeAt(0) * 137) % 360;
+                return (
+                  <div key={j} className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0"
+                    style={{ background: p.color || `hsl(${hue},65%,50%)` }}>
+                    {letter}
+                  </div>
+                );
+              })}
+              {pms.length > 0 && (
+                <span className="font-mono text-[8px] font-semibold" style={{ color: '#f59e0b' }}>${Math.round(total)}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RecurringTab({ transactions, subscriptions, onSave, onUpdate, onDelete }: {
   transactions: VaultTransaction[];
   subscriptions: Subscription[];
   onSave: (s: Omit<Subscription, 'id'>) => void;
   onUpdate: (id: string, updates: Partial<Subscription>) => void;
   onDelete: (id: string) => void;
 }) {
+  const [view, setView] = useState<'upcoming' | 'all' | 'calendar'>('upcoming');
   const [editingSub, setEditingSub] = useState<Subscription | null>(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [activeTab, setActiveTab] = useState<'saved' | 'detected'>('saved');
+  const [search, setSearch] = useState('');
 
-  interface DetectedItem {
-    merchant: string; amount: number; frequency: string; estimatedMonthly: number;
-    lastDate: Date; category?: string; count?: number;
-    knownName?: string; knownEmoji?: string; knownColor?: string;
-    emoji?: string; color?: string;
-  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  // Auto-detected from transaction history + known sub matching
-  const detected: DetectedItem[] = detectRecurring(transactions).map(r => {
+  // All upcoming payments (45-day window, sorted by date)
+  const upcoming = buildUpcoming(transactions, subscriptions);
+
+  // Split into next-7 and coming-later
+  const next7 = upcoming.filter(p => {
+    const diff = Math.ceil((p.nextDate.getTime() - today.getTime()) / 86400000);
+    return diff >= 0 && diff <= 7;
+  });
+  const later = upcoming.filter(p => {
+    const diff = Math.ceil((p.nextDate.getTime() - today.getTime()) / 86400000);
+    return diff > 7;
+  });
+  const next7Total = next7.reduce((s, p) => s + p.amount, 0);
+  const laterTotal = later.reduce((s, p) => s + p.amount, 0);
+
+  // 7-day calendar strip
+  const calDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const payments = upcoming.filter(u => {
+      const nd = new Date(u.nextDate);
+      nd.setHours(0, 0, 0, 0);
+      return nd.getTime() === d.getTime();
+    });
+    return { date: d, payments, idx: i };
+  });
+
+  const daysLabel = (d: Date) => {
+    const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+    if (diff === 0) return 'Today';
+    if (diff === 1) return 'Tomorrow';
+    return `in ${diff} days`;
+  };
+
+  // Detected recurring for "All" view
+  const detected = detectRecurring(transactions).map(r => {
     const known = matchKnownSub(r.merchant);
     return { ...r, knownName: known?.name, knownEmoji: known?.emoji, knownColor: known?.color };
   });
 
-  // Enhance detected: also scan all transactions against known subscription list
-  const knownMatches: DetectedItem[] = [];
-  for (const known of KNOWN_SUBS) {
-    const matching = transactions.filter(t =>
-      t.type === 'expense' &&
-      known.keywords.some(kw => (t.merchant || t.description || '').toLowerCase().includes(kw))
-    );
-    if (matching.length >= 1) {
-      const sorted = [...matching].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      const avgAmount = matching.reduce((s, t) => s + t.amount, 0) / matching.length;
-      if (!detected.find(d => d.merchant.toLowerCase().includes(known.keywords[0]))) {
-        knownMatches.push({
-          merchant: known.name, emoji: known.emoji, amount: avgAmount,
-          frequency: 'monthly', estimatedMonthly: avgAmount,
-          knownName: known.name, knownEmoji: known.emoji, knownColor: known.color,
-          lastDate: new Date(sorted[0].date), color: known.color, category: known.category,
-        });
-      }
-    }
-  }
-
-  // Also catch "RECURRING PAYMENT AUTHORIZED" style transactions that weren't detected by interval
-  const recurringKeywordMatches: DetectedItem[] = [];
-  const seenMerchants = new Set([
-    ...detected.map(d => d.merchant.toLowerCase()),
-    ...knownMatches.map(d => d.merchant.toLowerCase()),
-  ]);
-  transactions
-    .filter(t => t.type === 'expense' && isRecurringTx(t))
-    .forEach(t => {
-      const key = (t.merchant || t.description || '').toLowerCase().slice(0, 30);
-      if (!seenMerchants.has(key)) {
-        seenMerchants.add(key);
-        const known = matchKnownSub(t.merchant || t.description || '');
-        recurringKeywordMatches.push({
-          merchant: known?.name || t.merchant || t.description || 'Unknown',
-          emoji: known?.emoji, amount: t.amount,
-          frequency: 'monthly', estimatedMonthly: t.amount,
-          knownName: known?.name, knownEmoji: known?.emoji, knownColor: known?.color,
-          lastDate: new Date(t.date), color: known?.color, category: t.category || known?.category,
-          count: 1,
-        });
-      }
-    });
-
-  const allDetected = [...detected, ...knownMatches, ...recurringKeywordMatches]
-    .sort((a, b) => b.estimatedMonthly - a.estimatedMonthly);
-
-  const savedMonthly = subscriptions.filter(s => s.isActive).reduce((s, sub) => s + toMonthly(sub.amount, sub.frequency), 0);
-  const savedAnnual = savedMonthly * 12;
+  // Saved subs grouped (filtered by search in all-recurring view)
+  const activeSubs = subscriptions.filter(s => s.isActive && (
+    !search || s.name.toLowerCase().includes(search.toLowerCase()) || (s.category || '').toLowerCase().includes(search.toLowerCase())
+  ));
+  const bills = activeSubs.filter(s => s.category === 'Bills & Utilities');
+  const otherSubs = activeSubs.filter(s => s.category !== 'Bills & Utilities');
+  const savedMonthly = activeSubs.reduce((s, sub) => s + toMonthly(sub.amount, sub.frequency), 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {(editingSub || showAdd) && (
         <EditSubscriptionModal
           subscription={editingSub}
@@ -2264,152 +2690,344 @@ function SubscriptionsTab({ transactions, subscriptions, onSave, onUpdate, onDel
         />
       )}
 
-      {/* Summary */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="p-4 rounded-xl text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-          <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Tracked</p>
-          <p className="font-mono text-2xl font-bold" style={{ color: '#e5e5e5' }}>{subscriptions.filter(s => s.isActive).length}</p>
-          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>active subs</p>
-        </div>
-        <div className="p-4 rounded-xl text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-          <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Monthly</p>
-          <p className="font-mono text-2xl font-bold text-red-400">{fmtFull(savedMonthly)}</p>
-          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>per month</p>
-        </div>
-        <div className="p-4 rounded-xl text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-          <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Annual</p>
-          <p className="font-mono text-2xl font-bold text-amber-500">{fmtFull(savedAnnual)}</p>
-          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>per year</p>
-        </div>
-      </div>
-
-      {/* Tabs + Add */}
+      {/* View toggle + Add */}
       <div className="flex items-center justify-between">
-        <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)' }}>
-          {(['saved', 'detected'] as const).map(t => (
-            <button key={t} onClick={() => setActiveTab(t)}
-              className="px-3 py-1.5 rounded-lg text-sm capitalize transition-all font-mono"
-              style={activeTab === t
-                ? { background: 'rgba(0,255,136,0.12)', color: '#00ff88', border: '1px solid rgba(0,255,136,0.25)' }
+        <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          {([['upcoming', 'Upcoming'], ['all', 'All Recurring'], ['calendar', 'Calendar']] as const).map(([v, label]) => (
+            <button key={v} onClick={() => setView(v)}
+              className="px-4 py-1.5 rounded-lg text-sm transition-all font-mono"
+              style={view === v
+                ? { background: 'rgba(124,58,237,0.15)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.3)' }
                 : { color: 'rgba(255,255,255,0.4)' }}>
-              {t === 'saved' ? `My Subs (${subscriptions.length})` : `Detected (${allDetected.length})`}
+              {label}
             </button>
           ))}
         </div>
         <button onClick={() => setShowAdd(true)}
-          className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-mono font-medium"
-          style={{ background: '#00ff88', color: '#000' }}>
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-mono font-medium"
+          style={{ background: 'rgba(124,58,237,0.2)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.3)' }}>
           <Plus className="w-4 h-4" /> Add
         </button>
       </div>
 
-      {activeTab === 'saved' && (
-        subscriptions.length === 0
-          ? <EmptyState icon={<Repeat className="w-8 h-8" />} label="No subscriptions tracked" sub="Add your subscriptions manually or confirm detected ones" action="Add Subscription" onAction={() => setShowAdd(true)} />
-          : (
-            <div className="space-y-2">
-              {subscriptions.map(sub => (
-                <div
-                  key={sub.id}
-                  className="flex items-center justify-between p-3 rounded-xl cursor-pointer transition-colors group"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'}
-                  onClick={() => setEditingSub(sub)}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg" style={{ backgroundColor: (sub.color || '#6b7280') + '20' }}>
-                      {sub.emoji || '💳'}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm truncate" style={{ color: '#e5e5e5' }}>{sub.name}</p>
-                        {!sub.isActive && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.4)' }}>Inactive</span>}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                        <span className="capitalize px-1.5 py-0.5 rounded-md" style={{ backgroundColor: (FREQ_COLOR[sub.frequency] || '#6b7280') + '20', color: FREQ_COLOR[sub.frequency] || '#6b7280' }}>
-                          {sub.frequency}
-                        </span>
-                        <span>{sub.category}</span>
-                        {sub.nextBillingDate && <span>· next {new Date(sub.nextBillingDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right flex-shrink-0 ml-3">
-                    <p className="font-semibold text-sm" style={{ color: '#e5e5e5' }}>{fmtFull(sub.amount)}</p>
-                    {sub.frequency !== 'monthly' && (
-                      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>~{fmtFull(toMonthly(sub.amount, sub.frequency))}/mo</p>
-                    )}
-                    <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 ml-auto mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )
-      )}
-
-      {activeTab === 'detected' && (
-        allDetected.length === 0
-          ? <EmptyState icon={<Repeat className="w-8 h-8" />} label="No recurring charges detected" sub="Sync more transactions to detect subscriptions" />
-          : (
-            <div className="space-y-2">
-              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>Auto-detected · click "Confirm" to add to your tracked subscriptions</p>
-              {allDetected.map((r, i) => {
-                const alreadySaved = subscriptions.some(s =>
-                  s.name.toLowerCase().includes((r as any).knownName?.toLowerCase() || '') ||
-                  (s.merchantPattern && r.merchant?.toLowerCase().includes(s.merchantPattern.toLowerCase()))
-                );
+      {/* ── UPCOMING VIEW ── */}
+      {view === 'upcoming' && (
+        <div className="space-y-6">
+          {/* 7-day calendar strip */}
+          <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <p className="font-mono text-[10px] uppercase tracking-widest mb-4" style={{ color: 'rgba(255,255,255,0.3)' }}>Next 7 Days</p>
+            <div className="grid grid-cols-7 gap-2">
+              {calDays.map(({ date, payments, idx }) => {
+                const isToday = idx === 0;
+                const hasPayment = payments.length > 0;
+                const totalAmt = payments.reduce((s, p) => s + p.amount, 0);
                 return (
-                  <div key={i} className="flex items-center justify-between p-3 rounded-xl"
-                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg"
-                        style={{ backgroundColor: ((r as any).knownColor || FREQ_COLOR[r.frequency] || '#6b7280') + '20' }}>
-                        {(r as any).knownEmoji || (r as any).emoji || '🔄'}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-medium text-sm truncate" style={{ color: '#e5e5e5' }}>{(r as any).knownName || r.merchant}</p>
-                        <div className="flex items-center gap-2 text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                          <span className="capitalize px-1.5 py-0.5 rounded-md" style={{ backgroundColor: (FREQ_COLOR[r.frequency] || '#6b7280') + '20', color: FREQ_COLOR[r.frequency] || '#6b7280' }}>
-                            {r.frequency}
-                          </span>
-                          {(r as any).category && <span>{(r as any).category}</span>}
-                          {'count' in r && <span>· {(r as any).count} charges</span>}
-                        </div>
-                      </div>
+                  <div key={idx} className="flex flex-col items-center gap-1.5">
+                    <span className="font-mono text-[10px] uppercase font-medium"
+                      style={{ color: isToday ? '#f87171' : 'rgba(255,255,255,0.3)' }}>
+                      {date.toLocaleDateString('en-US', { weekday: 'short' })}
+                    </span>
+                    <div className="w-full aspect-square rounded-xl flex items-center justify-center font-mono text-sm font-bold"
+                      style={{
+                        background: isToday ? 'rgba(248,113,113,0.15)' : hasPayment ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.03)',
+                        border: isToday ? '1px solid rgba(248,113,113,0.5)' : hasPayment ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(255,255,255,0.06)',
+                        color: isToday ? '#f87171' : hasPayment ? '#fbbf24' : 'rgba(255,255,255,0.25)',
+                      }}>
+                      {date.getDate()}
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                      <div className="text-right">
-                        <p className="font-semibold text-sm" style={{ color: '#e5e5e5' }}>{fmtFull(r.amount)}</p>
-                        {r.frequency !== 'monthly' && (
-                          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>~{fmtFull(r.estimatedMonthly)}/mo</p>
-                        )}
-                      </div>
-                      {!alreadySaved && (
-                        <button
-                          onClick={() => onSave({
-                            name: (r as any).knownName || r.merchant,
-                            emoji: (r as any).knownEmoji || (r as any).emoji || '💳',
-                            amount: r.amount,
-                            frequency: r.frequency as SubscriptionFrequency,
-                            category: (r as any).category || (r as any).knownCategory || 'Entertainment',
-                            color: (r as any).knownColor || FREQ_COLOR[r.frequency] || '#6b7280',
-                            isActive: true,
-                            merchantPattern: r.merchant,
-                            autoDetected: true,
-                          })}
-                          className="text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-colors font-medium"
-                        >
-                          Confirm
-                        </button>
-                      )}
-                      {alreadySaved && <span className="text-xs px-2" style={{ color: 'rgba(255,255,255,0.4)' }}>✓ Saved</span>}
-                    </div>
+                    {hasPayment
+                      ? <span className="font-mono text-[9px] font-bold text-amber-400">${Math.round(totalAmt)}</span>
+                      : <span className="text-[9px] text-transparent">-</span>
+                    }
                   </div>
                 );
               })}
             </div>
-          )
+          </div>
+
+          {/* NEXT 7 DAYS list */}
+          {next7.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <p className="font-mono text-[11px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                  Next 7 Days
+                </p>
+                <p className="font-mono text-xs font-bold text-red-400">
+                  {next7.length} charge{next7.length !== 1 ? 's' : ''} · {fmtFull(next7Total)}
+                </p>
+              </div>
+              <div className="space-y-2">
+                {next7.map(p => {
+                  const diff = Math.round((p.nextDate.getTime() - today.getTime()) / 86400000);
+                  const isToday = diff === 0;
+                  const isTomorrow = diff === 1;
+                  return (
+                    <div key={p.key} className="flex items-center gap-3 p-3 rounded-xl transition-all"
+                      style={{
+                        background: isToday ? 'rgba(248,113,113,0.05)' : 'rgba(255,255,255,0.03)',
+                        border: isToday ? '1px solid rgba(248,113,113,0.2)' : '1px solid rgba(255,255,255,0.06)',
+                      }}>
+                      <span className="text-xl flex-shrink-0">{p.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-mono text-sm truncate" style={{ color: '#e5e5e5' }}>{p.name}</p>
+                        <p className="font-mono text-[10px] capitalize" style={{ color: 'rgba(255,255,255,0.3)' }}>{p.frequency}</p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="font-mono text-sm font-bold" style={{ color: '#e5e5e5' }}>{fmtFull(p.amount)}</p>
+                        <p className="font-mono text-[10px] font-medium"
+                          style={{ color: isToday ? '#f87171' : isTomorrow ? '#f59e0b' : 'rgba(255,255,255,0.3)' }}>
+                          {daysLabel(p.nextDate)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* COMING LATER list */}
+          {later.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <p className="font-mono text-[11px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                  Coming Later
+                </p>
+                <p className="font-mono text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                  {later.length} charge{later.length !== 1 ? 's' : ''} · {fmtFull(laterTotal)}
+                </p>
+              </div>
+              <div className="space-y-2">
+                {later.map(p => (
+                  <div key={p.key} className="flex items-center gap-3 p-3 rounded-xl"
+                    style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <span className="text-xl flex-shrink-0 opacity-60">{p.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-mono text-sm truncate" style={{ color: 'rgba(255,255,255,0.55)' }}>{p.name}</p>
+                      <p className="font-mono text-[10px] capitalize" style={{ color: 'rgba(255,255,255,0.25)' }}>{p.frequency}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="font-mono text-sm font-bold" style={{ color: 'rgba(255,255,255,0.55)' }}>{fmtFull(p.amount)}</p>
+                      <p className="font-mono text-[10px]" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                        {p.nextDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {upcoming.length === 0 && (
+            <EmptyState
+              icon={<CalendarClock className="w-8 h-8" />}
+              label="No upcoming payments"
+              sub="Add subscriptions or sync more transactions to see what's coming"
+              action="Add Recurring"
+              onAction={() => setShowAdd(true)}
+            />
+          )}
+        </div>
+      )}
+
+      {/* ── CALENDAR VIEW ── */}
+      {view === 'calendar' && (
+        <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <RecurringCalendar upcoming={upcoming} />
+        </div>
+      )}
+
+      {/* ── ALL RECURRING VIEW ── */}
+      {view === 'all' && (
+        <div className="space-y-6">
+          {/* Search bar */}
+          <div className="flex gap-2">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search bills and subscriptions..."
+                className="w-full px-4 py-2.5 rounded-xl text-sm font-mono transition-all outline-none"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: '#e5e5e5',
+                }}
+              />
+            </div>
+          </div>
+          {/* Summary stats */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'Active', value: String(activeSubs.length), sub: 'recurring', color: '#e5e5e5' },
+              { label: 'Monthly', value: fmtFull(savedMonthly), sub: 'per month', color: '#f87171' },
+              { label: 'Annual', value: fmtFull(savedMonthly * 12), sub: 'per year', color: '#f59e0b' },
+            ].map(({ label, value, sub, color }) => (
+              <div key={label} className="p-4 rounded-xl text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>{label}</p>
+                <p className="font-mono text-xl font-bold" style={{ color }}>{value}</p>
+                <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>{sub}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Subscriptions group */}
+          {otherSubs.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="font-mono text-[11px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                  {otherSubs.length} Subscription{otherSubs.length !== 1 ? 's' : ''}
+                </p>
+                <p className="font-mono text-[11px]" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                  {fmtFull(otherSubs.reduce((s, sub) => s + toMonthly(sub.amount, sub.frequency), 0) * 12)}/yr
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                {otherSubs.map(sub => {
+                  const daysUntil = sub.nextBillingDate
+                    ? Math.round((new Date(sub.nextBillingDate).getTime() - today.getTime()) / 86400000)
+                    : null;
+                  return (
+                    <div key={sub.id} className="flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all"
+                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'}
+                      onClick={() => setEditingSub(sub)}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                          style={{ backgroundColor: (sub.color || '#6b7280') + '20' }}>
+                          {sub.emoji || '💳'}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium" style={{ color: '#e5e5e5' }}>{sub.name}</p>
+                          <p className="text-[10px] capitalize" style={{ color: 'rgba(255,255,255,0.35)' }}>{sub.frequency}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-mono text-sm font-semibold" style={{ color: '#e5e5e5' }}>{fmtFull(sub.amount)}</p>
+                        {daysUntil !== null && (
+                          <p className="font-mono text-[10px]" style={{ color: daysUntil <= 3 ? '#f87171' : 'rgba(255,255,255,0.25)' }}>
+                            {daysUntil === 0 ? 'Today' : daysUntil > 0 ? `in ${daysUntil}d` : 'overdue'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Bills & Utilities group */}
+          {bills.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="font-mono text-[11px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                  {bills.length} Bill{bills.length !== 1 ? 's' : ''} & Utilities
+                </p>
+                <p className="font-mono text-[11px]" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                  {fmtFull(bills.reduce((s, sub) => s + toMonthly(sub.amount, sub.frequency), 0) * 12)}/yr
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                {bills.map(sub => {
+                  const daysUntil = sub.nextBillingDate
+                    ? Math.round((new Date(sub.nextBillingDate).getTime() - today.getTime()) / 86400000)
+                    : null;
+                  return (
+                    <div key={sub.id} className="flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all"
+                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'}
+                      onClick={() => setEditingSub(sub)}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                          style={{ backgroundColor: (sub.color || '#6b7280') + '20' }}>
+                          {sub.emoji || '🏠'}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium" style={{ color: '#e5e5e5' }}>{sub.name}</p>
+                          <p className="text-[10px] capitalize" style={{ color: 'rgba(255,255,255,0.35)' }}>{sub.frequency}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-mono text-sm font-semibold" style={{ color: '#e5e5e5' }}>{fmtFull(sub.amount)}</p>
+                        {daysUntil !== null && (
+                          <p className="font-mono text-[10px]" style={{ color: daysUntil <= 3 ? '#f87171' : 'rgba(255,255,255,0.25)' }}>
+                            {daysUntil === 0 ? 'Today' : daysUntil > 0 ? `in ${daysUntil}d` : 'overdue'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Auto-detected (not yet saved) */}
+          {detected.filter(r => !subscriptions.some(s => s.name.toLowerCase().includes((r.knownName || r.merchant).toLowerCase()))).length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="font-mono text-[11px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                  Auto-Detected
+                </p>
+                <p className="font-mono text-[10px]" style={{ color: 'rgba(255,255,255,0.25)' }}>click Save to track</p>
+              </div>
+              <div className="space-y-1.5">
+                {detected
+                  .filter(r => !subscriptions.some(s => s.name.toLowerCase().includes((r.knownName || r.merchant).toLowerCase())))
+                  .map((r, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-xl"
+                      style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                          style={{ backgroundColor: (r.knownColor || '#6b7280') + '15' }}>
+                          {r.knownEmoji || '🔄'}
+                        </div>
+                        <div>
+                          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.6)' }}>{r.knownName || r.merchant}</p>
+                          <p className="text-[10px] capitalize" style={{ color: 'rgba(255,255,255,0.25)' }}>{r.frequency} · {r.count} charges</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-mono text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>{fmtFull(r.amount)}</p>
+                        <button
+                          onClick={() => onSave({
+                            name: r.knownName || r.merchant,
+                            emoji: r.knownEmoji || '💳',
+                            amount: r.amount,
+                            frequency: r.frequency as SubscriptionFrequency,
+                            category: r.category || 'Entertainment',
+                            color: r.knownColor || FREQ_COLOR[r.frequency] || '#6b7280',
+                            isActive: true,
+                            merchantPattern: r.merchant,
+                            autoDetected: true,
+                          })}
+                          className="text-xs px-2.5 py-1 rounded-lg font-mono font-medium transition-colors"
+                          style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(16,185,129,0.2)'}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(16,185,129,0.1)'}>
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {activeSubs.length === 0 && detected.length === 0 && (
+            <EmptyState
+              icon={<Repeat className="w-8 h-8" />}
+              label="No recurring charges found"
+              sub="Add subscriptions manually or sync more transactions"
+              action="Add Recurring"
+              onAction={() => setShowAdd(true)}
+            />
+          )}
+        </div>
       )}
     </div>
   );

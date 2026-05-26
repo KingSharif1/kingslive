@@ -78,7 +78,12 @@
       "mcp__playwright__browser_take_screenshot",
       "mcp__playwright__browser_evaluate",
       "mcp__supabase__get_project",
-      "mcp__supabase__get_advisors"
+      "mcp__supabase__get_advisors",
+      "Bash(Get-Content app/ctroom/components/views/VaultView.tsx)",
+      "Bash(Measure-Object -Line)",
+      "Bash(Select-Object -ExpandProperty Lines)",
+      "WebFetch(domain:claude.ai)",
+      "Bash(npx skills *)"
     ]
   },
   "enableAllProjectMcpServers": true,

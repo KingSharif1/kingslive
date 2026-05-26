@@ -323,6 +323,24 @@ export interface Subscription {
   notes?: string;
 }
 
+// ─── Vault AI Nudges ────────────────────────────────────────────────────────
+export interface VaultAiNudge {
+  id: string;
+  type: 'debt_payment' | 'goal_contribution' | 'new_recurring';
+  message: string;
+  amount: number;
+  txDate: string;
+  debtId?: string;
+  debtName?: string;
+  suggestedBalance?: number;
+  goalId?: string;
+  goalName?: string;
+  suggestedAmount?: number;
+  recurringName?: string;
+  recurringFrequency?: string;
+  recurringEmoji?: string;
+}
+
 // ─── Daily Log ──────────────────────────────────────────────────────────────
 export type DailyLogType = 'log' | 'reflection';
 

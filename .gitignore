@@ -80,3 +80,5 @@ supabase/*
 .portfolio-mocks/*
 
 .next/*
+
+.supabase/*

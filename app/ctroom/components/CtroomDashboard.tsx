@@ -847,7 +847,7 @@ export function CtroomDashboard() {
                 {/* Vault — lazy mounted, kept alive after first visit */}
                 {mountedViews.has('vault') && (
                     <div className={cn(
-                        "absolute inset-x-0 bottom-0 top-16 md:top-0 overflow-y-auto p-4 md:p-6 z-10 bg-secondary/5",
+                        "absolute inset-x-0 bottom-0 top-16 md:top-0 z-10",
                         currentView !== 'vault' && 'hidden'
                     )}>
                         <VaultView />
