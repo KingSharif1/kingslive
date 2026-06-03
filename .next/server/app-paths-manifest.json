@@ -1,8 +1,0 @@
-{
-  "/api/ctroom/auth/verify/route": "app/api/ctroom/auth/verify/route.js",
-  "/api/ctroom/vault/ai-nudges/route": "app/api/ctroom/vault/ai-nudges/route.js",
-  "/api/ctroom/vault/sync/route": "app/api/ctroom/vault/sync/route.js",
-  "/ctroom/page": "app/ctroom/page.js",
-  "/page": "app/page.js",
-  "/privacy/page": "app/privacy/page.js"
-}
