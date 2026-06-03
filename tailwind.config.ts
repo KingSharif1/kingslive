@@ -57,7 +57,13 @@ const config: Config = {
         border: 'var(--border)',
         input: 'var(--input)',
         ring: 'var(--ring)',
-        chat: 'var(--chat)'
+        chat: 'var(--chat)',
+        vault: {
+          surface: 'rgba(255,255,255,0.03)',
+          border: 'rgba(255,255,255,0.07)',
+          accent: '#00ff88',
+          muted: 'rgba(255,255,255,0.35)',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

@@ -290,6 +290,8 @@ export interface DebtEntry {
   color?: string;
 }
 
+export type GoalType = 'save' | 'earn' | 'invest';
+
 export interface SavingsGoal {
   id: string;
   name: string;
@@ -298,6 +300,35 @@ export interface SavingsGoal {
   currentAmount: number;
   color?: string;
   deadline?: Date;
+  goalType?: GoalType;
+  linkedAccountId?: string;
+}
+
+export interface IncomeStream {
+  id: string;
+  name: string;
+  streamType: 'w2' | 'side_hustle' | 'gig' | 'investment' | 'other';
+  sourceAccountId?: string;
+  color?: string;
+}
+
+export interface InvestmentPosition {
+  id: string;
+  symbol: string;
+  name?: string;
+  shares: number;
+  costBasis: number;
+  currentPrice: number;
+  positionType: 'stock' | 'etf' | 'mutual_fund' | 'roth_ira' | 'other';
+  accountId?: string;
+}
+
+export interface NetWorthSnapshot {
+  snapshotDate: string;
+  netWorth: number;
+  cash: number;
+  debt: number;
+  investments: number;
 }
 
 export interface TransactionRule {
@@ -307,6 +338,9 @@ export interface TransactionRule {
 }
 
 export type SubscriptionFrequency = 'monthly' | 'weekly' | 'bi-weekly' | 'quarterly' | 'annual';
+
+export type SubscriptionStatus = 'active' | 'pending_review' | 'cancelled';
+export type SubscriptionBillType = 'subscription' | 'bill' | 'loan' | 'income' | 'denylist';
 
 export interface Subscription {
   id: string;
@@ -320,6 +354,24 @@ export interface Subscription {
   nextBillingDate?: Date;
   merchantPattern?: string;
   autoDetected?: boolean;
+  notes?: string;
+  // Lifecycle fields populated by the recurring engine
+  status?: SubscriptionStatus;
+  billType?: SubscriptionBillType;
+  confidence?: number;
+  chargeCount?: number;
+  avgIntervalDays?: number;
+  lastChargeDate?: Date;
+  lastChargeAmount?: number;
+  firstSeenDate?: Date;
+  cancelledAt?: Date;
+}
+
+export interface RecurringReviewDecision {
+  pattern: string;
+  decision: 'confirmed' | 'dismissed' | 'category';
+  category?: string;
+  billType?: SubscriptionBillType;
   notes?: string;
 }
 

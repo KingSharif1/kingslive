@@ -1,12 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import {
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  AreaChart, Area, LineChart, Line
-} from 'recharts';
 
 const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#14b8a6', '#a855f7', '#64748b'];
 
@@ -15,25 +10,71 @@ const fmtFull = (n: number) =>
 
 const fmtK = (v: number) => `$${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}`;
 
-type ChartMode = 'spending' | 'monthly' | 'trend' | 'merchants';
+type ChartMode = 'spending' | 'monthly' | 'trend' | 'merchants' | 'networth';
 
 interface VaultChartsProps {
   categoryData: { name: string; value: number }[];
   monthlyData: { month: string; income: number; expenses: number }[];
   trendData?: { day: number; amount: number; cumulative: number }[];
   merchantData?: { name: string; value: number }[];
+  netWorthData?: { date: string; netWorth: number }[];
   activeCategoryFilter?: string | null;
   onCategoryClick?: (cat: string) => void;
 }
 
-export default function VaultCharts({
-  categoryData, monthlyData, trendData = [], merchantData = [],
-  activeCategoryFilter, onCategoryClick
-}: VaultChartsProps) {
+type RechartsModule = typeof import('recharts');
+
+function ChartsSkeleton() {
+  return (
+    <div className="p-4 rounded-2xl bg-card border border-border/50">
+      <div className="h-48 rounded-xl animate-pulse bg-secondary/40" />
+    </div>
+  );
+}
+
+export default function VaultCharts(props: VaultChartsProps) {
+  const [recharts, setRecharts] = useState<RechartsModule | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    import('recharts')
+      .then(mod => { if (!cancelled) setRecharts(mod); })
+      .catch(err => {
+        console.error('[VaultCharts] failed to load recharts:', err);
+        if (!cancelled) setLoadError('Charts unavailable — refresh the page');
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (loadError) {
+    return (
+      <div className="p-4 rounded-2xl bg-card border border-border/50 text-xs text-muted-foreground">
+        {loadError}
+      </div>
+    );
+  }
+
+  if (!recharts) return <ChartsSkeleton />;
+
+  return <VaultChartsBody {...props} RC={recharts} />;
+}
+
+function VaultChartsBody({
+  categoryData, monthlyData, trendData = [], merchantData = [], netWorthData = [],
+  activeCategoryFilter, onCategoryClick, RC,
+}: VaultChartsProps & { RC: RechartsModule }) {
+  const {
+    PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
+    BarChart, Bar, XAxis, YAxis, CartesianGrid,
+    AreaChart, Area,
+  } = RC;
+
   const hasCategory = categoryData.length > 0;
   const hasMonthly = monthlyData.some(m => m.income > 0 || m.expenses > 0);
   const hasTrend = trendData.length > 0;
   const hasMerchants = merchantData.length > 0;
+  const hasNetWorth = netWorthData.length > 1;
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [chartMode, setChartMode] = useState<ChartMode>('spending');
 
@@ -42,18 +83,18 @@ export default function VaultCharts({
   const hiddenCount = categoryData.length - INITIAL_SHOW;
 
   const chartModes: { id: ChartMode; label: string; available: boolean }[] = [
-    { id: 'spending',   label: 'Spending',  available: hasCategory },
-    { id: 'monthly',    label: 'Monthly',   available: hasMonthly },
-    { id: 'trend',      label: 'Trend',     available: hasTrend },
-    { id: 'merchants',  label: 'Merchants', available: hasMerchants },
+    { id: 'spending',   label: 'Spending',   available: hasCategory },
+    { id: 'monthly',    label: 'Monthly',    available: hasMonthly },
+    { id: 'trend',      label: 'Trend',      available: hasTrend },
+    { id: 'merchants',  label: 'Merchants',  available: hasMerchants },
+    { id: 'networth',   label: 'Net Worth',  available: hasNetWorth },
   ].filter(m => m.available) as { id: ChartMode; label: string; available: boolean }[];
 
   if (chartModes.length === 0) return null;
 
-  // Ensure chartMode is valid
   const activeMode = chartModes.find(m => m.id === chartMode) ? chartMode : chartModes[0]?.id;
 
-  const PieTooltip = ({ active, payload }: any) => {
+  const PieTooltip = ({ active, payload }: { active?: boolean; payload?: { name: string; value: number }[] }) => {
     if (!active || !payload?.length) return null;
     const total = categoryData.reduce((s, c) => s + c.value, 0);
     const pct = total > 0 ? Math.round((payload[0].value / total) * 100) : 0;
@@ -65,12 +106,12 @@ export default function VaultCharts({
     );
   };
 
-  const DefaultTooltip = ({ active, payload, label }: any) => {
+  const DefaultTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) => {
     if (!active || !payload?.length) return null;
     return (
       <div className="bg-card border border-border rounded-xl px-3 py-2 text-xs shadow-lg space-y-0.5">
         <p className="font-medium text-muted-foreground mb-1">{label}</p>
-        {payload.map((p: any) => (
+        {payload.map(p => (
           <p key={p.name}><span style={{ color: p.color }}>●</span> {p.name}: {fmtFull(p.value)}</p>
         ))}
       </div>
@@ -79,13 +120,13 @@ export default function VaultCharts({
 
   return (
     <div className="p-4 rounded-2xl bg-card border border-border/50 space-y-4">
-      {/* Chart type selector */}
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-sm">
           {activeMode === 'spending'  && 'Spending by Category'}
           {activeMode === 'monthly'   && 'Income vs Expenses'}
           {activeMode === 'trend'     && 'Monthly Spending Trend'}
           {activeMode === 'merchants' && 'Top Merchants'}
+          {activeMode === 'networth'  && 'Net Worth Over Time'}
         </h3>
         <div className="flex gap-1 p-1 bg-secondary/50 rounded-xl">
           {chartModes.map(m => (
@@ -102,7 +143,6 @@ export default function VaultCharts({
         </div>
       </div>
 
-      {/* ── SPENDING DONUT ── */}
       {activeMode === 'spending' && (
         <div className="flex items-center gap-4">
           <div className="w-36 h-36 flex-shrink-0">
@@ -111,7 +151,7 @@ export default function VaultCharts({
                 <Tooltip content={<PieTooltip />} />
                 <Pie
                   data={categoryData}
-                  cx="50%" cy="50%"                  innerRadius={35} outerRadius={60}
+                  cx="50%" cy="50%" innerRadius={35} outerRadius={60}
                   paddingAngle={3} dataKey="value" stroke="none"
                   onClick={(entry) => onCategoryClick?.(entry.name)}
                   style={{ cursor: onCategoryClick ? 'pointer' : 'default' }}
@@ -152,7 +192,6 @@ export default function VaultCharts({
         </div>
       )}
 
-      {/* ── INCOME VS EXPENSES BAR ── */}
       {activeMode === 'monthly' && (
         <>
           <div className="h-48">
@@ -174,7 +213,6 @@ export default function VaultCharts({
         </>
       )}
 
-      {/* ── SPENDING TREND AREA ── */}
       {activeMode === 'trend' && trendData.length > 0 && (
         <>
           <div className="h-48">
@@ -200,7 +238,29 @@ export default function VaultCharts({
         </>
       )}
 
-      {/* ── TOP MERCHANTS HORIZONTAL BAR ── */}
+      {activeMode === 'networth' && netWorthData.length > 1 && (
+        <>
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={netWorthData}>
+                <defs>
+                  <linearGradient id="nwGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#00ff88" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#00ff88" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={28} />
+                <YAxis tickFormatter={fmtK} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={48} />
+                <Tooltip content={<DefaultTooltip />} />
+                <Area type="monotone" dataKey="netWorth" stroke="#00ff88" strokeWidth={2} fill="url(#nwGrad)" name="Net Worth" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="text-xs text-muted-foreground text-center">Daily snapshots — last {netWorthData.length} days</p>
+        </>
+      )}
+
       {activeMode === 'merchants' && merchantData.length > 0 && (
         <div style={{ height: Math.max(180, Math.min(merchantData.length, 8) * 44) }}>
           <ResponsiveContainer width="100%" height="100%">

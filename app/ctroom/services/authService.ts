@@ -196,33 +196,16 @@ export class AuthService {
         })
       }
       
-      // Call server-side signout endpoint to properly clear cookies
-      const response = await fetch('/api/auth/signout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-      
-      // Also sign out from Supabase client-side
+      // Server clears session cookies and ctroom_last_active
+      if (typeof window !== 'undefined') {
+        window.location.href = '/api/auth/signout-redirect'
+        return { error: null }
+      }
+
       const { error } = await supabase.auth.signOut()
-      
       if (error) {
         console.error('Supabase signOut error:', error)
         return { error }
-      }
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error('API signOut error:', errorData)
-        return { error: errorData.error }
-      }
-      
-      console.log('Successfully signed out')
-      
-      // Force page reload to trigger auth check
-      if (typeof window !== 'undefined') {
-        window.location.href = '/ctroom'
       }
       
       return { error: null }

@@ -1,8 +1,29 @@
 import { supabase } from '@/lib/supabase';
 import {
   VaultAccount, VaultTransaction, BudgetCategory, DebtEntry, SavingsGoal,
-  TransactionRule, Subscription, SubscriptionFrequency
+  TransactionRule, Subscription, SubscriptionFrequency,
+  IncomeStream, InvestmentPosition, NetWorthSnapshot,
 } from '../types/index';
+
+/**
+ * Parse a date the way the UI expects.
+ *
+ * Postgres `date` columns serialize as "YYYY-MM-DD". JavaScript's `new Date("YYYY-MM-DD")`
+ * interprets that as UTC midnight, which in negative-offset timezones (e.g. US/Central, UTC-5)
+ * becomes the *previous calendar day* in local time. That caused the Vault's "Month" filter
+ * to drop today's transactions and show "No transactions" even though they were in the DB.
+ *
+ * For bare YYYY-MM-DD inputs we construct a local-midnight Date so range comparisons stay
+ * timezone-correct. Anything else (full ISO timestamps) parses normally.
+ */
+function parseDbDate(input: string | Date | null | undefined): Date {
+  if (!input) return new Date(NaN);
+  if (input instanceof Date) return input;
+  const s = String(input);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return new Date(s);
+}
 
 export class VaultDataService {
 
@@ -95,7 +116,10 @@ export class VaultDataService {
       if (accountId) query = query.eq('teller_account_id', accountId);
 
       const { data, error } = await query;
-      if (error) return [];
+      if (error) {
+        console.error('[VaultDataService.fetchTransactions] error:', error);
+        return [];
+      }
 
       return (data || []).map(t => ({
         id: t.id,
@@ -107,11 +131,12 @@ export class VaultDataService {
         subcategory: t.subcategory,
         description: t.description,
         merchant: t.merchant,
-        date: new Date(t.date),
+        date: parseDbDate(t.date),
         isPending: t.is_pending,
         tellerTransactionId: t.teller_transaction_id,
       })) as VaultTransaction[];
-    } catch {
+    } catch (err) {
+      console.error('[VaultDataService.fetchTransactions] throw:', err);
       return [];
     }
   }
@@ -311,6 +336,8 @@ export class VaultDataService {
         currentAmount: parseFloat(g.current_amount),
         deadline: g.deadline ? new Date(g.deadline) : undefined,
         color: g.color,
+        goalType: g.goal_type || 'save',
+        linkedAccountId: g.linked_account_id,
       })) as SavingsGoal[];
     } catch {
       return [];
@@ -332,6 +359,8 @@ export class VaultDataService {
           current_amount: goal.currentAmount,
           deadline: goal.deadline?.toISOString().split('T')[0],
           color: goal.color,
+          goal_type: goal.goalType || 'save',
+          linked_account_id: goal.linkedAccountId,
         }])
         .select()
         .single();
@@ -349,6 +378,8 @@ export class VaultDataService {
     if (updates.targetAmount !== undefined) dbUpdates.target_amount = updates.targetAmount;
     if (updates.name) dbUpdates.name = updates.name;
     if (updates.deadline) dbUpdates.deadline = updates.deadline.toISOString().split('T')[0];
+    if (updates.goalType) dbUpdates.goal_type = updates.goalType;
+    if (updates.linkedAccountId !== undefined) dbUpdates.linked_account_id = updates.linkedAccountId;
     const { error } = await supabase.from('savings_goals').update(dbUpdates).eq('id', id);
     return !error;
   }
@@ -374,7 +405,7 @@ export class VaultDataService {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     return transactions
-      .filter(t => t.type === 'expense' && new Date(t.date) >= startOfMonth)
+      .filter(t => t.type === 'expense' && parseDbDate(t.date as unknown as string) >= startOfMonth)
       .reduce((acc, t) => {
         const cat = t.category || 'Other';
         acc[cat] = (acc[cat] || 0) + t.amount;
@@ -467,12 +498,117 @@ export class VaultDataService {
         category: s.category,
         color: s.color,
         isActive: s.is_active,
-        nextBillingDate: s.next_billing_date ? new Date(s.next_billing_date) : undefined,
+        nextBillingDate: s.next_billing_date ? parseDbDate(s.next_billing_date) : undefined,
         merchantPattern: s.merchant_pattern,
         autoDetected: s.auto_detected,
         notes: s.notes,
+        status: s.status,
+        billType: s.bill_type,
+        confidence: s.confidence !== null ? Number(s.confidence) : undefined,
+        chargeCount: s.charge_count !== null ? Number(s.charge_count) : undefined,
+        avgIntervalDays: s.avg_interval_days !== null ? parseFloat(s.avg_interval_days) : undefined,
+        lastChargeDate: s.last_charge_date ? parseDbDate(s.last_charge_date) : undefined,
+        lastChargeAmount: s.last_charge_amount !== null ? parseFloat(s.last_charge_amount) : undefined,
+        firstSeenDate: s.first_seen_date ? parseDbDate(s.first_seen_date) : undefined,
+        cancelledAt: s.cancelled_at ? new Date(s.cancelled_at) : undefined,
       }));
     } catch { return []; }
+  }
+
+  /** HITL — confirm/dismiss/recategorize a recurring subscription. */
+  static async reviewRecurring(decision: {
+    pattern: string;
+    decision: 'confirmed' | 'dismissed' | 'category';
+    category?: string;
+    billType?: string;
+    notes?: string;
+  }): Promise<boolean> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return false;
+    const res = await fetch('/api/ctroom/vault/recurring-review', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify(decision),
+    });
+    return res.ok;
+  }
+
+  /** Manual rescan trigger (also fires automatically after Teller sync). */
+  static async rescanRecurring(): Promise<{ detected: number; updated: number; inserted: number; cancelled: number; pendingReview: number } | null> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return null;
+    const res = await fetch('/api/ctroom/vault/recurring-refresh', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) return null;
+    return res.json();
+  }
+
+  /**
+   * Manual "expected bill" — locks immediately (no 4-charge wait).
+   * Upserts subscriptions + user_overrides confirmed.
+   */
+  static async upsertExpectedBill(bill: {
+    name: string;
+    emoji: string;
+    amount: number;
+    frequency: Subscription['frequency'];
+    category: string;
+    billType: NonNullable<Subscription['billType']>;
+    merchantPattern: string;
+    nextBillingDate?: Date;
+  }): Promise<boolean> {
+    try {
+      const userId = await this.getUserId();
+      if (!userId) return false;
+      const pattern = bill.merchantPattern.toLowerCase();
+      const row = {
+        user_id: userId,
+        name: bill.name,
+        emoji: bill.emoji,
+        amount: bill.amount,
+        frequency: bill.frequency,
+        category: bill.category,
+        bill_type: bill.billType,
+        merchant_pattern: pattern,
+        is_active: true,
+        auto_detected: false,
+        status: 'active',
+        confidence: 95,
+        next_billing_date: bill.nextBillingDate?.toISOString().split('T')[0] ?? null,
+        color: bill.billType === 'loan' ? '#f97316' : bill.billType === 'bill' ? '#3b82f6' : '#8b5cf6',
+        cancelled_at: null,
+        updated_at: new Date().toISOString(),
+      };
+      const { error: subErr } = await supabase
+        .from('subscriptions')
+        .upsert(row, { onConflict: 'user_id,merchant_pattern' });
+      if (subErr) {
+        console.error('[upsertExpectedBill] subscription error:', subErr);
+        return false;
+      }
+      const { error: ovErr } = await supabase
+        .from('user_overrides')
+        .upsert(
+          {
+            user_id: userId,
+            merchant_pattern: pattern,
+            decision: 'confirmed',
+            category: bill.category,
+            bill_type: bill.billType,
+            notes: 'Expected bill (user-declared)',
+          },
+          { onConflict: 'user_id,merchant_pattern' },
+        );
+      if (ovErr) console.error('[upsertExpectedBill] override error:', ovErr);
+      return !ovErr;
+    } catch {
+      return false;
+    }
   }
 
   static async saveSubscription(sub: Omit<Subscription, 'id'>): Promise<Subscription | null> {
@@ -502,7 +638,7 @@ export class VaultDataService {
   }
 
   static async updateSubscription(id: string, updates: Partial<Subscription>): Promise<boolean> {
-    const dbUpdates: any = {};
+    const dbUpdates: Record<string, unknown> = {};
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.emoji !== undefined) dbUpdates.emoji = updates.emoji;
     if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
@@ -513,6 +649,8 @@ export class VaultDataService {
     if (updates.nextBillingDate !== undefined) dbUpdates.next_billing_date = updates.nextBillingDate?.toISOString().split('T')[0] ?? null;
     if (updates.merchantPattern !== undefined) dbUpdates.merchant_pattern = updates.merchantPattern;
     if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+    if (updates.status !== undefined) dbUpdates.status = updates.status;
+    if (updates.billType !== undefined) dbUpdates.bill_type = updates.billType;
     const { error } = await supabase.from('subscriptions').update(dbUpdates).eq('id', id);
     return !error;
   }
@@ -546,9 +684,11 @@ export class VaultDataService {
         .eq('id', id);
       return id;
     }
+    const userId = await this.getUserId();
+    if (!userId) return null;
     const { data } = await supabase
       .from('vault_ai_chats')
-      .insert({ messages, title, model })
+      .insert({ user_id: userId, messages, title, model })
       .select('id')
       .single();
     return data?.id || null;
@@ -556,5 +696,131 @@ export class VaultDataService {
 
   static async deleteVaultChat(id: string): Promise<void> {
     await supabase.from('vault_ai_chats').delete().eq('id', id);
+  }
+
+  // ==================== INCOME STREAMS ====================
+
+  static async fetchIncomeStreams(): Promise<IncomeStream[]> {
+    const { data } = await supabase.from('income_streams').select('*').order('name');
+    return (data || []).map(s => ({
+      id: s.id,
+      name: s.name,
+      streamType: s.stream_type,
+      sourceAccountId: s.source_account_id,
+      color: s.color,
+    }));
+  }
+
+  static async saveIncomeStream(stream: Omit<IncomeStream, 'id'>): Promise<IncomeStream | null> {
+    const userId = await this.getUserId();
+    if (!userId) return null;
+    const { data, error } = await supabase
+      .from('income_streams')
+      .insert({
+        user_id: userId,
+        name: stream.name,
+        stream_type: stream.streamType,
+        source_account_id: stream.sourceAccountId,
+        color: stream.color,
+      })
+      .select()
+      .single();
+    if (error || !data) return null;
+    return { ...stream, id: data.id };
+  }
+
+  // ==================== INVESTMENTS ====================
+
+  static async fetchInvestments(): Promise<InvestmentPosition[]> {
+    const { data } = await supabase.from('investments').select('*').order('symbol');
+    return (data || []).map(p => ({
+      id: p.id,
+      symbol: p.symbol,
+      name: p.name,
+      shares: parseFloat(p.shares),
+      costBasis: parseFloat(p.cost_basis),
+      currentPrice: parseFloat(p.current_price),
+      positionType: p.position_type,
+      accountId: p.account_id,
+    }));
+  }
+
+  static async saveInvestment(pos: Omit<InvestmentPosition, 'id'>): Promise<InvestmentPosition | null> {
+    const userId = await this.getUserId();
+    if (!userId) return null;
+    const { data, error } = await supabase
+      .from('investments')
+      .insert({
+        user_id: userId,
+        symbol: pos.symbol,
+        name: pos.name,
+        shares: pos.shares,
+        cost_basis: pos.costBasis,
+        current_price: pos.currentPrice,
+        position_type: pos.positionType,
+        account_id: pos.accountId,
+      })
+      .select()
+      .single();
+    if (error || !data) return null;
+    return { ...pos, id: data.id };
+  }
+
+  static async updateInvestment(id: string, updates: Partial<InvestmentPosition>): Promise<boolean> {
+    const db: Record<string, unknown> = {};
+    if (updates.shares !== undefined) db.shares = updates.shares;
+    if (updates.costBasis !== undefined) db.cost_basis = updates.costBasis;
+    if (updates.currentPrice !== undefined) db.current_price = updates.currentPrice;
+    if (updates.name !== undefined) db.name = updates.name;
+    const { error } = await supabase.from('investments').update(db).eq('id', id);
+    return !error;
+  }
+
+  static async deleteInvestment(id: string): Promise<boolean> {
+    const { error } = await supabase.from('investments').delete().eq('id', id);
+    return !error;
+  }
+
+  // ==================== NET WORTH SNAPSHOTS ====================
+
+  static async fetchNetWorthSnapshots(): Promise<NetWorthSnapshot[]> {
+    const { data } = await supabase
+      .from('vault_net_worth_snapshots')
+      .select('snapshot_date, net_worth, cash, debt, investments')
+      .order('snapshot_date', { ascending: true })
+      .limit(365);
+    return (data || []).map(s => ({
+      snapshotDate: s.snapshot_date,
+      netWorth: parseFloat(s.net_worth),
+      cash: parseFloat(s.cash),
+      debt: parseFloat(s.debt),
+      investments: parseFloat(s.investments),
+    }));
+  }
+
+  static async fetchRothIra(): Promise<{ contributed: number; limit: number; year: number } | null> {
+    const userId = await this.getUserId();
+    if (!userId) return null;
+    const { data } = await supabase.from('roth_ira_contributions').select('*').eq('user_id', userId).maybeSingle();
+    if (!data) return { contributed: 0, limit: 7000, year: new Date().getFullYear() };
+    return {
+      contributed: parseFloat(data.contributed),
+      limit: parseFloat(data.annual_limit),
+      year: data.tax_year,
+    };
+  }
+
+  static async saveRothIra(contributed: number, limit?: number): Promise<boolean> {
+    const userId = await this.getUserId();
+    if (!userId) return false;
+    const year = new Date().getFullYear();
+    const { error } = await supabase.from('roth_ira_contributions').upsert({
+      user_id: userId,
+      tax_year: year,
+      contributed,
+      annual_limit: limit ?? 7000,
+      updated_at: new Date().toISOString(),
+    });
+    return !error;
   }
 }

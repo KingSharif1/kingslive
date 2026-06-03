@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import https from 'https';
 import axios from 'axios';
+import { mapTellerAccountType, getAccountColor } from '@/lib/vault/tellerAccount';
+import { applyTransactionRulesToDb } from '@/lib/vault/applyTransactionRules';
+import { runRecurringScan } from '@/lib/vault/recurringScan';
 
 // ── Teller category → normalized label ───────────────────────────────────────
 const TELLER_CATEGORY_MAP: Record<string, string> = {
@@ -156,22 +159,34 @@ export async function POST(req: NextRequest) {
             balance = parseFloat(acc.balance?.available ?? acc.balance?.ledger ?? 0);
           }
 
-          await supabase
+          const { data: vaultAcc, error: vaultAccError } = await supabase
             .from('vault_accounts')
-            .update({ balance, available_balance: availableBalance })
-            .eq('teller_account_id', acc.id);
+            .upsert({
+              user_id: user.id,
+              teller_account_id: acc.id,
+              enrollment_id: enrollment.enrollment_id,
+              name: acc.name,
+              official_name: acc.full_name || acc.name,
+              type: mapTellerAccountType(acc.type, acc.subtype),
+              balance,
+              available_balance: availableBalance,
+              mask: acc.last_four || null,
+              institution: enrollment.institution_name || 'Unknown Bank',
+              currency: acc.currency || 'USD',
+              is_teller_linked: true,
+              color: getAccountColor(acc.type),
+            }, { onConflict: 'teller_account_id' })
+            .select('id')
+            .single();
+
+          if (vaultAccError) {
+            console.error('Vault account upsert error:', vaultAccError);
+          }
 
           // Fetch transactions for this account
           try {
             const txRes = await teller.get(`/accounts/${acc.id}/transactions`);
             const tellerTxs: any[] = txRes.data;
-
-            // Find the vault_accounts row id for FK
-            const { data: vaultAcc } = await supabase
-              .from('vault_accounts')
-              .select('id')
-              .eq('teller_account_id', acc.id)
-              .single();
 
             const txRows = tellerTxs.map(tx => {
               const desc     = tx.description || '';
@@ -216,7 +231,32 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, synced: totalTransactions });
+    const rulesUpdated = await applyTransactionRulesToDb(supabase, user.id);
+
+    // Refresh recurring subscriptions inline. We swallow errors so a bad
+    // scan never blocks a successful sync — the client can rescan manually.
+    let recurring: Awaited<ReturnType<typeof runRecurringScan>> | null = null;
+    try {
+      recurring = await runRecurringScan(supabase, user.id);
+    } catch (scanErr) {
+      console.error('Recurring scan failed during sync:', scanErr);
+    }
+
+    return NextResponse.json({
+      success: true,
+      synced: totalTransactions,
+      rulesUpdated,
+      lastSynced: new Date().toISOString(),
+      recurring: recurring
+        ? {
+            detected: recurring.detected,
+            updated: recurring.updated,
+            inserted: recurring.inserted,
+            cancelled: recurring.cancelled,
+            pendingReview: recurring.pendingReview,
+          }
+        : null,
+    });
   } catch (error: any) {
     console.error('Teller sync error:', error.message);
     return NextResponse.json({ error: 'Sync failed' }, { status: 500 });

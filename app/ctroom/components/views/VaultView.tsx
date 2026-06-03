@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -17,13 +17,22 @@ import { VaultDataService } from '../../services/vaultDataService';
 import {
   VaultAccount, VaultTransaction, BudgetCategory,
   DebtEntry, SavingsGoal, AccountType, TransactionType,
-  TransactionRule, Subscription, SubscriptionFrequency, VaultAiNudge
+  TransactionRule, Subscription, SubscriptionFrequency, VaultAiNudge,
+  NetWorthSnapshot,
 } from '../../types/index';
 import { cn } from '@/lib/utils';
-import dynamic from 'next/dynamic';
-
-// ── Lazy-load chart components (recharts is SSR-incompatible) ────────────────
-const VaultCharts = dynamic(() => import('./VaultCharts'), { ssr: false });
+import VaultCharts from './VaultCharts';
+import { RecurringReviewQueue } from '../vault/RecurringReviewQueue';
+import { SeeTab } from '../vault/SeeTab';
+import { UnderstandTab } from '../vault/UnderstandTab';
+import { EnvelopeBudget } from '../vault/EnvelopeBudget';
+import { BillsTab } from '../vault/BillsTab';
+import { StudentLoanMatcher } from '../vault/StudentLoanMatcher';
+import {
+  useVaultData,
+  useVaultCache,
+  useUpdateTransactionCategory,
+} from '../../hooks/useVaultQueries';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const fmtFull = (n: number) =>
@@ -46,24 +55,94 @@ const ACCOUNT_ICONS: Record<AccountType, React.ReactNode> = {
   cash:       <DollarSign className="w-4 h-4" />,
 };
 
-type VaultTab = 'overview' | 'transactions' | 'budget' | 'debt' | 'goals' | 'recurring';
+// See → Understand → Plan → Ask (journey: see whole picture, then manage)
+type VaultTopTab = 'see' | 'understand' | 'plan' | 'ask';
+type VaultSection =
+  | 'see' | 'understand'
+  | 'recurring' | 'budget' | 'debt' | 'goals'
+  | 'ask';
 type TimeRange = 'today' | 'week' | 'month' | 'last_month' | '3months' | '6months' | 'all';
+
+interface VaultSubNavItem {
+  id: VaultSection;
+  label: string;
+  icon: React.ReactNode;
+}
+
+const TOP_TABS: { id: VaultTopTab; label: string; icon: React.ReactNode; sections: VaultSubNavItem[]; defaultSection: VaultSection }[] = [
+  {
+    id: 'see',
+    label: 'See',
+    icon: <LayoutDashboard className="w-4 h-4" />,
+    defaultSection: 'see',
+    sections: [
+      { id: 'see', label: 'Today', icon: <LayoutDashboard className="w-3.5 h-3.5" /> },
+    ],
+  },
+  {
+    id: 'understand',
+    label: 'Understand',
+    icon: <PieChart className="w-4 h-4" />,
+    defaultSection: 'understand',
+    sections: [
+      { id: 'understand', label: 'Spending', icon: <PieChart className="w-3.5 h-3.5" /> },
+    ],
+  },
+  {
+    id: 'plan',
+    label: 'Plan',
+    icon: <Target className="w-4 h-4" />,
+    defaultSection: 'recurring',
+    sections: [
+      { id: 'recurring', label: 'Bills',   icon: <Repeat className="w-3.5 h-3.5" /> },
+      { id: 'budget',    label: 'Assign',  icon: <PieChart className="w-3.5 h-3.5" /> },
+      { id: 'debt',      label: 'Debt',    icon: <TrendingDown className="w-3.5 h-3.5" /> },
+      { id: 'goals',     label: 'Goals',   icon: <Flag className="w-3.5 h-3.5" /> },
+    ],
+  },
+  {
+    id: 'ask',
+    label: 'Ask',
+    icon: <Sparkles className="w-4 h-4" />,
+    defaultSection: 'ask',
+    sections: [
+      { id: 'ask', label: 'Advisor', icon: <Sparkles className="w-3.5 h-3.5" /> },
+    ],
+  },
+];
 
 const TIME_RANGE_LABELS: Record<TimeRange, string> = {
   today: 'Today', week: '7d', month: 'Month', last_month: 'Last Mo.', '3months': '3M', '6months': '6M', all: 'All',
 };
 
+// Normalize a tx date to local-midnight so the range filter is timezone-safe.
+// VaultDataService already returns Dates parsed at local midnight for YYYY-MM-DD
+// inputs; this is a belt-and-braces guard for callers that pass raw strings.
+function toLocalMidnight(d: Date | string): Date {
+  if (d instanceof Date) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d));
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const parsed = new Date(d);
+  return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+}
+
 function filterByRange(txs: VaultTransaction[], range: TimeRange): VaultTransaction[] {
   if (range === 'all') return txs;
   const now = new Date();
-  let from: Date, to: Date = now;
+  let from: Date;
+  let to: Date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
   if (range === 'today')           { from = new Date(now.getFullYear(), now.getMonth(), now.getDate()); }
-  else if (range === 'week')       from = new Date(now.getTime() - 7 * 86400000);
+  else if (range === 'week')       from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
   else if (range === 'month')      from = new Date(now.getFullYear(), now.getMonth(), 1);
-  else if (range === 'last_month') { from = new Date(now.getFullYear(), now.getMonth() - 1, 1); to = new Date(now.getFullYear(), now.getMonth(), 0); }
+  else if (range === 'last_month') { from = new Date(now.getFullYear(), now.getMonth() - 1, 1); to = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999); }
   else if (range === '3months')    from = new Date(now.getFullYear(), now.getMonth() - 2, 1);
   else                             from = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-  return txs.filter(t => { const d = new Date(t.date); return d >= from && d <= to; });
+  return txs.filter(t => {
+    const d = toLocalMidnight(t.date);
+    return d >= from && d <= to;
+  });
 }
 
 const CATEGORIES = [
@@ -87,6 +166,50 @@ function isRecurringTx(tx: VaultTransaction): boolean {
 function isRealExpense(tx: VaultTransaction): boolean {
   return tx.type === 'expense' && tx.category !== 'Transfer';
 }
+
+// Clean up the raw merchant string Teller hands us so it stops looking like
+// "POS DEBIT #1842 KROGER ATX". Strips POS prefixes, branch numbers, trailing
+// city/state codes, and re-cases everything to Title Case.
+function prettyMerchant(name: string | null | undefined, fallback?: string | null): string {
+  const src = (name || fallback || '').trim();
+  if (!src) return 'Unknown';
+  let s = src
+    .replace(/\b(POS\s*DEBIT|POS\s*PURCHASE|DEBIT\s*CARD|VISA\s*CHECK\s*CARD|CHECKCARD|ACH\s*DEBIT|EXTERNAL\s*DEPOSIT|EXTERNAL\s*WITHDRAWAL|ELECTRONIC\s*WITHDRAWAL|ONLINE\s*PAYMENT|RECURRING\s*PAYMENT|PURCHASE\s*AUTHORIZED|AUTHORIZED\s*ON)\b/gi, '')
+    .replace(/#\s*\d+/g, '')
+    .replace(/\s\d{2}\/\d{2}(\/\d{2,4})?\b/g, '')
+    .replace(/\s\d{4,}\b/g, '')
+    .replace(/\s[A-Z]{2}\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!s) s = src;
+  // Title-case but preserve all-caps acronyms <= 3 chars (HBO, IRS).
+  return s
+    .toLowerCase()
+    .split(' ')
+    .map(w => (w.length <= 3 && /^[a-z]+$/.test(w) && /^(hbo|irs|nyc|usa|llc|inc|att|nfl|nba|mlb)$/i.test(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(' ');
+}
+
+// Category → chip colors (used everywhere we render a category pill).
+const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
+  'Food & Drink':       { bg: 'rgba(251,146,60,0.12)',  text: '#fb923c' },
+  'Groceries':          { bg: 'rgba(132,204,22,0.12)',  text: '#84cc16' },
+  'Transportation':     { bg: 'rgba(56,189,248,0.12)',  text: '#38bdf8' },
+  'Shopping':           { bg: 'rgba(244,114,182,0.12)', text: '#f472b6' },
+  'Entertainment':      { bg: 'rgba(168,85,247,0.12)',  text: '#a855f7' },
+  'Bills & Utilities':  { bg: 'rgba(239,68,68,0.12)',   text: '#ef4444' },
+  'Health & Fitness':   { bg: 'rgba(34,197,94,0.12)',   text: '#22c55e' },
+  'Travel':             { bg: 'rgba(14,165,233,0.12)',  text: '#0ea5e9' },
+  'Education':          { bg: 'rgba(99,102,241,0.12)',  text: '#6366f1' },
+  'Personal Care':      { bg: 'rgba(236,72,153,0.12)',  text: '#ec4899' },
+  'Subscriptions':      { bg: 'rgba(124,58,237,0.12)',  text: '#7c3aed' },
+  'Services':           { bg: 'rgba(20,184,166,0.12)',  text: '#14b8a6' },
+  'Income':             { bg: 'rgba(16,185,129,0.12)',  text: '#10b981' },
+  'Transfer':           { bg: 'rgba(148,163,184,0.12)', text: '#94a3b8' },
+  'Software':           { bg: 'rgba(96,165,250,0.12)',  text: '#60a5fa' },
+};
+const categoryChipBg = (c?: string) => (c && CATEGORY_COLORS[c]?.bg) || 'rgba(255,255,255,0.05)';
+const categoryChipText = (c?: string) => (c && CATEGORY_COLORS[c]?.text) || 'rgba(255,255,255,0.5)';
 
 // ── Teller Connect button ─────────────────────────────────────────────────────
 function TellerConnectButton({ onSuccess, disabled }: {
@@ -203,51 +326,18 @@ interface RecurringItem {
   count: number;
 }
 
-function detectRecurring(transactions: VaultTransaction[]): RecurringItem[] {
-  const byMerchant: Record<string, VaultTransaction[]> = {};
-  transactions
-    .filter(t => t.type === 'expense' && (t.merchant || t.description))
-    .forEach(t => {
-      const key = (t.merchant || t.description).toLowerCase().trim();
-      if (!byMerchant[key]) byMerchant[key] = [];
-      byMerchant[key].push(t);
-    });
-
-  const results: RecurringItem[] = [];
-  for (const txs of Object.values(byMerchant)) {
-    if (txs.length < 2) continue;
-    const sorted = [...txs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    const amounts = txs.map(t => t.amount);
-    const avgAmount = amounts.reduce((s, a) => s + a, 0) / amounts.length;
-    const consistent = amounts.every(a => Math.abs(a - avgAmount) / (avgAmount || 1) < 0.15);
-    if (!consistent && txs.length < 3) continue;
-
-    const intervals: number[] = [];
-    for (let i = 0; i < sorted.length - 1; i++) {
-      intervals.push((new Date(sorted[i].date).getTime() - new Date(sorted[i + 1].date).getTime()) / 86400000);
-    }
-    const avgInterval = intervals.reduce((s, d) => s + d, 0) / intervals.length;
-
-    let frequency = '';
-    let estimatedMonthly = 0;
-    if (avgInterval >= 25 && avgInterval <= 35)       { frequency = 'monthly';    estimatedMonthly = avgAmount; }
-    else if (avgInterval >= 6 && avgInterval <= 8)    { frequency = 'weekly';     estimatedMonthly = avgAmount * 4.33; }
-    else if (avgInterval >= 12 && avgInterval <= 16)  { frequency = 'bi-weekly'; estimatedMonthly = avgAmount * 2.17; }
-    else if (avgInterval >= 85 && avgInterval <= 95)  { frequency = 'quarterly'; estimatedMonthly = avgAmount / 3; }
-    else if (avgInterval >= 355 && avgInterval <= 375){ frequency = 'annual';    estimatedMonthly = avgAmount / 12; }
-    else continue;
-
-    results.push({
-      merchant: txs[0].merchant || txs[0].description,
-      amount: avgAmount,
-      frequency,
-      estimatedMonthly,
-      lastDate: new Date(sorted[0].date),
-      category: txs[0].category,
-      count: txs.length,
-    });
-  }
-  return results.sort((a, b) => b.estimatedMonthly - a.estimatedMonthly);
+/**
+ * DEPRECATED — this client detector used to flood the UI with false positives
+ * (Home Depot, QuikTrip, gas stations) because it had no denylist and a low
+ * minOccurrences gate. All recurring data should come from the `subscriptions`
+ * table, which is populated by the much stricter server engine in
+ * `lib/vault/recurringDetection.ts`.
+ *
+ * Kept as a no-op so other parts of the file still typecheck; the calendar
+ * and All-Recurring views now read straight from `subscriptions`.
+ */
+function detectRecurring(_transactions: VaultTransaction[]): RecurringItem[] {
+  return [];
 }
 
 function getNextPaymentDate(lastDate: Date, frequency: string): Date {
@@ -273,6 +363,7 @@ interface UpcomingPayment {
   nextDate: Date;
   frequency: string;
   color?: string;
+  category?: string;
 }
 
 function buildUpcoming(allTransactions: VaultTransaction[], subscriptions: Subscription[]): UpcomingPayment[] {
@@ -294,6 +385,7 @@ function buildUpcoming(allTransactions: VaultTransaction[], subscriptions: Subsc
       nextDate,
       frequency: r.frequency,
       color: known?.color,
+      category: known?.category,
     });
   });
 
@@ -315,6 +407,7 @@ function buildUpcoming(allTransactions: VaultTransaction[], subscriptions: Subsc
       nextDate,
       frequency: s.frequency || 'monthly',
       color: s.color,
+      category: s.category,
     });
   });
 
@@ -426,16 +519,9 @@ function UpcomingPayments({ allTransactions, subscriptions }: {
 
 // ── VaultView ─────────────────────────────────────────────────────────────────
 export function VaultView() {
-  const [tab, setTab] = useState<VaultTab>('overview');
-  const [accounts, setAccounts] = useState<VaultAccount[]>([]);
-  const [transactions, setTransactions] = useState<VaultTransaction[]>([]);
-  const [budgets, setBudgets] = useState<BudgetCategory[]>([]);
-  const [debts, setDebts] = useState<DebtEntry[]>([]);
-  const [goals, setGoals] = useState<SavingsGoal[]>([]);
-  const [rules, setRules] = useState<TransactionRule[]>([]);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [topTab, setTopTab] = useState<VaultTopTab>('see');
+  const [section, setSection] = useState<VaultSection>('see');
   const [selectedTx, setSelectedTx] = useState<VaultTransaction | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
@@ -448,6 +534,28 @@ export function VaultView() {
   const [showAddDebt, setShowAddDebt] = useState(false);
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [showAddBudget, setShowAddBudget] = useState(false);
+  const [useClassicBudget, setUseClassicBudget] = useState(false);
+  const [editingSubscription, setEditingSubscription] = useState<Subscription | null>(null);
+
+  // ── React Query: cached vault reads. Tab switches stay instant. ──
+  const {
+    accounts,
+    transactions,
+    budgets,
+    debts,
+    goals,
+    rules,
+    subscriptions,
+    netWorthHistory,
+    isLoading,
+  } = useVaultData(500);
+  const cache = useVaultCache();
+  const updateCategoryMutation = useUpdateTransactionCategory();
+
+  // Keep loadAll callable so existing handlers don't all need rewrites.
+  const loadAll = useCallback(async () => {
+    await cache.invalidateAll();
+  }, [cache]);
 
   // computed
   const netWorth = VaultDataService.computeNetWorth(accounts);
@@ -456,46 +564,12 @@ export function VaultView() {
   const totalExpenses = rangedTxs.filter(isRealExpense).reduce((s, t) => s + t.amount, 0);
 
   const handleUpdateCategory = useCallback(async (id: string, category: string) => {
-    await VaultDataService.updateTransaction(id, { category });
-    setTransactions(prev => prev.map(t => t.id === id ? { ...t, category } : t));
-  }, []);
+    // Optimistic mutation — patches cache immediately, refetches on settle.
+    await updateCategoryMutation.mutateAsync({ id, category });
+  }, [updateCategoryMutation]);
 
-  // ── load data ────────────────────────────────────────────────────────────
-  const loadAll = useCallback(async () => {
-    setIsLoading(true);
-    const [accs, rawTxs, budgetCats, debtList, goalList, ruleList, subList] = await Promise.all([
-      VaultDataService.fetchAccounts(),
-      VaultDataService.fetchTransactions(500),
-      VaultDataService.fetchBudgetCategories(),
-      VaultDataService.fetchDebts(),
-      VaultDataService.fetchSavingsGoals(),
-      VaultDataService.fetchRules(),
-      VaultDataService.fetchSubscriptions(),
-    ]);
-
-    // Apply user-defined rules to transactions (client-side)
-    const txs = VaultDataService.applyRules(rawTxs, ruleList);
-
-    const spending = VaultDataService.computeMonthlySpending(txs);
-    const spendingLower = Object.fromEntries(
-      Object.entries(spending).map(([k, v]) => [k.toLowerCase().replace(/[_\s]+/g, ''), v])
-    );
-    setBudgets(budgetCats.map(b => ({
-      ...b,
-      spent: spendingLower[b.name.toLowerCase().replace(/[_\s]+/g, '')] || 0,
-    })));
-    setAccounts(accs);
-    setTransactions(txs);
-    setDebts(debtList);
-    setGoals(goalList);
-    setRules(ruleList);
-    setSubscriptions(subList);
-    setIsLoading(false);
-
-    // Fetch AI nudges after data loads (non-blocking)
-    fetchNudges(txs, debtList, goalList);
-  }, []);
-
+  // ── AI nudges: keyed off a fingerprint so we don't re-hit /ai-nudges
+  //    every time React Query touches the cache. ──
   const fetchNudges = useCallback(async (
     txs: VaultTransaction[],
     debtList: DebtEntry[],
@@ -531,7 +605,12 @@ export function VaultView() {
     }
   }, []);
 
-  useEffect(() => { loadAll(); }, [loadAll]);
+  const nudgeFingerprint = `${transactions.length}:${debts.length}:${goals.length}`;
+  useEffect(() => {
+    if (isLoading) return;
+    fetchNudges(transactions, debts, goals);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nudgeFingerprint, isLoading]);
 
   // ── nudge helpers (declared after loadAll to avoid hoisting error) ──────
   const dismissNudge = useCallback((id: string) => {
@@ -561,38 +640,84 @@ export function VaultView() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const jwt = session?.access_token;
+      if (!jwt) {
+        setSyncMessage('Not signed in — refresh and try again');
+        return;
+      }
 
       const res = await fetch('/api/ctroom/vault/sync', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
         body: JSON.stringify({}),
       });
-      const result = await res.json();
 
-      if (result.synced !== undefined) {
-        setSyncMessage(`Synced ${result.synced} transactions`);
-        await loadAll();
+      if (!res.ok) {
+        const text = await res.text().catch(() => res.statusText);
+        console.error('[Vault sync] failed:', res.status, text);
+        setSyncMessage(`Sync failed (${res.status})`);
+        return;
       }
+
+      const result = await res.json();
+      if (result.error) {
+        console.error('[Vault sync] api error:', result.error);
+        setSyncMessage(`Sync failed: ${result.error}`);
+        return;
+      }
+
+      // Server-side recurring scan runs inline as part of sync.
+      const parts: string[] = [];
+      if (typeof result.synced === 'number') parts.push(`Synced ${result.synced} transactions`);
+      if (result.accountsUpdated) parts.push(`${result.accountsUpdated} accounts`);
+      if (result.recurring?.pendingReview) parts.push(`${result.recurring.pendingReview} to review`);
+      if (result.recurring?.cancelled) parts.push(`${result.recurring.cancelled} cancelled`);
+      setSyncMessage(parts.length ? parts.join(' · ') : 'Sync complete');
+      await loadAll();
     } catch (err) {
-      console.error('Sync error:', err);
-      setSyncMessage('Sync failed');
+      console.error('[Vault sync] threw:', err);
+      setSyncMessage('Sync failed — see console');
     } finally {
       setIsSyncing(false);
-      setTimeout(() => setSyncMessage(''), 3000);
+      setTimeout(() => setSyncMessage(''), 5000);
     }
   };
 
-  const tabs: { id: VaultTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'overview',      label: 'Overview',      icon: <LayoutDashboard className="w-4 h-4" /> },
-    { id: 'transactions',  label: 'Transactions',  icon: <ListOrdered className="w-4 h-4" /> },
-    { id: 'budget',        label: 'Budget',        icon: <PieChart className="w-4 h-4" /> },
-    { id: 'debt',          label: 'Debt',          icon: <TrendingDown className="w-4 h-4" /> },
-    { id: 'goals',         label: 'Goals',         icon: <Flag className="w-4 h-4" /> },
-    { id: 'recurring',     label: 'Recurring',     icon: <Repeat className="w-4 h-4" /> },
-  ];
+  const authFetch = useCallback(async (path: string, options: RequestInit = {}) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return fetch(path, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        ...options.headers,
+      },
+    });
+  }, []);
+
+  const handleDetectRecurring = useCallback(async () => {
+    const res = await authFetch('/api/ctroom/vault/recurring-refresh', { method: 'POST' });
+    const data = await res.json();
+    const parts: string[] = [];
+    if (data.detected !== undefined) parts.push(`${data.detected} detected`);
+    if (data.pendingReview) parts.push(`${data.pendingReview} to review`);
+    if (data.cancelled) parts.push(`${data.cancelled} cancelled`);
+    setSyncMessage(parts.length ? parts.join(' · ') : 'Recurring scan complete');
+    await loadAll();
+    setTimeout(() => setSyncMessage(''), 4000);
+  }, [authFetch, loadAll]);
+
+  // Pick the active top-tab descriptor and the active section's icon/label.
+  const activeTopTab = TOP_TABS.find(t => t.id === topTab) ?? TOP_TABS[0];
+  // Auto-correct stale section when switching top tabs (e.g. 'budget' → 'plan' but
+  // budget actually lives under money; we just snap to the new tab's default).
+  useEffect(() => {
+    if (!activeTopTab.sections.some(s => s.id === section)) {
+      setSection(activeTopTab.defaultSection);
+    }
+  }, [activeTopTab, section]);
+
+  // Time-range bar only makes sense on data-heavy sections.
+  const showTimeRange = section === 'understand';
 
   if (isLoading) {
     return (
@@ -606,23 +731,23 @@ export function VaultView() {
     <div className="h-full flex flex-col overflow-hidden" style={{ background: '#080808' }}>
 
       {/* ── HEADER ──────────────────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 px-6 pt-4 pb-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+      <div className="flex-shrink-0 px-4 md:px-6 pt-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
 
-        {/* Row 1: brand + stats + actions */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+        {/* Row 1: brand strip + net-worth hero stats + actions */}
+        <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="flex items-center gap-2.5 flex-shrink-0">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center"
                 style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.2)' }}>
                 <Wallet className="w-4 h-4" style={{ color: '#00ff88' }} />
               </div>
               <div>
                 <p className="text-sm font-bold text-white leading-none">Vault</p>
-                <p className="text-[10px] mt-0.5 leading-none" style={{ color: 'rgba(255,255,255,0.35)' }}>Personal Finance</p>
+                <p className="text-[10px] mt-0.5 leading-none" style={{ color: 'rgba(255,255,255,0.35)' }}>See · Understand · Plan</p>
               </div>
             </div>
 
-            {/* Net worth strip */}
+            {/* VaultHero — net worth + range income/spend */}
             <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-xl"
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <div>
@@ -643,7 +768,7 @@ export function VaultView() {
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {syncMessage && <span className="text-xs font-mono text-emerald-400">{syncMessage}</span>}
             <TellerConnectButton onSuccess={() => { loadAll(); handleSync(); }} />
             <button onClick={handleSync} disabled={isSyncing}
@@ -655,94 +780,123 @@ export function VaultView() {
           </div>
         </div>
 
-        {/* Row 2: tabs + time range */}
-        <div className="flex items-center justify-between gap-4 pb-0">
-          <div className="flex gap-0.5 overflow-x-auto">
-            {tabs.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-t-xl text-xs font-semibold whitespace-nowrap transition-all relative"
-                style={tab === t.id
-                  ? { color: '#00ff88', background: 'rgba(0,255,136,0.06)', borderBottom: '2px solid #00ff88' }
-                  : { color: 'rgba(255,255,255,0.4)', borderBottom: '2px solid transparent' }}>
-                <span style={{ color: tab === t.id ? '#00ff88' : 'rgba(255,255,255,0.3)' }}>{t.icon}</span>
+        {/* Row 2: top tabs (4) — pill style */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-3">
+          {TOP_TABS.map(t => {
+            const active = topTab === t.id;
+            return (
+              <button key={t.id}
+                onClick={() => { setTopTab(t.id); setSection(t.defaultSection); }}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all"
+                style={active
+                  ? { color: '#00ff88', background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.3)' }
+                  : { color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <span style={{ color: active ? '#00ff88' : 'rgba(255,255,255,0.4)' }}>{t.icon}</span>
                 {t.label}
               </button>
-            ))}
-          </div>
-          {(tab === 'overview' || tab === 'transactions') && (
-            <div className="flex gap-0.5 p-1 rounded-xl flex-shrink-0 mb-1"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              {(Object.keys(TIME_RANGE_LABELS) as TimeRange[]).map(r => (
-                <button key={r} onClick={() => setTimeRange(r)}
-                  className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all"
-                  style={timeRange === r
-                    ? { background: 'rgba(255,255,255,0.09)', color: '#e5e5e5' }
-                    : { color: 'rgba(255,255,255,0.3)' }}>
-                  {TIME_RANGE_LABELS[r]}
-                </button>
-              ))}
-            </div>
-          )}
+            );
+          })}
         </div>
+
+        {/* Row 3: sub-nav (shown only when the active top tab has >1 section)
+            + time range bar (only on data sections) */}
+        {(activeTopTab.sections.length > 1 || showTimeRange) && (
+          <div className="flex items-center justify-between gap-4 pb-3 flex-wrap">
+            {activeTopTab.sections.length > 1 ? (
+              <div className="flex gap-1 p-1 rounded-xl"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                {activeTopTab.sections.map(s => {
+                  const active = section === s.id;
+                  return (
+                    <button key={s.id} onClick={() => setSection(s.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all"
+                      style={active
+                        ? { background: 'rgba(255,255,255,0.09)', color: '#e5e5e5' }
+                        : { color: 'rgba(255,255,255,0.4)' }}>
+                      {s.icon}{s.label}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : <div />}
+            {showTimeRange && (
+              <div className="flex gap-0.5 p-1 rounded-xl flex-shrink-0"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                {(Object.keys(TIME_RANGE_LABELS) as TimeRange[]).map(r => (
+                  <button key={r} onClick={() => setTimeRange(r)}
+                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all"
+                    style={timeRange === r
+                      ? { background: 'rgba(255,255,255,0.09)', color: '#e5e5e5' }
+                      : { color: 'rgba(255,255,255,0.3)' }}>
+                    {TIME_RANGE_LABELS[r]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Scrollable content ─────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-6 py-5">
+      <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5">
         <AnimatePresence mode="wait">
           <motion.div
-            key={tab}
+            key={`${topTab}/${section}`}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
           >
-            {tab === 'overview' && (
-              <OverviewTab
-                accounts={accounts}
+            {section === 'see' && (
+              <SeeTab
                 transactions={rangedTxs}
                 allTransactions={transactions}
-                timeRange={timeRange}
-                budgets={budgets}
-                debts={debts}
-                goals={goals}
                 subscriptions={subscriptions}
-                onAddAccount={() => setShowAddAccount(true)}
-                onDeleteAccount={async id => { await VaultDataService.deleteAccount(id); loadAll(); }}
-                onUpdateCategory={handleUpdateCategory}
-                onTxClick={setSelectedTx}
-              />
-            )}
-            {tab === 'transactions' && (
-              <TransactionsTab
-                transactions={rangedTxs}
                 accounts={accounts}
-                rules={rules}
-                onAdd={() => setShowAddTransaction(true)}
-                onDelete={async id => { await VaultDataService.deleteTransaction(id); loadAll(); }}
+                goals={goals}
                 onUpdateCategory={handleUpdateCategory}
+                onReviewed={() => cache.invalidateSubscriptions()}
+                onGoalsSaved={loadAll}
+              />
+            )}
+            {section === 'understand' && (
+              <UnderstandTab
+                transactions={rangedTxs}
+                allTransactions={transactions}
+                accounts={accounts}
                 onTxClick={setSelectedTx}
-                onSaveRule={async (pattern, category) => { await VaultDataService.saveRule(pattern, category); loadAll(); }}
-                onDeleteRule={async id => { await VaultDataService.deleteRule(id); loadAll(); }}
-                onApplyRules={async () => {
-                  const r = await VaultDataService.fetchRules();
-                  const count = await VaultDataService.applyRulesToDb(r);
-                  setSyncMessage(`Applied rules to ${count} transactions`);
-                  loadAll();
-                  setTimeout(() => setSyncMessage(''), 3000);
-                }}
               />
             )}
-            {tab === 'budget' && (
-              <BudgetTab
-                budgets={budgets}
-                onAdd={() => setShowAddBudget(true)}
-                onDelete={async id => { await VaultDataService.deleteBudgetCategory(id); loadAll(); }}
-                onUpdate={async (id, updates) => { await VaultDataService.updateBudgetCategory(id, updates); loadAll(); }}
-              />
+            {section === 'budget' && (
+              useClassicBudget ? (
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setUseClassicBudget(false)}
+                    className="text-xs text-stone-500 hover:text-stone-300"
+                  >
+                    ← Back to zero-based assign
+                  </button>
+                  <BudgetTab
+                    budgets={budgets}
+                    onAdd={() => setShowAddBudget(true)}
+                    onDelete={async id => { await VaultDataService.deleteBudgetCategory(id); loadAll(); }}
+                    onUpdate={async (id, updates) => { await VaultDataService.updateBudgetCategory(id, updates); loadAll(); }}
+                  />
+                </div>
+              ) : (
+                <EnvelopeBudget
+                  transactions={transactions}
+                  subscriptions={subscriptions}
+                  onShowClassicBudget={() => setUseClassicBudget(true)}
+                  onBillsChanged={loadAll}
+                />
+              )
             )}
-            {tab === 'debt' && (
+            {section === 'debt' && (
               <DebtTab
                 debts={debts}
+                transactions={transactions}
                 nudges={activeNudges.filter(n => n.type === 'debt_payment')}
                 onAdd={() => setShowAddDebt(true)}
                 onDelete={async id => { await VaultDataService.deleteDebt(id); loadAll(); }}
@@ -752,7 +906,7 @@ export function VaultView() {
                 onDismissNudge={dismissNudge}
               />
             )}
-            {tab === 'goals' && (
+            {section === 'goals' && (
               <GoalsTab
                 goals={goals}
                 nudges={activeNudges.filter(n => n.type === 'goal_contribution')}
@@ -763,13 +917,52 @@ export function VaultView() {
                 onDismissNudge={dismissNudge}
               />
             )}
-            {tab === 'recurring' && (
-              <RecurringTab
+            {section === 'recurring' && (
+              <>
+                {editingSubscription && (
+                  <EditSubscriptionModal
+                    subscription={editingSubscription}
+                    onClose={() => setEditingSubscription(null)}
+                    onSave={sub => {
+                      VaultDataService.saveSubscription(sub).then(() => {
+                        setEditingSubscription(null);
+                        loadAll();
+                      });
+                    }}
+                    onUpdate={(id, u) => {
+                      VaultDataService.updateSubscription(id, u).then(() => {
+                        setEditingSubscription(null);
+                        loadAll();
+                      });
+                    }}
+                    onDelete={id => {
+                      VaultDataService.deleteSubscription(id).then(() => {
+                        setEditingSubscription(null);
+                        loadAll();
+                      });
+                    }}
+                  />
+                )}
+                <BillsTab
+                  transactions={transactions}
+                  subscriptions={subscriptions}
+                  onSave={async s => { await VaultDataService.saveSubscription(s); loadAll(); }}
+                  onUpdate={async (id, u) => { await VaultDataService.updateSubscription(id, u); loadAll(); }}
+                  onDelete={async id => { await VaultDataService.deleteSubscription(id); loadAll(); }}
+                  onDetectRecurring={handleDetectRecurring}
+                  onReviewed={() => cache.invalidateSubscriptions()}
+                  onEditSub={setEditingSubscription}
+                />
+              </>
+            )}
+            {section === 'ask' && (
+              <VaultAIChat
                 transactions={transactions}
+                budgets={budgets}
+                debts={debts}
+                goals={goals}
                 subscriptions={subscriptions}
-                onSave={async s => { await VaultDataService.saveSubscription(s); loadAll(); }}
-                onUpdate={async (id, u) => { await VaultDataService.updateSubscription(id, u); loadAll(); }}
-                onDelete={async id => { await VaultDataService.deleteSubscription(id); loadAll(); }}
+                accounts={accounts}
               />
             )}
           </motion.div>
@@ -1325,7 +1518,7 @@ function VaultAIChat({ transactions, budgets, debts, goals, subscriptions, accou
 }
 
 // ── OVERVIEW TAB ──────────────────────────────────────────────────────────────
-function OverviewTab({ accounts, transactions, allTransactions, timeRange, budgets, debts, goals, subscriptions, onAddAccount, onDeleteAccount, onUpdateCategory, onTxClick }: {
+function OverviewTab({ accounts, transactions, allTransactions, timeRange, budgets, debts, goals, subscriptions, netWorthHistory, onAddAccount, onDeleteAccount, onUpdateCategory, onTxClick }: {
   accounts: VaultAccount[];
   transactions: VaultTransaction[];
   allTransactions: VaultTransaction[];
@@ -1334,6 +1527,7 @@ function OverviewTab({ accounts, transactions, allTransactions, timeRange, budge
   debts: DebtEntry[];
   goals: SavingsGoal[];
   subscriptions: Subscription[];
+  netWorthHistory?: NetWorthSnapshot[];
   onAddAccount: () => void;
   onDeleteAccount: (id: string) => void;
   onUpdateCategory: (id: string, category: string) => void;
@@ -1354,14 +1548,14 @@ function OverviewTab({ accounts, transactions, allTransactions, timeRange, budge
     .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
     .sort((a, b) => b.value - a.value);
 
-  // Monthly income vs expense — last 6 months
+  // Monthly income vs expense — last 6 months (timezone-safe via toLocalMidnight)
   const now = new Date();
   const monthlyData: { month: string; income: number; expenses: number }[] = [];
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const label = d.toLocaleDateString('en-US', { month: 'short' });
     const monthTxs = allTransactions.filter(t => {
-      const td = new Date(t.date);
+      const td = toLocalMidnight(t.date);
       return td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear();
     });
     monthlyData.push({
@@ -1371,14 +1565,14 @@ function OverviewTab({ accounts, transactions, allTransactions, timeRange, budge
     });
   }
 
-  // Daily spending trend for current month (exclude transfers)
+  // Daily spending trend for current month (exclude transfers, timezone-safe)
   const currentMonthExpenses = allTransactions.filter(t => {
-    const td = new Date(t.date);
+    const td = toLocalMidnight(t.date);
     return td.getMonth() === now.getMonth() && td.getFullYear() === now.getFullYear() && isRealExpense(t);
   });
   const dailyMap: Record<number, number> = {};
   currentMonthExpenses.forEach(t => {
-    const day = new Date(t.date).getDate();
+    const day = toLocalMidnight(t.date).getDate();
     dailyMap[day] = (dailyMap[day] || 0) + t.amount;
   });
   let cumulative = 0;
@@ -1400,7 +1594,19 @@ function OverviewTab({ accounts, transactions, allTransactions, timeRange, budge
     .sort((a, b) => b.value - a.value)
     .slice(0, 8);
 
-  const hasChartData = categoryData.length > 0 || monthlyData.some(m => m.income > 0 || m.expenses > 0);
+  // Net-worth timeline from daily snapshots (whatever the engine has captured so far).
+  // Show last 90 days so the chart stays readable; format the x-axis as "Jun 1".
+  const netWorthData = (netWorthHistory ?? [])
+    .slice(-90)
+    .map(s => ({
+      date: toLocalMidnight(s.snapshotDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      netWorth: Math.round(s.netWorth),
+    }));
+
+  const hasChartData =
+    categoryData.length > 0
+    || monthlyData.some(m => m.income > 0 || m.expenses > 0)
+    || netWorthData.length > 1;
   const { score, breakdown } = computeHealthScore(allTransactions, budgets, debts, goals);
 
   return (
@@ -1453,6 +1659,7 @@ function OverviewTab({ accounts, transactions, allTransactions, timeRange, budge
           monthlyData={monthlyData}
           trendData={trendData}
           merchantData={merchantData}
+          netWorthData={netWorthData}
           activeCategoryFilter={categoryFilter}
           onCategoryClick={cat => setCategoryFilter(prev => prev === cat ? null : cat)}
         />
@@ -1509,8 +1716,10 @@ function OverviewTab({ accounts, transactions, allTransactions, timeRange, budge
 }
 
 // ── TRANSACTIONS TAB ──────────────────────────────────────────────────────────
-function TransactionsTab({ transactions, accounts, rules, onAdd, onDelete, onUpdateCategory, onTxClick, onSaveRule, onDeleteRule, onApplyRules }: {
+function TransactionsTab({ transactions, allTransactionsCount, timeRange, accounts, rules, onAdd, onDelete, onUpdateCategory, onTxClick, onSaveRule, onDeleteRule, onApplyRules, onClearRange }: {
   transactions: VaultTransaction[];
+  allTransactionsCount: number;
+  timeRange: TimeRange;
   accounts: VaultAccount[];
   rules: TransactionRule[];
   onAdd: () => void;
@@ -1520,6 +1729,7 @@ function TransactionsTab({ transactions, accounts, rules, onAdd, onDelete, onUpd
   onSaveRule: (pattern: string, category: string) => void;
   onDeleteRule: (id: string) => void;
   onApplyRules: () => void;
+  onClearRange?: () => void;
 }) {
   const [filter, setFilter] = useState<'all' | 'income' | 'expense' | 'transfer'>('all');
   const [accountFilter, setAccountFilter] = useState<string>('all');
@@ -1672,7 +1882,19 @@ function TransactionsTab({ transactions, accounts, rules, onAdd, onDelete, onUpd
       </div>
 
       {filtered.length === 0
-        ? <EmptyState icon={<ArrowUpRight className="w-8 h-8" />} label="No transactions" sub="Sync your bank or add one manually" />
+        ? (
+          allTransactionsCount > 0 && timeRange !== 'all' ? (
+            <EmptyState
+              icon={<ArrowUpRight className="w-8 h-8" />}
+              label={`No transactions in ${TIME_RANGE_LABELS[timeRange]}`}
+              sub={`You have ${allTransactionsCount} transactions overall — try a wider range`}
+              action="Show All Time"
+              onAction={onClearRange}
+            />
+          ) : (
+            <EmptyState icon={<ArrowUpRight className="w-8 h-8" />} label="No transactions" sub="Sync your bank or add one manually" />
+          )
+        )
         : (
           <div className="space-y-2">
             {filtered.map(tx => (
@@ -1883,8 +2105,9 @@ function debtPayoffProjection(balance: number, rate: number, minPayment: number)
   return { months, totalInterest: Math.max(0, totalInterest) };
 }
 
-function DebtTab({ debts, nudges, onAdd, onDelete, onUpdate, onImport, onApplyNudge, onDismissNudge }: {
+function DebtTab({ debts, transactions, nudges, onAdd, onDelete, onUpdate, onImport, onApplyNudge, onDismissNudge }: {
   debts: DebtEntry[];
+  transactions: VaultTransaction[];
   nudges: VaultAiNudge[];
   onAdd: () => void;
   onDelete: (id: string) => void;
@@ -1956,6 +2179,8 @@ function DebtTab({ debts, nudges, onAdd, onDelete, onUpdate, onImport, onApplyNu
           </div>
         </div>
       ))}
+
+      <StudentLoanMatcher debts={debts} transactions={transactions} />
 
       {/* Header stats */}
       <div className="grid grid-cols-3 gap-3">
@@ -2404,13 +2629,21 @@ function TxRow({ tx, onUpdateCategory }: { tx: VaultTransaction; onUpdateCategor
           }
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium truncate">{tx.merchant || tx.description}</p>
-          <div className="flex items-center gap-1 flex-wrap">
+          <div className="flex items-center gap-2 min-w-0">
+            <p className="text-sm font-medium truncate">{prettyMerchant(tx.merchant, tx.description)}</p>
+            {tx.isPending && (
+              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded flex-shrink-0"
+                style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>
+                Pending
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
             {needsCategory && onUpdateCategory ? (
               <div className="relative">
                 <button
                   onClick={() => setShowCatPicker(p => !p)}
-                  className="text-xs text-amber-500 hover:text-amber-400 flex items-center gap-0.5 transition-colors"
+                  className="text-[10px] text-amber-500 hover:text-amber-400 flex items-center gap-0.5 transition-colors font-semibold uppercase tracking-wider"
                 >
                   + Add category
                 </button>
@@ -2432,17 +2665,18 @@ function TxRow({ tx, onUpdateCategory }: { tx: VaultTransaction; onUpdateCategor
             ) : (
               <button
                 onClick={() => onUpdateCategory && setShowCatPicker(p => !p)}
-                className="text-xs transition-colors"
-                style={{ color: 'rgba(255,255,255,0.4)', cursor: onUpdateCategory ? 'pointer' : 'default' }}
-                onMouseEnter={e => onUpdateCategory && ((e.currentTarget as HTMLElement).style.color = '#e5e5e5')}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)'}
+                className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded transition-all"
+                style={{
+                  background: categoryChipBg(tx.category),
+                  color: categoryChipText(tx.category),
+                  cursor: onUpdateCategory ? 'pointer' : 'default',
+                }}
               >
-                {tx.category}
+                {tx.category || 'Other'}
               </button>
             )}
-            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
-              · {new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-              {tx.isPending && <span className="ml-1 text-amber-500">· Pending</span>}
+            <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              {new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </span>
             {!needsCategory && onUpdateCategory && showCatPicker && (
               <div className="absolute left-0 top-5 z-20 rounded-xl shadow-xl p-2 grid grid-cols-2 gap-1 w-56"
@@ -2541,7 +2775,13 @@ function toMonthly(amount: number, freq: string): number {
   return amount;
 }
 
-function RecurringCalendar({ upcoming }: { upcoming: UpcomingPayment[] }) {
+function RecurringCalendar({
+  upcoming,
+  onDayClick,
+}: {
+  upcoming: UpcomingPayment[];
+  onDayClick?: (date: Date, payments: UpcomingPayment[]) => void;
+}) {
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); d.setDate(1); return d; });
   const year = calMonth.getFullYear();
   const month = calMonth.getMonth();
@@ -2558,17 +2798,30 @@ function RecurringCalendar({ upcoming }: { upcoming: UpcomingPayment[] }) {
     return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
   });
   const monthLabel = calMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  const goPrevMonth = () => setCalMonth(new Date(year, month - 1, 1));
+  const goNextMonth = () => setCalMonth(new Date(year, month + 1, 1));
+
+  const monthTotal = upcoming
+    .filter(p => p.nextDate.getFullYear() === year && p.nextDate.getMonth() === month)
+    .reduce((s, p) => s + p.amount, 0);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <button onClick={() => setCalMonth(new Date(year, month - 1, 1))}
-          className="px-3 py-1.5 rounded-lg font-mono text-xs transition-all"
+        <button onClick={goPrevMonth}
+          className="px-3 py-1.5 rounded-lg font-mono text-xs transition-all hover:bg-white/10"
           style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)' }}>
           ← {new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'short' })}
         </button>
-        <span className="font-semibold text-sm text-white">{monthLabel}</span>
-        <button onClick={() => setCalMonth(new Date(year, month + 1, 1))}
-          className="px-3 py-1.5 rounded-lg font-mono text-xs transition-all"
+        <div className="text-center">
+          <p className="font-semibold text-sm text-white">{monthLabel}</p>
+          <p className="font-mono text-[10px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            {fmtFull(monthTotal)} this month
+          </p>
+        </div>
+        <button onClick={goNextMonth}
+          className="px-3 py-1.5 rounded-lg font-mono text-xs transition-all hover:bg-white/10"
           style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)' }}>
           {new Date(year, month + 1, 1).toLocaleDateString('en-US', { month: 'short' })} →
         </button>
@@ -2585,14 +2838,27 @@ function RecurringCalendar({ upcoming }: { upcoming: UpcomingPayment[] }) {
           const isToday = isCurrentMonth && day === today.getDate();
           const isPast = isCurrentMonth ? day < today.getDate() : new Date(year, month, day) < today;
           const total = pms.reduce((s, p) => s + p.amount, 0);
+          const clickable = pms.length > 0;
           return (
-            <div key={i} className="flex flex-col items-center py-1.5 rounded-xl gap-1"
+            <button
+              key={i}
+              type="button"
+              onClick={() => clickable && onDayClick?.(new Date(year, month, day), pms)}
+              disabled={!clickable}
+              className="flex flex-col items-center py-1.5 rounded-xl gap-1 transition-all"
               style={{
-                opacity: isPast && !isToday ? 0.3 : 1,
-                background: isToday ? 'rgba(239,68,68,0.08)' : pms.length ? 'rgba(124,58,237,0.06)' : 'rgba(255,255,255,0.02)',
-                border: isToday ? '1px solid rgba(239,68,68,0.4)' : pms.length ? '1px solid rgba(124,58,237,0.15)' : '1px solid rgba(255,255,255,0.04)',
+                opacity: isPast && !isToday ? 0.35 : 1,
+                background: isToday ? 'rgba(239,68,68,0.08)'
+                  : pms.length ? 'rgba(124,58,237,0.06)'
+                  : 'rgba(255,255,255,0.02)',
+                border: isToday ? '1px solid rgba(239,68,68,0.4)'
+                  : pms.length ? '1px solid rgba(124,58,237,0.15)'
+                  : '1px solid rgba(255,255,255,0.04)',
                 minHeight: 64,
-              }}>
+                cursor: clickable ? 'pointer' : 'default',
+              }}
+              aria-label={pms.length ? `${day} — ${pms.length} payment${pms.length === 1 ? '' : 's'} totalling ${fmtFull(total)}` : `${day} — no payments`}
+            >
               <span className="font-mono text-xs font-semibold" style={{ color: isToday ? '#ef4444' : 'rgba(255,255,255,0.7)' }}>{day}</span>
               {pms.slice(0, 2).map((p, j) => {
                 const letter = (p.name || '?')[0].toUpperCase();
@@ -2607,7 +2873,7 @@ function RecurringCalendar({ upcoming }: { upcoming: UpcomingPayment[] }) {
               {pms.length > 0 && (
                 <span className="font-mono text-[8px] font-semibold" style={{ color: '#f59e0b' }}>${Math.round(total)}</span>
               )}
-            </div>
+            </button>
           );
         })}
       </div>
@@ -2615,17 +2881,39 @@ function RecurringCalendar({ upcoming }: { upcoming: UpcomingPayment[] }) {
   );
 }
 
-function RecurringTab({ transactions, subscriptions, onSave, onUpdate, onDelete }: {
+function RecurringTab({ transactions, subscriptions, onSave, onUpdate, onDelete, onDetectRecurring, onReviewed, onOpenTransaction }: {
   transactions: VaultTransaction[];
   subscriptions: Subscription[];
   onSave: (s: Omit<Subscription, 'id'>) => void;
   onUpdate: (id: string, updates: Partial<Subscription>) => void;
   onDelete: (id: string) => void;
+  onDetectRecurring?: () => Promise<void> | void;
+  onReviewed?: () => void;
+  onOpenTransaction?: (tx: VaultTransaction) => void;
 }) {
   const [view, setView] = useState<'upcoming' | 'all' | 'calendar'>('upcoming');
   const [editingSub, setEditingSub] = useState<Subscription | null>(null);
+  const [detailSub, setDetailSub] = useState<Subscription | null>(null);
+  const [calendarDay, setCalendarDay] = useState<{ date: Date; payments: UpcomingPayment[] } | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState('');
+  const [isDetecting, setIsDetecting] = useState(false);
+
+  // Map "payment key" (used in UpcomingPayment) → subscription so the calendar
+  // day modal can drill into the rich detail view on tap.
+  const subsByKey = new Map<string, Subscription>();
+  for (const s of subscriptions) {
+    const k = (s.merchantPattern || s.name || '').toLowerCase();
+    if (k) subsByKey.set(k, s);
+    subsByKey.set(s.name.toLowerCase(), s);
+  }
+  const openSubByKey = (key: string) => {
+    const sub = subsByKey.get(key.toLowerCase());
+    if (sub) {
+      setCalendarDay(null);
+      setDetailSub(sub);
+    }
+  };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -2664,19 +2952,27 @@ function RecurringTab({ transactions, subscriptions, onSave, onUpdate, onDelete 
     return `in ${diff} days`;
   };
 
-  // Detected recurring for "All" view
-  const detected = detectRecurring(transactions).map(r => {
-    const known = matchKnownSub(r.merchant);
-    return { ...r, knownName: known?.name, knownEmoji: known?.emoji, knownColor: known?.color };
+  // Detected recurring for "All" view — engine output is now the dictionary's
+  // already-canonicalized name; keep matchKnownSub as a fallback for legacy rows.
+  // Saved subs grouped by lifecycle. The engine's status field controls visibility;
+  // "active" (and legacy isActive=true with no status) shows up in lists, "pending_review"
+  // bubbles up via RecurringReviewQueue, "cancelled" is hidden until user re-enables.
+  const liveSubs = subscriptions.filter(s => {
+    const st = s.status || (s.isActive ? 'active' : 'cancelled');
+    return st === 'active';
   });
-
-  // Saved subs grouped (filtered by search in all-recurring view)
-  const activeSubs = subscriptions.filter(s => s.isActive && (
-    !search || s.name.toLowerCase().includes(search.toLowerCase()) || (s.category || '').toLowerCase().includes(search.toLowerCase())
-  ));
+  const activeSubs = liveSubs.filter(s =>
+    !search || s.name.toLowerCase().includes(search.toLowerCase()) || (s.category || '').toLowerCase().includes(search.toLowerCase()),
+  );
   const bills = activeSubs.filter(s => s.category === 'Bills & Utilities');
   const otherSubs = activeSubs.filter(s => s.category !== 'Bills & Utilities');
   const savedMonthly = activeSubs.reduce((s, sub) => s + toMonthly(sub.amount, sub.frequency), 0);
+
+  const handleDetect = async () => {
+    if (!onDetectRecurring || isDetecting) return;
+    setIsDetecting(true);
+    try { await onDetectRecurring(); } finally { setIsDetecting(false); }
+  };
 
   return (
     <div className="space-y-5">
@@ -2690,8 +2986,15 @@ function RecurringTab({ transactions, subscriptions, onSave, onUpdate, onDelete 
         />
       )}
 
-      {/* View toggle + Add */}
-      <div className="flex items-center justify-between">
+      {/* Review queue: subscriptions the engine flagged as "needs your eyes". */}
+      {onReviewed && (
+        <RecurringReviewQueue subscriptions={subscriptions} onReviewed={onReviewed} />
+      )}
+
+      <BillsCalendarSummary subscriptions={subscriptions} />
+
+      {/* View toggle + actions */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}>
           {([['upcoming', 'Upcoming'], ['all', 'All Recurring'], ['calendar', 'Calendar']] as const).map(([v, label]) => (
             <button key={v} onClick={() => setView(v)}
@@ -2703,17 +3006,28 @@ function RecurringTab({ transactions, subscriptions, onSave, onUpdate, onDelete 
             </button>
           ))}
         </div>
-        <button onClick={() => setShowAdd(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-mono font-medium"
-          style={{ background: 'rgba(124,58,237,0.2)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.3)' }}>
-          <Plus className="w-4 h-4" /> Add
-        </button>
+        <div className="flex items-center gap-2">
+          {onDetectRecurring && (
+            <button onClick={handleDetect} disabled={isDetecting}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-medium transition-all disabled:opacity-50"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}
+              title="Re-scan transactions for recurring patterns">
+              <RefreshCw className={cn("w-3.5 h-3.5", isDetecting && "animate-spin")} />
+              {isDetecting ? 'Scanning' : 'Detect'}
+            </button>
+          )}
+          <button onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-mono font-medium"
+            style={{ background: 'rgba(124,58,237,0.2)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.3)' }}>
+            <Plus className="w-4 h-4" /> Add
+          </button>
+        </div>
       </div>
 
       {/* ── UPCOMING VIEW ── */}
       {view === 'upcoming' && (
         <div className="space-y-6">
-          {/* 7-day calendar strip */}
+          {/* 7-day calendar strip — tap a day to open day modal. */}
           <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
             <p className="font-mono text-[10px] uppercase tracking-widest mb-4" style={{ color: 'rgba(255,255,255,0.3)' }}>Next 7 Days</p>
             <div className="grid grid-cols-7 gap-2">
@@ -2722,16 +3036,30 @@ function RecurringTab({ transactions, subscriptions, onSave, onUpdate, onDelete 
                 const hasPayment = payments.length > 0;
                 const totalAmt = payments.reduce((s, p) => s + p.amount, 0);
                 return (
-                  <div key={idx} className="flex flex-col items-center gap-1.5">
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => hasPayment && setCalendarDay({ date, payments })}
+                    disabled={!hasPayment}
+                    className="flex flex-col items-center gap-1.5 transition-all"
+                    style={{ cursor: hasPayment ? 'pointer' : 'default' }}
+                    aria-label={hasPayment ? `${date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })} — ${payments.length} payment${payments.length === 1 ? '' : 's'}` : `${date.toLocaleDateString('en-US', { weekday: 'long' })} — no payments`}
+                  >
                     <span className="font-mono text-[10px] uppercase font-medium"
                       style={{ color: isToday ? '#f87171' : 'rgba(255,255,255,0.3)' }}>
                       {date.toLocaleDateString('en-US', { weekday: 'short' })}
                     </span>
-                    <div className="w-full aspect-square rounded-xl flex items-center justify-center font-mono text-sm font-bold"
+                    <div className="w-full aspect-square rounded-xl flex items-center justify-center font-mono text-sm font-bold transition-all"
                       style={{
-                        background: isToday ? 'rgba(248,113,113,0.15)' : hasPayment ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.03)',
-                        border: isToday ? '1px solid rgba(248,113,113,0.5)' : hasPayment ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(255,255,255,0.06)',
-                        color: isToday ? '#f87171' : hasPayment ? '#fbbf24' : 'rgba(255,255,255,0.25)',
+                        background: isToday ? 'rgba(248,113,113,0.15)'
+                          : hasPayment ? 'rgba(251,191,36,0.1)'
+                          : 'rgba(255,255,255,0.03)',
+                        border: isToday ? '1px solid rgba(248,113,113,0.5)'
+                          : hasPayment ? '1px solid rgba(251,191,36,0.3)'
+                          : '1px solid rgba(255,255,255,0.06)',
+                        color: isToday ? '#f87171'
+                          : hasPayment ? '#fbbf24'
+                          : 'rgba(255,255,255,0.25)',
                       }}>
                       {date.getDate()}
                     </div>
@@ -2739,13 +3067,13 @@ function RecurringTab({ transactions, subscriptions, onSave, onUpdate, onDelete 
                       ? <span className="font-mono text-[9px] font-bold text-amber-400">${Math.round(totalAmt)}</span>
                       : <span className="text-[9px] text-transparent">-</span>
                     }
-                  </div>
+                  </button>
                 );
               })}
             </div>
           </div>
 
-          {/* NEXT 7 DAYS list */}
+          {/* NEXT 7 DAYS list — clickable rows. */}
           {next7.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -2762,7 +3090,8 @@ function RecurringTab({ transactions, subscriptions, onSave, onUpdate, onDelete 
                   const isToday = diff === 0;
                   const isTomorrow = diff === 1;
                   return (
-                    <div key={p.key} className="flex items-center gap-3 p-3 rounded-xl transition-all"
+                    <button key={p.key} onClick={() => openSubByKey(p.key)}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left hover:bg-white/[0.05]"
                       style={{
                         background: isToday ? 'rgba(248,113,113,0.05)' : 'rgba(255,255,255,0.03)',
                         border: isToday ? '1px solid rgba(248,113,113,0.2)' : '1px solid rgba(255,255,255,0.06)',
@@ -2779,14 +3108,14 @@ function RecurringTab({ transactions, subscriptions, onSave, onUpdate, onDelete 
                           {daysLabel(p.nextDate)}
                         </p>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
             </div>
           )}
 
-          {/* COMING LATER list */}
+          {/* COMING LATER list — clickable rows. */}
           {later.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -2799,7 +3128,8 @@ function RecurringTab({ transactions, subscriptions, onSave, onUpdate, onDelete 
               </div>
               <div className="space-y-2">
                 {later.map(p => (
-                  <div key={p.key} className="flex items-center gap-3 p-3 rounded-xl"
+                  <button key={p.key} onClick={() => openSubByKey(p.key)}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all hover:bg-white/[0.05]"
                     style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
                     <span className="text-xl flex-shrink-0 opacity-60">{p.emoji}</span>
                     <div className="flex-1 min-w-0">
@@ -2812,7 +3142,7 @@ function RecurringTab({ transactions, subscriptions, onSave, onUpdate, onDelete 
                         {p.nextDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </p>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -2833,9 +3163,32 @@ function RecurringTab({ transactions, subscriptions, onSave, onUpdate, onDelete 
       {/* ── CALENDAR VIEW ── */}
       {view === 'calendar' && (
         <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <RecurringCalendar upcoming={upcoming} />
+          <RecurringCalendar upcoming={upcoming} onDayClick={(date, pms) => setCalendarDay({ date, payments: pms })} />
         </div>
       )}
+
+      {/* ── Modals ── */}
+      <AnimatePresence>
+        {detailSub && (
+          <SubscriptionDetailModal
+            subscription={detailSub}
+            transactions={transactions}
+            onClose={() => setDetailSub(null)}
+            onEdit={() => { setEditingSub(detailSub); setDetailSub(null); }}
+            onMarkCancelled={() => { onUpdate(detailSub.id, { status: 'cancelled', isActive: false, cancelledAt: new Date() }); setDetailSub(null); }}
+            onDelete={() => { onDelete(detailSub.id); setDetailSub(null); }}
+            onOpenTransaction={tx => { setDetailSub(null); onOpenTransaction?.(tx); }}
+          />
+        )}
+        {calendarDay && (
+          <CalendarDayModal
+            date={calendarDay.date}
+            payments={calendarDay.payments}
+            onClose={() => setCalendarDay(null)}
+            onOpenPayment={openSubByKey}
+          />
+        )}
+      </AnimatePresence>
 
       {/* ── ALL RECURRING VIEW ── */}
       {view === 'all' && (
@@ -2889,22 +3242,21 @@ function RecurringTab({ transactions, subscriptions, onSave, onUpdate, onDelete 
                     ? Math.round((new Date(sub.nextBillingDate).getTime() - today.getTime()) / 86400000)
                     : null;
                   return (
-                    <div key={sub.id} className="flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all"
-                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'}
-                      onClick={() => setEditingSub(sub)}>
-                      <div className="flex items-center gap-3">
+                    <button key={sub.id}
+                      onClick={() => setDetailSub(sub)}
+                      className="w-full flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all text-left hover:bg-white/[0.05]"
+                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                      <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
                           style={{ backgroundColor: (sub.color || '#6b7280') + '20' }}>
                           {sub.emoji || '💳'}
                         </div>
-                        <div>
-                          <p className="text-sm font-medium" style={{ color: '#e5e5e5' }}>{sub.name}</p>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate" style={{ color: '#e5e5e5' }}>{sub.name}</p>
                           <p className="text-[10px] capitalize" style={{ color: 'rgba(255,255,255,0.35)' }}>{sub.frequency}</p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex-shrink-0 ml-2">
                         <p className="font-mono text-sm font-semibold" style={{ color: '#e5e5e5' }}>{fmtFull(sub.amount)}</p>
                         {daysUntil !== null && (
                           <p className="font-mono text-[10px]" style={{ color: daysUntil <= 3 ? '#f87171' : 'rgba(255,255,255,0.25)' }}>
@@ -2912,7 +3264,7 @@ function RecurringTab({ transactions, subscriptions, onSave, onUpdate, onDelete 
                           </p>
                         )}
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -2936,22 +3288,21 @@ function RecurringTab({ transactions, subscriptions, onSave, onUpdate, onDelete 
                     ? Math.round((new Date(sub.nextBillingDate).getTime() - today.getTime()) / 86400000)
                     : null;
                   return (
-                    <div key={sub.id} className="flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all"
-                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'}
-                      onClick={() => setEditingSub(sub)}>
-                      <div className="flex items-center gap-3">
+                    <button key={sub.id}
+                      onClick={() => setDetailSub(sub)}
+                      className="w-full flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all text-left hover:bg-white/[0.05]"
+                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                      <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
                           style={{ backgroundColor: (sub.color || '#6b7280') + '20' }}>
                           {sub.emoji || '🏠'}
                         </div>
-                        <div>
-                          <p className="text-sm font-medium" style={{ color: '#e5e5e5' }}>{sub.name}</p>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate" style={{ color: '#e5e5e5' }}>{sub.name}</p>
                           <p className="text-[10px] capitalize" style={{ color: 'rgba(255,255,255,0.35)' }}>{sub.frequency}</p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex-shrink-0 ml-2">
                         <p className="font-mono text-sm font-semibold" style={{ color: '#e5e5e5' }}>{fmtFull(sub.amount)}</p>
                         {daysUntil !== null && (
                           <p className="font-mono text-[10px]" style={{ color: daysUntil <= 3 ? '#f87171' : 'rgba(255,255,255,0.25)' }}>
@@ -2959,76 +3310,355 @@ function RecurringTab({ transactions, subscriptions, onSave, onUpdate, onDelete 
                           </p>
                         )}
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
             </div>
           )}
 
-          {/* Auto-detected (not yet saved) */}
-          {detected.filter(r => !subscriptions.some(s => s.name.toLowerCase().includes((r.knownName || r.merchant).toLowerCase()))).length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="font-mono text-[11px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                  Auto-Detected
-                </p>
-                <p className="font-mono text-[10px]" style={{ color: 'rgba(255,255,255,0.25)' }}>click Save to track</p>
-              </div>
-              <div className="space-y-1.5">
-                {detected
-                  .filter(r => !subscriptions.some(s => s.name.toLowerCase().includes((r.knownName || r.merchant).toLowerCase())))
-                  .map((r, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-xl"
-                      style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                          style={{ backgroundColor: (r.knownColor || '#6b7280') + '15' }}>
-                          {r.knownEmoji || '🔄'}
-                        </div>
-                        <div>
-                          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.6)' }}>{r.knownName || r.merchant}</p>
-                          <p className="text-[10px] capitalize" style={{ color: 'rgba(255,255,255,0.25)' }}>{r.frequency} · {r.count} charges</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-mono text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>{fmtFull(r.amount)}</p>
-                        <button
-                          onClick={() => onSave({
-                            name: r.knownName || r.merchant,
-                            emoji: r.knownEmoji || '💳',
-                            amount: r.amount,
-                            frequency: r.frequency as SubscriptionFrequency,
-                            category: r.category || 'Entertainment',
-                            color: r.knownColor || FREQ_COLOR[r.frequency] || '#6b7280',
-                            isActive: true,
-                            merchantPattern: r.merchant,
-                            autoDetected: true,
-                          })}
-                          className="text-xs px-2.5 py-1 rounded-lg font-mono font-medium transition-colors"
-                          style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}
-                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(16,185,129,0.2)'}
-                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(16,185,129,0.1)'}>
-                          Save
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-
-          {activeSubs.length === 0 && detected.length === 0 && (
+          {activeSubs.length === 0 && (
             <EmptyState
               icon={<Repeat className="w-8 h-8" />}
               label="No recurring charges found"
-              sub="Add subscriptions manually or sync more transactions"
+              sub="Click Detect to scan your transactions, or add one manually"
               action="Add Recurring"
               onAction={() => setShowAdd(true)}
             />
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── SUBSCRIPTION DETAIL MODAL — Rocket Money-style rich detail card ─────────
+//
+// Click a recurring item → this modal pops up with:
+//   - hero: name, emoji, monthly cost
+//   - lifecycle stats (frequency, confidence, charges, avg interval)
+//   - next/last charge with date + amount + transaction id
+//   - charge history (last 8 occurrences) — click a row to open that tx
+//   - actions: Edit, Mark Cancelled, Delete
+//
+function SubscriptionDetailModal({
+  subscription,
+  transactions,
+  onClose,
+  onEdit,
+  onMarkCancelled,
+  onDelete,
+  onOpenTransaction,
+}: {
+  subscription: Subscription;
+  transactions: VaultTransaction[];
+  onClose: () => void;
+  onEdit: () => void;
+  onMarkCancelled?: () => void;
+  onDelete: () => void;
+  onOpenTransaction?: (tx: VaultTransaction) => void;
+}) {
+  // Find every charge that matches this subscription's merchant pattern.
+  // Falls back to the display name when no pattern is stored (manual entries).
+  const pattern = (subscription.merchantPattern || subscription.name || '').toLowerCase();
+  const history = transactions
+    .filter(t => {
+      if (t.type !== 'expense') return false;
+      const hay = `${t.merchant || ''} ${t.description || ''}`.toLowerCase();
+      return pattern.length >= 3 && hay.includes(pattern);
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const monthlyEquiv = toMonthly(subscription.amount, subscription.frequency);
+  const annualEquiv = monthlyEquiv * 12;
+  const nextDate = subscription.nextBillingDate ? new Date(subscription.nextBillingDate) : null;
+  const lastDate = subscription.lastChargeDate
+    ? new Date(subscription.lastChargeDate)
+    : history[0]?.date
+    ? new Date(history[0].date)
+    : null;
+  const lastAmount = subscription.lastChargeAmount ?? history[0]?.amount;
+  const lastTx = history[0];
+
+  const statusTone =
+    subscription.status === 'pending_review'
+      ? { bg: 'rgba(251,191,36,0.12)', text: '#fbbf24', label: 'Needs review' }
+      : subscription.status === 'cancelled'
+      ? { bg: 'rgba(148,163,184,0.12)', text: '#94a3b8', label: 'Cancelled' }
+      : { bg: 'rgba(16,185,129,0.12)', text: '#10b981', label: 'Active' };
+
+  const daysUntilNext = nextDate
+    ? Math.ceil((nextDate.getTime() - Date.now()) / 86400000)
+    : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm"
+      onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 40 }}
+        onClick={e => e.stopPropagation()}
+        className="w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+        style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.1)', maxHeight: '90vh' }}
+      >
+        {/* Hero */}
+        <div className="relative p-6"
+          style={{
+            background: `linear-gradient(180deg, ${subscription.color || 'rgba(124,58,237,0.15)'}25, transparent)`,
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+          }}>
+          <button onClick={onClose}
+            className="absolute top-4 right-4 p-1.5 rounded-lg transition-colors hover:bg-white/10"
+            style={{ color: 'rgba(255,255,255,0.5)' }}
+            aria-label="Close">
+            <X className="w-4 h-4" />
+          </button>
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0"
+              style={{
+                background: subscription.color ? `${subscription.color}25` : 'rgba(255,255,255,0.06)',
+                border: `1px solid ${subscription.color || 'rgba(255,255,255,0.1)'}`,
+              }}>
+              {subscription.emoji || '💳'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg font-bold truncate" style={{ color: '#e5e5e5' }}>{subscription.name}</h2>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
+                  style={{ background: statusTone.bg, color: statusTone.text }}>
+                  {statusTone.label}
+                </span>
+              </div>
+              <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                {subscription.category}
+                {subscription.confidence !== undefined && ` · ${subscription.confidence}% confidence`}
+              </p>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-3xl font-bold font-mono" style={{ color: '#e5e5e5' }}>
+                  {fmtFull(subscription.amount)}
+                </span>
+                <span className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  / {subscription.frequency}
+                </span>
+              </div>
+              <p className="font-mono text-[11px] mt-1" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                ≈ {fmtFull(monthlyEquiv)}/mo · {fmtFull(annualEquiv)}/yr
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          {/* Next + Last charge cards */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="p-3 rounded-xl" style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.18)' }}>
+              <p className="font-mono text-[9px] uppercase tracking-widest mb-1.5" style={{ color: 'rgba(255,255,255,0.4)' }}>Next Charge</p>
+              {nextDate ? (
+                <>
+                  <p className="font-mono font-bold text-sm" style={{ color: '#e5e5e5' }}>
+                    {nextDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </p>
+                  <p className="font-mono text-[10px] mt-0.5" style={{ color: daysUntilNext !== null && daysUntilNext <= 3 ? '#fbbf24' : 'rgba(255,255,255,0.5)' }}>
+                    {daysUntilNext === 0 ? 'Today' : daysUntilNext === 1 ? 'Tomorrow' : daysUntilNext !== null && daysUntilNext > 0 ? `in ${daysUntilNext} days` : 'Overdue'}
+                  </p>
+                </>
+              ) : (
+                <p className="font-mono text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>Unknown</p>
+              )}
+            </div>
+            <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <p className="font-mono text-[9px] uppercase tracking-widest mb-1.5" style={{ color: 'rgba(255,255,255,0.4)' }}>Last Charge</p>
+              {lastDate ? (
+                <>
+                  <p className="font-mono font-bold text-sm" style={{ color: '#e5e5e5' }}>
+                    {lastDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </p>
+                  <p className="font-mono text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    {lastAmount !== undefined ? fmtFull(lastAmount) : '—'}
+                  </p>
+                </>
+              ) : (
+                <p className="font-mono text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>No history</p>
+              )}
+            </div>
+          </div>
+
+          {/* Lifecycle stats — only show when engine has populated them. */}
+          {(subscription.chargeCount || subscription.avgIntervalDays) && (
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="p-2.5 rounded-xl text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <p className="font-mono text-[9px] uppercase tracking-widest mb-1" style={{ color: 'rgba(255,255,255,0.35)' }}>Charges</p>
+                <p className="font-mono font-bold text-base" style={{ color: '#e5e5e5' }}>{subscription.chargeCount ?? '—'}</p>
+              </div>
+              <div className="p-2.5 rounded-xl text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <p className="font-mono text-[9px] uppercase tracking-widest mb-1" style={{ color: 'rgba(255,255,255,0.35)' }}>Cadence</p>
+                <p className="font-mono font-bold text-base" style={{ color: '#e5e5e5' }}>
+                  {subscription.avgIntervalDays ? `${Math.round(subscription.avgIntervalDays)}d` : '—'}
+                </p>
+              </div>
+              <div className="p-2.5 rounded-xl text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <p className="font-mono text-[9px] uppercase tracking-widest mb-1" style={{ color: 'rgba(255,255,255,0.35)' }}>Since</p>
+                <p className="font-mono font-bold text-base" style={{ color: '#e5e5e5' }}>
+                  {subscription.firstSeenDate ? new Date(subscription.firstSeenDate).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }) : '—'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Charge history */}
+          {history.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="font-mono text-[10px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  Payment History
+                </p>
+                <p className="font-mono text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  {history.length} charge{history.length === 1 ? '' : 's'}
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                {history.slice(0, 8).map(tx => (
+                  <button
+                    key={tx.id}
+                    onClick={() => onOpenTransaction?.(tx)}
+                    className="w-full flex items-center justify-between p-2.5 rounded-xl transition-all text-left hover:bg-white/[0.06]"
+                    style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.04)' }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-mono text-xs truncate" style={{ color: '#e5e5e5' }}>
+                        {prettyMerchant(tx.merchant, tx.description)}
+                      </p>
+                      <p className="font-mono text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                        {new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {tx.tellerTransactionId && (
+                          <span className="ml-1.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                            · #{tx.tellerTransactionId.slice(-8)}
+                          </span>
+                        )}
+                        {tx.isPending && <span className="ml-1.5 text-amber-500">· Pending</span>}
+                      </p>
+                    </div>
+                    <p className="font-mono text-sm font-bold flex-shrink-0 ml-3" style={{ color: '#e5e5e5' }}>
+                      {fmtFull(tx.amount)}
+                    </p>
+                  </button>
+                ))}
+              </div>
+              {history.length > 8 && (
+                <p className="font-mono text-[10px] mt-2 text-center" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                  + {history.length - 8} more
+                </p>
+              )}
+            </div>
+          )}
+
+          {subscription.notes && (
+            <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <p className="font-mono text-[10px] uppercase tracking-widest mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Notes</p>
+              <p className="text-sm" style={{ color: 'rgba(255,255,255,0.7)' }}>{subscription.notes}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Action bar */}
+        <div className="flex items-center gap-2 p-4"
+          style={{ background: 'rgba(0,0,0,0.3)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <button onClick={onEdit}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-mono text-sm font-medium transition-all"
+            style={{ background: 'rgba(0,255,136,0.12)', color: '#00ff88', border: '1px solid rgba(0,255,136,0.25)' }}>
+            <Pencil className="w-3.5 h-3.5" /> Edit
+          </button>
+          {onMarkCancelled && subscription.status !== 'cancelled' && (
+            <button onClick={onMarkCancelled}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-mono text-sm font-medium transition-all"
+              style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.25)' }}
+              title="Mark cancelled (hides from active list)">
+              <X className="w-3.5 h-3.5" /> Cancel
+            </button>
+          )}
+          <button onClick={onDelete}
+            className="px-3 py-2.5 rounded-xl transition-all"
+            style={{ background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}
+            title="Delete">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ── CALENDAR DAY MODAL — clicking a day pops this instead of scrolling ──────
+function CalendarDayModal({
+  date,
+  payments,
+  onClose,
+  onOpenPayment,
+}: {
+  date: Date;
+  payments: UpcomingPayment[];
+  onClose: () => void;
+  onOpenPayment?: (key: string) => void;
+}) {
+  const total = payments.reduce((s, p) => s + p.amount, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = Math.round((date.getTime() - today.getTime()) / 86400000);
+  const relative = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : diff === -1 ? 'Yesterday' : diff > 0 ? `in ${diff} days` : `${Math.abs(diff)} days ago`;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm"
+      onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 40 }}
+        onClick={e => e.stopPropagation()}
+        className="w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+        style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.1)', maxHeight: '85vh' }}
+      >
+        <div className="flex items-center justify-between p-5"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'linear-gradient(180deg, rgba(124,58,237,0.1), transparent)' }}>
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.4)' }}>{relative}</p>
+            <h3 className="font-bold text-base" style={{ color: '#e5e5e5' }}>
+              {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </h3>
+            <p className="font-mono text-sm mt-1" style={{ color: '#a78bfa' }}>
+              {payments.length} charge{payments.length === 1 ? '' : 's'} · {fmtFull(total)}
+            </p>
+          </div>
+          <button onClick={onClose}
+            className="p-1.5 rounded-lg transition-colors hover:bg-white/10"
+            style={{ color: 'rgba(255,255,255,0.4)' }}
+            aria-label="Close">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-4 space-y-2 overflow-y-auto" style={{ maxHeight: '60vh' }}>
+          {payments.map(p => (
+            <button
+              key={p.key}
+              onClick={() => onOpenPayment?.(p.key)}
+              className="w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left hover:bg-white/[0.06]"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+            >
+              <span className="text-2xl flex-shrink-0">{p.emoji}</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-mono text-sm font-semibold truncate" style={{ color: '#e5e5e5' }}>{p.name}</p>
+                <p className="font-mono text-[10px] mt-0.5 capitalize" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  {p.frequency}{p.category ? ` · ${p.category}` : ''}
+                </p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="font-mono text-base font-bold" style={{ color: '#e5e5e5' }}>{fmtFull(p.amount)}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </motion.div>
     </div>
   );
 }

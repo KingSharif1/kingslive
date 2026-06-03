@@ -114,7 +114,11 @@ const nextConfig = {
   },
 
   // Transpile Sanity packages for better optimization
-  transpilePackages: ['sanity', '@sanity/ui', '@sanity/icons', '@sanity/vision', 'next-sanity'],
+  // recharts + deps: avoids webpack factory errors when dynamically imported on the client
+  transpilePackages: [
+    'sanity', '@sanity/ui', '@sanity/icons', '@sanity/vision', 'next-sanity',
+    'recharts', 'react-smooth', 'recharts-scale',
+  ],
 
   // Webpack configuration
   webpack: (config, { isServer }) => {
@@ -129,26 +133,30 @@ const nextConfig = {
           cacheGroups: {
             default: false,
             vendors: false,
-            // Vendor chunk for node_modules
+            // Initial-page vendor chunk only — 'all' breaks Next.js dynamic import() chunks.
+            // Exclude recharts/d3 so they stay in dedicated async chunks.
             vendor: {
               name: 'vendor',
-              chunks: 'all',
-              test: /node_modules/,
+              chunks: 'initial',
+              test: (module) => {
+                const ctx = module.context ?? '';
+                if (!/[\\/]node_modules[\\/]/.test(ctx)) return false;
+                return !/[\\/]node_modules[\\/](recharts|react-smooth|recharts-scale|d3-|victory-vendor)[\\/]/.test(ctx);
+              },
               priority: 20,
             },
-            // Common chunk for shared code
             common: {
               name: 'common',
               minChunks: 2,
-              chunks: 'all',
+              chunks: 'initial',
               priority: 10,
               reuseExistingChunk: true,
               enforce: true,
             },
-            // Separate chunk for framer-motion
             framerMotion: {
               name: 'framer-motion',
               test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
+              chunks: 'async',
               priority: 30,
             },
             // Separate chunk for Sanity Studio (large bundle)
@@ -173,6 +181,15 @@ const nextConfig = {
               test: /[\\/]node_modules[\\/]@radix-ui[\\/]/,
               chunks: 'async',
               priority: 25,
+            },
+            // recharts must stay in its own async chunk — bundling it into the
+            // main vendor chunk breaks dynamic() imports (webpack "reading 'call'" error)
+            recharts: {
+              name: 'recharts',
+              test: /[\\/]node_modules[\\/](recharts|react-smooth|recharts-scale|d3-[^/]+|victory-vendor)[\\/]/,
+              chunks: 'async',
+              priority: 45,
+              enforce: true,
             },
           },
         },

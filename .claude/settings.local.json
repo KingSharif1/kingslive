@@ -83,7 +83,9 @@
       "Bash(Measure-Object -Line)",
       "Bash(Select-Object -ExpandProperty Lines)",
       "WebFetch(domain:claude.ai)",
-      "Bash(npx skills *)"
+      "Bash(npx skills *)",
+      "Bash(Find \"c:\\\\Users\\\\kings\\\\wrkspace\\\\kingslive\\\\app\" -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\))",
+      "Bash(Sort)"
     ]
   },
   "enableAllProjectMcpServers": true,
