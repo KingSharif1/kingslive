@@ -331,6 +331,13 @@ export interface NetWorthSnapshot {
   investments: number;
 }
 
+export interface FinanceSnapshotRecord {
+  id: string;
+  month: string;
+  createdAt: string;
+  data: import('@/lib/vault/financeSnapshot').SnapshotData;
+}
+
 export interface TransactionRule {
   id: string;
   pattern: string; // case-insensitive substring match against merchant/description

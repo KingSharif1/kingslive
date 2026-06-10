@@ -854,6 +854,8 @@ export function VaultView() {
                 subscriptions={subscriptions}
                 accounts={accounts}
                 goals={goals}
+                debts={debts}
+                budgets={budgets}
                 onUpdateCategory={handleUpdateCategory}
                 onReviewed={() => cache.invalidateSubscriptions()}
                 onGoalsSaved={loadAll}

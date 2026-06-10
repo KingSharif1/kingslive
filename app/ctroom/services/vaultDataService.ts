@@ -2,8 +2,9 @@ import { supabase } from '@/lib/supabase';
 import {
   VaultAccount, VaultTransaction, BudgetCategory, DebtEntry, SavingsGoal,
   TransactionRule, Subscription, SubscriptionFrequency,
-  IncomeStream, InvestmentPosition, NetWorthSnapshot,
+  IncomeStream, InvestmentPosition, NetWorthSnapshot, FinanceSnapshotRecord,
 } from '../types/index';
+import type { SnapshotData } from '@/lib/vault/financeSnapshot';
 
 /**
  * Parse a date the way the UI expects.
@@ -778,6 +779,62 @@ export class VaultDataService {
 
   static async deleteInvestment(id: string): Promise<boolean> {
     const { error } = await supabase.from('investments').delete().eq('id', id);
+    return !error;
+  }
+
+  // ==================== FINANCE SNAPSHOTS ====================
+
+  static async fetchFinanceSnapshots(): Promise<FinanceSnapshotRecord[]> {
+    try {
+      const { data, error } = await supabase
+        .from('vault_finance_snapshots')
+        .select('id, month, data, created_at')
+        .order('created_at', { ascending: false })
+        .limit(24);
+
+      if (error) return [];
+
+      return (data || []).map(row => ({
+        id: row.id,
+        month: row.month,
+        createdAt: row.created_at,
+        data: row.data as SnapshotData,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  static async saveFinanceSnapshot(snapshot: SnapshotData): Promise<FinanceSnapshotRecord | null> {
+    try {
+      const userId = await this.getUserId();
+      if (!userId) return null;
+
+      const { data, error } = await supabase
+        .from('vault_finance_snapshots')
+        .insert({
+          user_id: userId,
+          month: snapshot.monthKey,
+          data: snapshot,
+        })
+        .select('id, month, data, created_at')
+        .single();
+
+      if (error || !data) return null;
+
+      return {
+        id: data.id,
+        month: data.month,
+        createdAt: data.created_at,
+        data: data.data as SnapshotData,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  static async deleteFinanceSnapshot(id: string): Promise<boolean> {
+    const { error } = await supabase.from('vault_finance_snapshots').delete().eq('id', id);
     return !error;
   }
 

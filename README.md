@@ -1,118 +1,93 @@
-# King Sharif — Personal Site & Ctroom
+<div align="center">
 
-Personal portfolio and productivity dashboard built with Next.js 15, Supabase, and multiple AI integrations.
+# 👑 KingsLive
+
+### My personal site — portfolio up front, experiments in the back.
+
+_Not a demo. Not a portfolio toy. Stuff I actually use._
+
+<br/>
+
+[![Next.js](https://img.shields.io/badge/Next.js_15-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind](https://img.shields.io/badge/Tailwind-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
+[![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/)
+
+[**Live →**](https://kingslive.vercel.app) &nbsp;·&nbsp; [**@KingSharif1**](https://github.com/KingSharif1)
+
+</div>
 
 ---
 
-## What's in here
+## 👋 What this is
 
-Two distinct things live in this repo:
+I'm King Sharif — creative developer, UX engineer, and entrepreneur out of Fort Worth, TX.
 
-**Portfolio** — the public-facing site at the root domain. Minimal dark design, blog powered by Sanity CMS, particle background, contact form.
+This is my corner of the internet. The public side is a clean, dark portfolio with a Sanity-powered blog. Behind that, there's some private tooling I built for myself — auth-gated, not really meant for public walkthroughs.
 
-**Ctroom** — a private personal dashboard at `/ctroom`. Think of it as a command room for daily life: task management, project tracking, AI chat, finance tracking, idea capture, and a daily planner. Auth-gated (Supabase).
+Philosophy stays the same: **build things that are personal, smart, and actually solve your problems.**
 
 ---
 
-## Tech Stack
+## 🌐 What's public
 
-| Layer | Tech |
+| | |
 |---|---|
-| Framework | Next.js 15 (App Router) |
-| Language | TypeScript 5 |
-| Styling | Tailwind CSS 3.4 |
-| Auth & DB | Supabase (Postgres + Row Level Security) |
-| CMS | Sanity v4 (blog posts) |
-| AI | Google Gemini 2.0 Flash, OpenAI GPT-4o, Groq |
-| Finance sync | Teller API (bank account linking) |
-| Charts | Recharts |
-| Animation | Framer Motion |
-| Deployment | Vercel |
+| **Portfolio** | Minimal dark design, particle background, the work |
+| **Blog** | Posts powered by Sanity CMS |
+| **Contact** | Reach me from the site |
+
+Everything else in the repo is mostly personal infrastructure. If you stumble on routes that need a login, that's intentional.
 
 ---
 
-## Ctroom Modules
+## 🧱 Stack
 
-| Module | Description |
+| Layer | What I'm using |
 |---|---|
-| Dashboard | Daily overview — tasks due, active projects, quick stats |
-| Chat | Multi-model AI chat (GPT-4o, Gemini, Groq Llama) with tool support |
-| Missions | Project tracker with GitHub integration, domain monitoring, deployment status |
-| Planner | Day/week view, time-blocking, habit systems |
-| Tasks | Action items with priority, category, and mission linkage |
-| Ideas | Quick capture with tagging and AI expansion |
-| Vault | Personal finance — bank sync via Teller, transactions, budgets, debt tracking, savings goals, recurring subscriptions, AI nudges |
-| Dreamboard | Vision board / goal visualization |
-| Blog | Read and write posts (Sanity-backed) |
+| **Framework** | Next.js 15 (App Router) · React 18 |
+| **Language** | TypeScript 5 |
+| **Styling** | Tailwind CSS 3.4 · shadcn/ui · Framer Motion |
+| **Auth & DB** | Supabase |
+| **CMS** | Sanity v4 |
+| **Deploy** | Vercel |
 
 ---
 
-## Vault — Finance Dashboard
-
-The Vault connects to real bank accounts via Teller and runs a Gemini AI layer on top of your transactions to surface actionable nudges:
-
-- Links checking, savings, credit, and loan accounts
-- Auto-categorizes transactions with rule-based + AI override
-- Tracks debts with balance projection and payoff timeline
-- Tracks savings goals with SVG progress rings
-- Detects recurring subscriptions automatically
-- Budget categories with monthly limits and spending pace
-- **AI Nudges** — when Gemini detects a student loan payment in your transactions, it suggests updating your debt balance. Same for savings deposits → goal contributions.
-
----
-
-## Local Development
+## 🛠️ Run it locally
 
 ```bash
-# Install
 npm install
-
-# Environment variables (see .env.example)
-cp .env.example .env.local
-
-# Run
+cp .env.example .env.local   # fill in your keys
 npm run dev
 ```
 
-### Required env vars
-
-```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-NEXT_PUBLIC_SANITY_PROJECT_ID=
-NEXT_PUBLIC_SANITY_DATASET=
-GEMINI_API_KEY=
-TELLER_APPLICATION_ID=
-TELLER_SIGNING_SECRET=
-```
+You'll need Supabase + Sanity configured at minimum. The rest depends on what you're trying to run.
 
 ---
 
-## Project Structure
+## 🗺️ Layout (high level)
 
 ```
 app/
-  page.tsx              # Portfolio home
-  blog/                 # Blog routes (Sanity)
-  ctroom/
-    page.tsx            # Dashboard entry (auth-gated)
-    components/
-      CtroomDashboard   # Root layout + nav
-      views/            # One file per module (VaultView, ChatView, etc.)
-    types/index.ts      # All shared TypeScript types
-  api/
-    ctroom/             # API routes (teller, vault, github, ai)
-  privacy/              # Privacy policy (for Plaid/Teller apps)
-  terms/                # Terms of service
-components/             # Portfolio components (Header, Footer, etc.)
-lib/                    # Supabase client, utilities
+├── page.tsx          # Portfolio
+├── blog/             # Blog routes
+├── studio/           # Sanity Studio
+components/           # Portfolio UI
+lib/                  # Shared utilities
 ```
 
 ---
 
-## Status
+## 📌 Status
 
-Active personal project. Not open for contributions — just making it public for transparency and portfolio purposes.
+Active personal project. Not open for contributions — repo is public for transparency and portfolio purposes.
 
-Built by [King Sharif](https://github.com/KingSharif1).
+<div align="center">
+
+**Built by King Sharif** — [github.com/KingSharif1](https://github.com/KingSharif1)
+
+_Build things that are personal, smart, and actually solve your problems._
+
+</div>
