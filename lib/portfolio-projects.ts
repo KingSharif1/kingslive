@@ -13,7 +13,7 @@ export type PortfolioProject = {
   tech: string[]
   liveUrl?: string
   repoUrl?: string
-  /** Optional Sanity blog slug to deep-link related writing */
+  /** Canonical blog post slug when one post is the project write-up */
   blogSlug?: string
 }
 
@@ -25,9 +25,9 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     year: '2026',
     status: 'Live',
     description:
-      'AI resume tailoring and application tracking. Match a resume to a job post and manage the pipeline in one place.',
+      'Tailors resumes to job posts with AI and tracks applications end to end.',
     image: '/hireiq-cover.png',
-    tech: ['Next.js', 'Supabase', 'Claude', 'TypeScript'],
+    tech: ['Next.js', 'TypeScript', 'Supabase', 'Claude'],
     liveUrl: 'https://hireiq-nu.vercel.app',
     repoUrl: 'https://github.com/KingSharif1/HireIQ',
   },
@@ -37,11 +37,12 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     year: '2026',
     status: 'Live',
     description:
-      'Personal command center for missions, Milo AI, Vault finance, and daily ops — auth, planner, and live bank data.',
+      'Personal HQ for missions, Milo AI, Vault finance, and day-to-day ops.',
     image: '/kingslive-cover.png',
-    tech: ['Next.js', 'Supabase', 'Teller', 'Sanity', 'Tailwind'],
+    tech: ['Next.js', 'TypeScript', 'Supabase', 'Teller', 'Sanity'],
     liveUrl: 'https://kingsharif.com/ctroom',
     repoUrl: 'https://github.com/KingSharif1/kingslive',
+    blogSlug: 'updating-portfolio',
   },
   {
     id: '1942',
@@ -49,9 +50,9 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     year: '2025',
     status: 'Live',
     description:
-      'Brand storefront with a cinematic manifesto video and product storytelling. Built for a sharp, modern shopping front.',
+      'Brand storefront with cinematic manifesto video and product storytelling.',
     image: '/1942-forgotten.png',
-    tech: ['React', 'Vite', 'Tailwind CSS', 'TypeScript'],
+    tech: ['React', 'TypeScript', 'Vite', 'Tailwind CSS'],
     liveUrl: 'https://trulyforgtten.shop',
     repoUrl: 'https://github.com/KingSharif1/1942-truly-forgotten',
   },
@@ -65,10 +66,10 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
     year: '2026',
     status: 'In Progress',
     description:
-      'Ops dashboard for Roomba fleet / home automation insights. Writing and repo landing here as the build ships.',
+      'Dashboard for Roomba status, runs, and home-ops insights. Build + write-ups landing here.',
     image: '/kingslive-cover.png',
     tech: ['Next.js', 'TypeScript', 'APIs'],
-    repoUrl: 'https://github.com/KingSharif1',
+    repoUrl: 'https://github.com/KingSharif1/roomba-dashboard',
   },
   {
     id: 'nemt-billing',
@@ -76,9 +77,9 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
     year: '2023',
     status: 'Live',
     description:
-      'Billing platform for non-emergency medical transport — invoices, payments, and authenticated operator workflows.',
+      'Invoicing and payments for non-emergency medical transport operators.',
     image: '/nemtbiling.png',
-    tech: ['Next.js', 'Strapi', 'TypeScript', 'Context API'],
+    tech: ['Next.js', 'TypeScript', 'Strapi', 'Context API'],
     liveUrl: 'https://nemtbiling.com',
   },
   {
@@ -87,7 +88,7 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
     year: '2024',
     status: 'Live',
     description:
-      'E-commerce storefront for specialty candy — catalog, inventory, and checkout on WordPress + WooCommerce.',
+      'Specialty candy e-commerce — catalog, inventory, and checkout.',
     image: '/se-update.png',
     tech: ['WordPress', 'WooCommerce', 'PHP'],
     liveUrl: 'https://mysweetemporium.com',

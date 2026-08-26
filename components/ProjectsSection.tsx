@@ -59,15 +59,14 @@ function ProjectRow({ project, index }: { project: PortfolioProject; index: numb
               GitHub
             </a>
           )}
-          {project.blogSlug && (
+          {project.blogSlug ? (
             <Link
               href={`/blog/${project.blogSlug}`}
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               Related writing
             </Link>
-          )}
-          {!project.blogSlug && (
+          ) : (
             <Link
               href={`/blog?project=${project.id}`}
               className="text-muted-foreground hover:text-foreground transition-colors"
@@ -96,6 +95,7 @@ function ProjectRow({ project, index }: { project: PortfolioProject; index: numb
 
 export function ProjectsSection() {
   const [showAll, setShowAll] = useState(false)
+  const total = FEATURED_PROJECTS.length + ARCHIVE_PROJECTS.length
   const visible = showAll
     ? [...FEATURED_PROJECTS, ...ARCHIVE_PROJECTS]
     : FEATURED_PROJECTS
@@ -106,7 +106,7 @@ export function ProjectsSection() {
         <div className="space-y-2">
           <h2 className="text-3xl sm:text-4xl font-light font-sora tracking-tight">Featured Projects</h2>
           <p className="text-sm text-muted-foreground max-w-md">
-            Recent builds from GitHub — the work shipping now.
+            Three highlights up front — open the list for the full archive.
           </p>
         </div>
         <div className="text-sm text-muted-foreground font-mono">2023 — 2026</div>
@@ -119,18 +119,17 @@ export function ProjectsSection() {
       </div>
 
       {ARCHIVE_PROJECTS.length > 0 && (
-        <div className="flex justify-center pt-2">
-          <button
-            type="button"
-            onClick={() => setShowAll((v) => !v)}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-mono tracking-wide uppercase border border-border/70 text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
-            aria-expanded={showAll}
-          >
-            {showAll
-              ? 'Show top 3'
-              : `Show all projects (${FEATURED_PROJECTS.length + ARCHIVE_PROJECTS.length})`}
+        <details
+          className="group/details border border-border/60"
+          open={showAll}
+          onToggle={(e) => setShowAll((e.target as HTMLDetailsElement).open)}
+        >
+          <summary className="cursor-pointer list-none flex items-center justify-between gap-3 px-4 py-3 sm:px-5 text-sm font-mono tracking-wide uppercase text-muted-foreground hover:text-foreground hover:bg-accent/20 transition-colors">
+            <span>
+              {showAll ? 'Hide archive' : `All projects (${total})`}
+            </span>
             <svg
-              className={`w-4 h-4 transition-transform ${showAll ? 'rotate-180' : ''}`}
+              className={`w-4 h-4 shrink-0 transition-transform ${showAll ? 'rotate-180' : ''}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -138,8 +137,13 @@ export function ProjectsSection() {
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
-          </button>
-        </div>
+          </summary>
+          <p className="px-4 sm:px-5 pb-4 text-xs text-muted-foreground">
+            {showAll
+              ? 'Showing featured + archive. Collapse to return to the top 3.'
+              : 'Expand to reveal Roomba Dashboard, NEMT Billing, My Sweet Emporium, and more.'}
+          </p>
+        </details>
       )}
     </div>
   )

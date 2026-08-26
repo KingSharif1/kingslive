@@ -1,6 +1,11 @@
 # CHANGELOG.md
 
-## 2026-08-26 — Blog fix + docs + portfolio linking
+## 2026-08-26 — Portfolio project UX polish
+
+What: Real `<details>` archive dropdown; tighter professional blurbs; KingsLive ↔ `updating-portfolio` blog link; Roomba repo URL stub (`KingSharif1/roomba-dashboard`)
+Files: `lib/portfolio-projects.ts`, `components/ProjectsSection.tsx`
+Why: Match “top 3 + dropdown”, blog↔project linking, and straight-to-the-point copy
+Next: Create the `roomba-dashboard` GitHub repo; set Sanity `relatedProjectId` on new posts
 
 What:
 - Fixed blog reads by unifying Sanity project ID (`n31jvc6a`)
