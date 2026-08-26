@@ -21,6 +21,7 @@ import { IdeasView } from './views/IdeasView';
 import { PlannerView } from './views/PlannerView';
 import { MissionsView } from './views/MissionsView';
 import { BlogView } from './views/BlogView';
+import { PortfolioProjectsView } from './views/PortfolioProjectsView';
 import { SettingsView } from './views/SettingsView';
 import { VaultView } from './views/VaultView';
 import DreamboardView from './views/DreamboardView';
@@ -834,6 +835,8 @@ export function CtroomDashboard() {
                     )}
 
                     {currentView === 'blog' && <BlogView />}
+
+                    {currentView === 'portfolio' && <PortfolioProjectsView />}
 
                     {currentView === 'settings' && (
                         <SettingsView

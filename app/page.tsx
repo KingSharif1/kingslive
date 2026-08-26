@@ -9,6 +9,8 @@ import { Footer } from "@/components/Footer"
 import { ProjectsSection } from "@/components/ProjectsSection"
 import { SkillsSection } from "@/components/SkillsSection"
 import { getPublishedPosts, BlogPost } from "@/lib/sanity-queries"
+import { fetchPublishedProjects } from "@/app/ctroom/services/portfolioProjectsService"
+import type { PortfolioProject } from "@/lib/portfolio-projects"
 
 // Lazy load heavy components
 const ContactForm = dynamic(() => import("@/components/ContactForm").then(mod => ({ default: mod.ContactForm })), {
@@ -22,6 +24,7 @@ export default function Home() {
   const [mounted, setMounted] = useState(false)
   const [activeSection, setActiveSection] = useState("")
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
+  const [portfolioProjects, setPortfolioProjects] = useState<PortfolioProject[]>([])
   const sectionsRef = useRef<(HTMLElement | null)[]>([null, null, null, null])
 
   useEffect(() => {
@@ -36,6 +39,10 @@ export default function Home() {
     // Fetch blog posts
     getPublishedPosts().then(posts => {
       setBlogPosts(posts.slice(0, 2)) // Get latest 2 posts
+    }).catch(console.error)
+
+    fetchPublishedProjects().then(({ projects }) => {
+      setPortfolioProjects(projects)
     }).catch(console.error)
 
     // Throttled mouse move handler for dot effect
@@ -201,7 +208,7 @@ export default function Home() {
           ref={(el) => { sectionsRef.current[1] = el; }}
           className="min-h-screen py-20 sm:py-32 opacity-100"
         >
-          <ProjectsSection />
+          <ProjectsSection projects={portfolioProjects} />
         
         </section>
 

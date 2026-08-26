@@ -1,5 +1,11 @@
 # CHANGELOG.md
 
+## 2026-08-26 — CTROOM portfolio editor + accurate project docs + merge prep
+
+What: CTROOM Portfolio view (CRUD, GitHub picker, website, cover upload, Featured/Deployed). Supabase migration + static fallback. Descriptions from HireIQ/1942 docs. Homepage loads DB when available.
+Files: `app/ctroom/components/views/PortfolioProjectsView.tsx`, `modals/PortfolioProjectFormModal.tsx`, `services/portfolioProjectsService.ts`, `supabase/migrations/20260826_create_portfolio_projects.sql`, `docs/PORTFOLIO.md`, nav + homepage wiring
+Why: Edit portfolio from CTROOM; represent real GitHub work correctly; ship to production
+
 ## 2026-08-26 — Replace portfolio with King's real GitHub projects
 
 What: Featured HireIQ, DfwNemt, RideNEMT; archive Roomba, Nami, AI Receptionist, KudsiWebsite, 1942, AM African Market. Dropped KingsLive/Sweet Emporium/old NEMT from portfolio list. Updated Sanity relatedProjectId options + cover art.

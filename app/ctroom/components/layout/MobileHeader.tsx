@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Menu, X, LayoutDashboard, MessageSquare, Target, Calendar, Vault, FileText, Sparkles } from 'lucide-react';
+import { Menu, X, LayoutDashboard, MessageSquare, Target, Calendar, Vault, FileText, Sparkles, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { View } from '../../types/index';
 
@@ -40,6 +40,7 @@ export const MobileHeader = ({ isMobileMenuOpen, setIsMobileMenuOpen, currentVie
                             { id: 'dashboard',  icon: LayoutDashboard, label: 'Dashboard'  },
                             { id: 'dreamboard', icon: Sparkles,         label: 'Dreamboard' },
                             { id: 'missions',   icon: Target,           label: 'Projects'   },
+                            { id: 'portfolio',  icon: Briefcase,        label: 'Portfolio'  },
                             { id: 'planner',    icon: Calendar,         label: 'Planner'    },
                             { id: 'chat',       icon: MessageSquare,    label: 'Milo'       },
                             { id: 'vault',      icon: Vault,            label: 'Vault'      },

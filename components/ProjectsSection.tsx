@@ -2,7 +2,12 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { ARCHIVE_PROJECTS, FEATURED_PROJECTS, type PortfolioProject } from '@/lib/portfolio-projects'
+import {
+  ARCHIVE_PROJECTS,
+  FEATURED_PROJECTS,
+  splitFeaturedArchive,
+  type PortfolioProject,
+} from '@/lib/portfolio-projects'
 
 function ProjectRow({ project, index }: { project: PortfolioProject; index: number }) {
   const isDeployed = project.status === 'Deployed'
@@ -86,14 +91,19 @@ function ProjectRow({ project, index }: { project: PortfolioProject; index: numb
           loading={index === 0 ? 'eager' : 'lazy'}
           priority={index === 0}
           quality={80}
+          unoptimized={project.image.startsWith('http')}
         />
       </div>
     </article>
   )
 }
 
-export function ProjectsSection() {
-  const total = FEATURED_PROJECTS.length + ARCHIVE_PROJECTS.length
+export function ProjectsSection({ projects }: { projects?: PortfolioProject[] }) {
+  const { featured, archive } = projects?.length
+    ? splitFeaturedArchive(projects)
+    : { featured: FEATURED_PROJECTS, archive: ARCHIVE_PROJECTS }
+
+  const total = featured.length + archive.length
 
   return (
     <div className="space-y-12 sm:space-y-16">
@@ -108,12 +118,12 @@ export function ProjectsSection() {
       </div>
 
       <div className="space-y-2">
-        {FEATURED_PROJECTS.map((project, index) => (
+        {featured.map((project, index) => (
           <ProjectRow key={project.id} project={project} index={index} />
         ))}
       </div>
 
-      {ARCHIVE_PROJECTS.length > 0 && (
+      {archive.length > 0 && (
         <details className="group border border-border/60 open:border-foreground/25 transition-colors">
           <summary className="cursor-pointer list-none flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5 text-sm font-mono tracking-wide uppercase text-muted-foreground hover:text-foreground hover:bg-accent/20 transition-colors [&::-webkit-details-marker]:hidden">
             <span>All projects ({total}) · show archive</span>
@@ -128,11 +138,11 @@ export function ProjectsSection() {
             </svg>
           </summary>
           <div className="border-t border-border/40 px-0">
-            {ARCHIVE_PROJECTS.map((project, index) => (
+            {archive.map((project, index) => (
               <ProjectRow
                 key={project.id}
                 project={project}
-                index={FEATURED_PROJECTS.length + index}
+                index={featured.length + index}
               />
             ))}
           </div>
