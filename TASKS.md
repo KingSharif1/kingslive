@@ -44,6 +44,13 @@ Result: Removed marketing subtitles and public CTROOM footer link; projects arch
 Files changed: ProjectsSection, Footer, SkillsSection, GitHubView, PortfolioProjectsView, TASKS/CHANGELOG
 Notes: Public site stays portfolio-only; CTROOM stays private
 
+## Task PORT-2 — Live URLs from docs + expand skills
+Status: DONE
+Scope: `lib/portfolio-projects.ts`, `components/SkillsSection.tsx`
+Result: Added verified live URLs (HireIQ kingsharif.com, RideNEMT app, AM African Market). Expanded skills to 22 from real stacks. Could not verify DfwNemt, Kudsi, Nami, AI Receptionist URLs from public docs.
+Files changed: portfolio-projects.ts, SkillsSection.tsx
+Notes: Private repos need GITHUB_TOKEN or user-supplied URLs
+
 ## Task CTROOM-VISION — Full HQ product
 Status: PENDING (deferred)
 Scope: ctroom/*

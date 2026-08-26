@@ -1,5 +1,11 @@
 # CHANGELOG.md
 
+## 2026-08-26 — Task PORT-2: Live URLs + fuller skills
+What: Verified production URLs from HireIQ docs + live hosts; expanded Skills to 22 tools used across projects (Framer, Vite, shadcn, Sanity, Claude, AI SDK, Teller, etc.).
+Files: `lib/portfolio-projects.ts`, `components/SkillsSection.tsx`
+Why: Many projects had websites missing; skills list was too thin vs real stack
+Next: User can supply DfwNemt / Kudsi / Nami / AI Receptionist URLs (not found in public docs)
+
 ## 2026-08-26 — Task UI-1b: Restore curves + skill logos/motion
 What: Rounded project/skill/button corners again; Skills section uses SVG logos + framer-motion stagger/hover.
 Files: `components/ProjectsSection.tsx`, `components/SkillsSection.tsx`
