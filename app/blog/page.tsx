@@ -1,12 +1,14 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, Suspense } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { useSearchParams } from "next/navigation"
 import { ChevronLeft, ChevronRight, Search, Heart, ArrowUpRight, Sparkles, Bird } from "lucide-react"
 import ScrollProgress from "@/app/components/ScrollProgress"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { getPublishedPosts, searchPosts, BlogPost } from "@/lib/sanity-queries"
+import { getProjectById } from "@/lib/portfolio-projects"
 
 // Debounce hook for search
 function useDebounce<T>(value: T, delay: number): T {
@@ -102,17 +104,26 @@ function LikeButton({ postId }: { postId: string }) {
   )
 }
 
-export default function BlogPage() {
+function BlogPageContent() {
+  const searchParams = useSearchParams()
   const [posts, setPosts] = useState<BlogPost[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [activeTag, setActiveTag] = useState<string | null>(null)
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const postsPerPage = 6
 
   // Debounce search to prevent excessive API calls
   const debouncedSearch = useDebounce(searchQuery, 300)
+
+  useEffect(() => {
+    const tag = searchParams.get('tag')
+    const project = searchParams.get('project')
+    if (tag) setActiveTag(tag)
+    if (project) setActiveProjectId(project)
+  }, [searchParams])
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -126,13 +137,8 @@ export default function BlogPage() {
           fetchedPosts = await getPublishedPosts()
         }
 
-        if (activeTag) {
-          fetchedPosts = fetchedPosts.filter(post =>
-            post.tags.includes(activeTag)
-          )
-        }
-
         setPosts(fetchedPosts)
+        setCurrentPage(1)
       } catch (error) {
         console.error('Error fetching posts:', error)
         setPosts([])
@@ -142,16 +148,19 @@ export default function BlogPage() {
     }
 
     fetchPosts()
-  }, [debouncedSearch, activeTag])
+  }, [debouncedSearch])
 
   const allTags = Array.from(new Set(posts.flatMap(post => post.tags)))
-  const filteredPosts = activeTag
-    ? posts.filter(post => post.tags.includes(activeTag))
-    : posts
+  const filteredPosts = posts.filter((post) => {
+    if (activeTag && !post.tags.includes(activeTag)) return false
+    if (activeProjectId && post.relatedProjectId !== activeProjectId) return false
+    return true
+  })
   const indexOfLastPost = currentPage * postsPerPage
   const indexOfFirstPost = indexOfLastPost - postsPerPage
   const currentPosts = filteredPosts.slice(indexOfFirstPost, indexOfLastPost)
   const totalPages = Math.ceil(filteredPosts.length / postsPerPage)
+  const activeProject = activeProjectId ? getProjectById(activeProjectId) : undefined
 
   return (
     <>
@@ -231,11 +240,25 @@ export default function BlogPage() {
               Chronicles of code, tales of innovation, and adventures in the digital frontier.
             </p>
 
+            {activeProject && (
+              <div className="mb-6 inline-flex items-center gap-3 px-4 py-2 rounded-full border border-[var(--border)] bg-[var(--secondary)]/60">
+                <span className="text-xs font-mono uppercase tracking-wider text-[var(--muted-foreground)]">Project</span>
+                <span className="text-sm font-medium">{activeProject.title}</span>
+                <button
+                  type="button"
+                  onClick={() => setActiveProjectId(null)}
+                  className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+
             {/* Tags */}
             <div className="flex flex-wrap justify-center gap-2">
               <button
-                onClick={() => setActiveTag(null)}
-                className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-300 ${activeTag === null
+                onClick={() => { setActiveTag(null); setActiveProjectId(null) }}
+                className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-300 ${activeTag === null && !activeProjectId
                   ? 'bg-[var(--foreground)] text-[var(--background)]'
                   : 'bg-[var(--secondary)] text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]'
                   }`}
@@ -275,17 +298,31 @@ export default function BlogPage() {
                   </div>
                 ))}
               </div>
-            ) : posts.length === 0 ? (
+            ) : filteredPosts.length === 0 ? (
               <div className="text-center py-20">
-                <p className="text-[var(--muted-foreground)] text-lg">No posts found. Add content in Sanity Studio.</p>
-                <a
-                  href="/studio"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block mt-4 px-6 py-3 rounded-full bg-[var(--foreground)] text-[var(--background)] font-medium"
-                >
-                  Open Sanity Studio →
-                </a>
+                <p className="text-[var(--muted-foreground)] text-lg">
+                  {posts.length === 0
+                    ? 'No posts found. Add content in Sanity Studio.'
+                    : 'No posts match this filter.'}
+                </p>
+                {posts.length === 0 ? (
+                  <a
+                    href="/studio"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block mt-4 px-6 py-3 rounded-full bg-[var(--foreground)] text-[var(--background)] font-medium"
+                  >
+                    Open Sanity Studio →
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTag(null); setActiveProjectId(null) }}
+                    className="inline-block mt-4 px-6 py-3 rounded-full bg-[var(--foreground)] text-[var(--background)] font-medium"
+                  >
+                    Clear filters
+                  </button>
+                )}
               </div>
             ) : (
               <>
@@ -404,5 +441,18 @@ export default function BlogPage() {
         </section>
       </main>
     </>
+  )
+}
+
+
+export default function BlogPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <p className="text-[var(--muted-foreground)]">Loading blog…</p>
+      </main>
+    }>
+      <BlogPageContent />
+    </Suspense>
   )
 }

@@ -165,6 +165,27 @@ body {
   font-family: var(--font-unbounded), 'Unbounded', sans-serif;
 }
 
+/* Blog Chronicle aliases — map to loaded layout fonts (no extra network fonts) */
+.font-fraunces {
+  font-family: var(--font-display), 'Young Serif', Georgia, serif;
+}
+
+.font-open-sans {
+  font-family: var(--font-sora), 'Sora', system-ui, sans-serif;
+}
+
+.font-outfit {
+  font-family: var(--font-sora), 'Sora', system-ui, sans-serif;
+}
+
+.font-jakarta {
+  font-family: var(--font-sora), 'Sora', system-ui, sans-serif;
+}
+
+.font-roboto {
+  font-family: var(--font-sora), 'Sora', system-ui, sans-serif;
+}
+
 /* Interactive dot background */
 @keyframes dot-pulse {
   0% {

@@ -6,18 +6,20 @@ import Link from 'next/link'
 import { ARCHIVE_PROJECTS, FEATURED_PROJECTS, type PortfolioProject } from '@/lib/portfolio-projects'
 
 function ProjectRow({ project, index }: { project: PortfolioProject; index: number }) {
+  const isLive = project.status === 'Live'
+
   return (
-    <article
-      className="group grid lg:grid-cols-12 gap-5 sm:gap-8 py-7 sm:py-9 border-b border-border/40 hover:border-foreground/25 transition-colors duration-500"
-    >
+    <article className="group grid lg:grid-cols-12 gap-5 sm:gap-8 py-7 sm:py-9 border-b border-border/40 hover:border-foreground/25 transition-colors duration-500">
       <div className="lg:col-span-2 flex flex-col gap-2">
         <span className="text-3xl sm:text-4xl font-light text-foreground/90 tabular-nums">
           {String(index + 1).padStart(2, '0')}
         </span>
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono text-muted-foreground">{project.year}</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-xs text-emerald-600 dark:text-emerald-400">{project.status}</span>
+          <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+          <span className={`text-xs ${isLive ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+            {project.status}
+          </span>
         </div>
       </div>
 
@@ -37,14 +39,16 @@ function ProjectRow({ project, index }: { project: PortfolioProject; index: numb
           ))}
         </div>
         <div className="flex flex-wrap gap-4 pt-2 text-sm">
-          <a
-            href={project.liveUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-foreground underline underline-offset-4 decoration-foreground/25 hover:decoration-foreground transition-colors"
-          >
-            Visit site
-          </a>
+          {project.liveUrl && (
+            <a
+              href={project.liveUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-foreground underline underline-offset-4 decoration-foreground/25 hover:decoration-foreground transition-colors"
+            >
+              Visit site
+            </a>
+          )}
           {project.repoUrl && (
             <a
               href={project.repoUrl}
@@ -61,6 +65,14 @@ function ProjectRow({ project, index }: { project: PortfolioProject; index: numb
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               Related writing
+            </Link>
+          )}
+          {!project.blogSlug && (
+            <Link
+              href={`/blog?project=${project.id}`}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Posts about this
             </Link>
           )}
         </div>
@@ -102,7 +114,7 @@ export function ProjectsSection() {
 
       <div className="space-y-2">
         {visible.map((project, index) => (
-          <ProjectRow key={project.title} project={project} index={index} />
+          <ProjectRow key={project.id} project={project} index={index} />
         ))}
       </div>
 
@@ -114,7 +126,9 @@ export function ProjectsSection() {
             className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-mono tracking-wide uppercase border border-border/70 text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
             aria-expanded={showAll}
           >
-            {showAll ? 'Show top 3' : `Show all projects (${FEATURED_PROJECTS.length + ARCHIVE_PROJECTS.length})`}
+            {showAll
+              ? 'Show top 3'
+              : `Show all projects (${FEATURED_PROJECTS.length + ARCHIVE_PROJECTS.length})`}
             <svg
               className={`w-4 h-4 transition-transform ${showAll ? 'rotate-180' : ''}`}
               fill="none"

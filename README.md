@@ -72,11 +72,24 @@ You'll need Supabase + Sanity configured at minimum. The rest depends on what yo
 ```
 app/
 ├── page.tsx          # Portfolio
-├── blog/             # Blog routes
+├── blog/             # Blog routes (Sanity)
 ├── studio/           # Sanity Studio
+├── ctroom/           # Private HQ (auth-gated)
 components/           # Portfolio UI
-lib/                  # Shared utilities
+lib/                  # Shared utilities + Sanity queries
+docs/                 # ADRs + feature notes
 ```
+
+## 📚 Docs (start here for agents)
+
+| Doc | Purpose |
+|-----|---------|
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | System map + data flows |
+| [STATUS.md](./STATUS.md) | What's working / blocked |
+| [TASKS.md](./TASKS.md) | Shared task queue |
+| [DECISIONS.md](./DECISIONS.md) | Why we chose X |
+| [CHANGELOG.md](./CHANGELOG.md) | What changed recently |
+| [docs/BLOG.md](./docs/BLOG.md) | Sanity blog ops |
 
 ---
 

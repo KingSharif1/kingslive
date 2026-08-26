@@ -8,7 +8,8 @@ import { ChevronLeft, Calendar, User, Tag, Heart, Share2, Clock, ArrowLeft, Copy
 import { motion, AnimatePresence } from "framer-motion"
 import ScrollProgress from "@/app/components/ScrollProgress"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { getPostBySlug, BlogPost } from "@/lib/sanity-queries"
+import { getPostBySlug, BlogPost, countPortableTextWords } from "@/lib/sanity-queries"
+import { getProjectById } from "@/lib/portfolio-projects"
 import { PortableText, PortableTextComponents } from '@portabletext/react'
 import ReactMarkdown from 'react-markdown'
 import { supabase } from "@/lib/supabase"
@@ -79,10 +80,10 @@ const portableTextComponents: PortableTextComponents = {
         const match = imageUrl.match(refPattern)
         if (match) {
           const [, hash, dimensions, extension] = match
-          src = `https://cdn.sanity.io/images/${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'py58y528'}/${process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'}/${hash}-${dimensions}.${extension}`
+          src = `https://cdn.sanity.io/images/${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'n31jvc6a'}/${process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'}/${hash}-${dimensions}.${extension}`
         } else {
           // Fallback for simple replacements (older format or if regex fails)
-          src = `https://cdn.sanity.io/images/${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'py58y528'}/${process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'}/${imageUrl.replace('image-', '').replace('-jpg', '.jpg').replace('-png', '.png').replace('-webp', '.webp').replace('-gif', '.gif')}`
+          src = `https://cdn.sanity.io/images/${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'n31jvc6a'}/${process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'}/${imageUrl.replace('image-', '').replace('-jpg', '.jpg').replace('-png', '.png').replace('-webp', '.webp').replace('-gif', '.gif')}`
         }
       }
 
@@ -206,10 +207,10 @@ const portableTextComponents: PortableTextComponents = {
               const match = imgUrl.match(refPattern)
               if (match) {
                 const [, hash, dimensions, extension] = match
-                src = `https://cdn.sanity.io/images/${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'py58y528'}/${process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'}/${hash}-${dimensions}.${extension}`
+                src = `https://cdn.sanity.io/images/${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'n31jvc6a'}/${process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'}/${hash}-${dimensions}.${extension}`
               } else {
                 // Fallback
-                src = `https://cdn.sanity.io/images/${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'py58y528'}/${process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'}/${imgUrl.replace('image-', '').replace('-jpg', '.jpg').replace('-png', '.png').replace('-webp', '.webp').replace('-gif', '.gif')}`
+                src = `https://cdn.sanity.io/images/${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'n31jvc6a'}/${process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'}/${imgUrl.replace('image-', '').replace('-jpg', '.jpg').replace('-png', '.png').replace('-webp', '.webp').replace('-gif', '.gif')}`
               }
             }
             return (
@@ -722,7 +723,11 @@ export default function BlogPostPage() {
     )
   }
 
-  const readingTime = getReadingTime(post.markdownContent || '')
+  const relatedProject = post.relatedProjectId ? getProjectById(post.relatedProjectId) : undefined
+  const wordCount = post.content
+    ? countPortableTextWords(post.content)
+    : (post.markdownContent || '').split(/\s+/).filter(Boolean).length
+  const readingTime = Math.max(1, Math.ceil(wordCount / 200))
 
   return (
     <>
@@ -866,6 +871,18 @@ export default function BlogPostPage() {
                     {tag}
                   </Link>
                 ))}
+              </div>
+            )}
+
+            {relatedProject && (
+              <div className="mt-6">
+                <Link
+                  href={relatedProject.liveUrl || `/#projects`}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--secondary)] transition-colors"
+                >
+                  <span className="text-[var(--muted-foreground)] font-mono text-xs uppercase tracking-wider">Project</span>
+                  {relatedProject.title}
+                </Link>
               </div>
             )}
           </motion.div>

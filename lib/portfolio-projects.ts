@@ -1,15 +1,17 @@
 /**
  * Portfolio projects — featured (top 3) + archive (expandable).
  * Keep descriptions short, professional, and skill-forward.
+ * `id` is the stable key used for blog ↔ project linking (Sanity relatedProjectId).
  */
 export type PortfolioProject = {
+  id: string
   title: string
   year: string
   status: 'Live' | 'In Progress'
   description: string
   image: string
   tech: string[]
-  liveUrl: string
+  liveUrl?: string
   repoUrl?: string
   /** Optional Sanity blog slug to deep-link related writing */
   blogSlug?: string
@@ -18,6 +20,7 @@ export type PortfolioProject = {
 /** Top 3 — shown by default */
 export const FEATURED_PROJECTS: PortfolioProject[] = [
   {
+    id: 'hireiq',
     title: 'HireIQ',
     year: '2026',
     status: 'Live',
@@ -29,6 +32,7 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     repoUrl: 'https://github.com/KingSharif1/HireIQ',
   },
   {
+    id: 'kingslive',
     title: 'KingsLive · CTROOM',
     year: '2026',
     status: 'Live',
@@ -40,6 +44,7 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     repoUrl: 'https://github.com/KingSharif1/kingslive',
   },
   {
+    id: '1942',
     title: '1942: Truly Forgotten',
     year: '2025',
     status: 'Live',
@@ -55,6 +60,18 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
 /** Additional projects — revealed via “Show all” */
 export const ARCHIVE_PROJECTS: PortfolioProject[] = [
   {
+    id: 'roomba-dashboard',
+    title: 'Roomba Dashboard',
+    year: '2026',
+    status: 'In Progress',
+    description:
+      'Ops dashboard for Roomba fleet / home automation insights. Writing and repo landing here as the build ships.',
+    image: '/kingslive-cover.png',
+    tech: ['Next.js', 'TypeScript', 'APIs'],
+    repoUrl: 'https://github.com/KingSharif1',
+  },
+  {
+    id: 'nemt-billing',
     title: 'NEMT Billing',
     year: '2023',
     status: 'Live',
@@ -65,6 +82,7 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
     liveUrl: 'https://nemtbiling.com',
   },
   {
+    id: 'sweet-emporium',
     title: 'My Sweet Emporium',
     year: '2024',
     status: 'Live',
@@ -77,3 +95,7 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
 ]
 
 export const ALL_PROJECTS = [...FEATURED_PROJECTS, ...ARCHIVE_PROJECTS]
+
+export function getProjectById(id: string): PortfolioProject | undefined {
+  return ALL_PROJECTS.find((p) => p.id === id)
+}

@@ -1,11 +1,9 @@
-import { client } from './sanity'
 import { PortableTextBlock } from '@portabletext/types'
+import { client } from './sanity'
 
-// Simple in-memory cache for client-side
-const cache = new Map<string, { data: any; timestamp: number }>()
-const CACHE_TTL = 60 * 1000 // 1 minute cache
+const cache = new Map<string, { data: unknown; timestamp: number }>()
+const CACHE_TTL = 60 * 1000
 
-// Types matching our Sanity schema
 export interface SanityPost {
   _id: string
   title: string
@@ -16,13 +14,14 @@ export interface SanityPost {
     alt?: string
   }
   categories?: { title: string }[]
-  publishedAt: string
-  published: boolean
+  publishedAt?: string
+  _createdAt?: string
+  published?: boolean | null
   excerpt?: string
   body?: PortableTextBlock[]
+  relatedProjectId?: string | null
 }
 
-// Transformed post for frontend use
 export interface BlogPost {
   id: string
   title: string
@@ -35,54 +34,87 @@ export interface BlogPost {
   excerpt: string
   content?: PortableTextBlock[]
   views: number
+  relatedProjectId?: string
 }
 
-// Transform Sanity post to frontend format
+function extractPlainText(blocks?: PortableTextBlock[]): string {
+  if (!blocks?.length) return ''
+  const parts: string[] = []
+  for (const block of blocks) {
+    if (block._type !== 'block' || !('children' in block) || !Array.isArray(block.children)) continue
+    for (const child of block.children) {
+      if (child && typeof child === 'object' && 'text' in child && typeof child.text === 'string') {
+        parts.push(child.text)
+      }
+    }
+  }
+  return parts.join(' ').replace(/\s+/g, ' ').trim()
+}
+
+function excerptFromBody(blocks?: PortableTextBlock[], max = 180): string {
+  const text = extractPlainText(blocks)
+  if (!text) return ''
+  if (text.length <= max) return text
+  return `${text.slice(0, max).replace(/\s+\S*$/, '')}…`
+}
+
+export function countPortableTextWords(blocks?: PortableTextBlock[]): number {
+  const text = extractPlainText(blocks)
+  if (!text) return 0
+  return text.split(/\s+/).filter(Boolean).length
+}
+
 export function transformPost(post: SanityPost): BlogPost {
+  const excerpt = (post.excerpt || '').trim() || excerptFromBody(post.body)
   return {
     id: post._id,
     title: post.title || 'Untitled',
     slug: post.slug?.current || '',
     author: post.author?.name || 'King Sharif',
     cover_image: post.mainImage?.asset?.url,
-    tags: post.categories?.map(c => c.title) || [],
-    created_at: post.publishedAt || new Date().toISOString(),
-    published: post.published ?? false,
-    excerpt: post.excerpt || '',
+    tags: post.categories?.map((c) => c.title).filter(Boolean) || [],
+    created_at: post.publishedAt || post._createdAt || new Date().toISOString(),
+    // Legacy docs may omit `published` — treat undefined/null as published
+    published: post.published !== false,
+    excerpt,
     content: post.body,
-    views: 0, // Views will come from Supabase analytics
+    views: 0,
+    relatedProjectId: post.relatedProjectId || undefined,
   }
 }
 
-// Fetch all published posts with caching
+const LIST_PROJECTION = `
+  _id,
+  title,
+  slug,
+  "author": author->{ name },
+  mainImage { asset->{ url }, alt },
+  "categories": categories[]->{ title },
+  publishedAt,
+  _createdAt,
+  published,
+  excerpt,
+  relatedProjectId,
+  body
+`
+
 export async function getPublishedPosts(): Promise<BlogPost[]> {
   const cacheKey = 'published_posts'
-  const cached = cache.get(cacheKey)
-  
-  // Return cached data if still valid
+  const cached = cache.get(cacheKey) as { data: BlogPost[]; timestamp: number } | undefined
+
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.data
   }
-  
-  const query = `*[_type == "post"] | order(publishedAt desc) {
-    _id,
-    title,
-    slug,
-    "author": author->{ name },
-    mainImage { asset->{ url }, alt },
-    "categories": categories[]->{ title },
-    publishedAt,
-    published,
-    excerpt
+
+  // Show posts unless explicitly unpublished. Order by publish date, then created.
+  const query = `*[_type == "post" && (!defined(published) || published == true)] | order(coalesce(publishedAt, _createdAt) desc) {
+    ${LIST_PROJECTION}
   }`
-  
+
   try {
     const posts = await client.fetch<SanityPost[]>(query)
-    const transformed = posts.map(transformPost)
-    
-    // Cache the result
+    const transformed = posts.map(transformPost).filter((p) => Boolean(p.slug))
     cache.set(cacheKey, { data: transformed, timestamp: Date.now() })
-    
     return transformed
   } catch (error) {
     console.error('Error fetching posts from Sanity:', error)
@@ -90,26 +122,16 @@ export async function getPublishedPosts(): Promise<BlogPost[]> {
   }
 }
 
-// Fetch a single post by slug with caching
 export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
   const cacheKey = `post_${slug}`
-  const cached = cache.get(cacheKey)
-  
-  // Return cached data if still valid
+  const cached = cache.get(cacheKey) as { data: BlogPost | null; timestamp: number } | undefined
+
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.data
   }
-  
-  const query = `*[_type == "post" && slug.current == $slug][0] {
-    _id,
-    title,
-    slug,
-    "author": author->{ name },
-    mainImage { asset->{ url }, alt },
-    "categories": categories[]->{ title },
-    publishedAt,
-    published,
-    excerpt,
+
+  const query = `*[_type == "post" && slug.current == $slug && (!defined(published) || published == true)][0] {
+    ${LIST_PROJECTION},
     body[] {
       ...,
       _type == "image" => {
@@ -128,14 +150,11 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
       }
     }
   }`
-  
+
   try {
     const post = await client.fetch<SanityPost | null>(query, { slug })
     const transformed = post ? transformPost(post) : null
-    
-    // Cache the result
     cache.set(cacheKey, { data: transformed, timestamp: Date.now() })
-    
     return transformed
   } catch (error) {
     console.error('Error fetching post from Sanity:', error)
@@ -143,57 +162,59 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
   }
 }
 
-// Fetch all posts (for admin/ctroom)
+export async function getPostsByRelatedProject(projectId: string): Promise<BlogPost[]> {
+  const query = `*[_type == "post" && relatedProjectId == $projectId && (!defined(published) || published == true)] | order(coalesce(publishedAt, _createdAt) desc) {
+    ${LIST_PROJECTION}
+  }`
+  try {
+    const posts = await client.fetch<SanityPost[]>(query, { projectId })
+    return posts.map(transformPost)
+  } catch (error) {
+    console.error('Error fetching posts by project:', error)
+    return []
+  }
+}
+
 export async function getAllPosts(): Promise<SanityPost[]> {
-  const query = `*[_type == "post"] | order(publishedAt desc) {
+  const query = `*[_type == "post"] | order(coalesce(publishedAt, _createdAt) desc) {
     _id,
     title,
     slug,
     publishedAt,
-    excerpt
+    _createdAt,
+    excerpt,
+    published,
+    relatedProjectId
   }`
-  
+
   try {
-    const posts = await client.fetch<SanityPost[]>(query)
-    return posts
+    return await client.fetch<SanityPost[]>(query)
   } catch (error) {
     console.error('Error fetching all posts from Sanity:', error)
     return []
   }
 }
 
-// Search posts with caching
 export async function searchPosts(searchQuery: string): Promise<BlogPost[]> {
   const cacheKey = `search_${searchQuery.toLowerCase()}`
-  const cached = cache.get(cacheKey)
-  
-  // Return cached data if still valid
+  const cached = cache.get(cacheKey) as { data: BlogPost[]; timestamp: number } | undefined
+
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.data
   }
-  
-  const query = `*[_type == "post" && (
-    title match $search || 
-    excerpt match $search
-  )] | order(publishedAt desc) {
-    _id,
-    title,
-    slug,
-    "author": author->{ name },
-    mainImage { asset->{ url }, alt },
-    "categories": categories[]->{ title },
-    publishedAt,
-    published,
-    excerpt
+
+  const query = `*[_type == "post" && (!defined(published) || published == true) && (
+    title match $search ||
+    excerpt match $search ||
+    pt::text(body) match $search
+  )] | order(coalesce(publishedAt, _createdAt) desc) {
+    ${LIST_PROJECTION}
   }`
-  
+
   try {
     const posts = await client.fetch<SanityPost[]>(query, { search: `*${searchQuery}*` })
     const transformed = posts.map(transformPost)
-    
-    // Cache the result
     cache.set(cacheKey, { data: transformed, timestamp: Date.now() })
-    
     return transformed
   } catch (error) {
     console.error('Error searching posts in Sanity:', error)
