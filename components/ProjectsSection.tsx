@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ARCHIVE_PROJECTS, FEATURED_PROJECTS, type PortfolioProject } from '@/lib/portfolio-projects'
@@ -94,11 +93,7 @@ function ProjectRow({ project, index }: { project: PortfolioProject; index: numb
 }
 
 export function ProjectsSection() {
-  const [showAll, setShowAll] = useState(false)
   const total = FEATURED_PROJECTS.length + ARCHIVE_PROJECTS.length
-  const visible = showAll
-    ? [...FEATURED_PROJECTS, ...ARCHIVE_PROJECTS]
-    : FEATURED_PROJECTS
 
   return (
     <div className="space-y-12 sm:space-y-16">
@@ -106,30 +101,24 @@ export function ProjectsSection() {
         <div className="space-y-2">
           <h2 className="text-3xl sm:text-4xl font-light font-sora tracking-tight">Featured Projects</h2>
           <p className="text-sm text-muted-foreground max-w-md">
-            Three highlights up front — open the list for the full archive.
+            Three highlights from GitHub — open the archive for the full set.
           </p>
         </div>
-        <div className="text-sm text-muted-foreground font-mono">2023 — 2026</div>
+        <div className="text-sm text-muted-foreground font-mono">2025 — 2026</div>
       </div>
 
       <div className="space-y-2">
-        {visible.map((project, index) => (
+        {FEATURED_PROJECTS.map((project, index) => (
           <ProjectRow key={project.id} project={project} index={index} />
         ))}
       </div>
 
       {ARCHIVE_PROJECTS.length > 0 && (
-        <details
-          className="group/details border border-border/60"
-          open={showAll}
-          onToggle={(e) => setShowAll((e.target as HTMLDetailsElement).open)}
-        >
-          <summary className="cursor-pointer list-none flex items-center justify-between gap-3 px-4 py-3 sm:px-5 text-sm font-mono tracking-wide uppercase text-muted-foreground hover:text-foreground hover:bg-accent/20 transition-colors">
-            <span>
-              {showAll ? 'Hide archive' : `All projects (${total})`}
-            </span>
+        <details className="group border border-border/60 open:border-foreground/25 transition-colors">
+          <summary className="cursor-pointer list-none flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5 text-sm font-mono tracking-wide uppercase text-muted-foreground hover:text-foreground hover:bg-accent/20 transition-colors [&::-webkit-details-marker]:hidden">
+            <span>All projects ({total}) · show archive</span>
             <svg
-              className={`w-4 h-4 shrink-0 transition-transform ${showAll ? 'rotate-180' : ''}`}
+              className="w-4 h-4 shrink-0 transition-transform group-open:rotate-180"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -138,11 +127,15 @@ export function ProjectsSection() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </summary>
-          <p className="px-4 sm:px-5 pb-4 text-xs text-muted-foreground">
-            {showAll
-              ? 'Showing featured + archive. Collapse to return to the top 3.'
-              : 'Expand to reveal Roomba Dashboard, NEMT Billing, My Sweet Emporium, and more.'}
-          </p>
+          <div className="border-t border-border/40 px-0">
+            {ARCHIVE_PROJECTS.map((project, index) => (
+              <ProjectRow
+                key={project.id}
+                project={project}
+                index={FEATURED_PROJECTS.length + index}
+              />
+            ))}
+          </div>
         </details>
       )}
     </div>

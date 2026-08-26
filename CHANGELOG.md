@@ -1,5 +1,12 @@
 # CHANGELOG.md
 
+## 2026-08-26 — Replace portfolio with King's real GitHub projects
+
+What: Featured HireIQ, DfwNemt, RideNEMT; archive Roomba, Nami, AI Receptionist, KudsiWebsite, 1942, AM African Market. Dropped KingsLive/Sweet Emporium/old NEMT from portfolio list. Updated Sanity relatedProjectId options + cover art.
+Files: `lib/portfolio-projects.ts`, `sanity/schemaTypes/postType.ts`, `components/ProjectsSection.tsx`, `public/*-cover.png`
+Why: User circled the repos they actually ship
+Next: Add live URLs when public; create missing private-repo README blurbs as needed
+
 ## 2026-08-26 — Portfolio project UX polish
 
 What: Real `<details>` archive dropdown; tighter professional blurbs; KingsLive ↔ `updating-portfolio` blog link; Roomba repo URL stub (`KingSharif1/roomba-dashboard`)

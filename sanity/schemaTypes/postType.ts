@@ -55,11 +55,14 @@ export const postType = defineType({
       options: {
         list: [
           { title: 'HireIQ', value: 'hireiq' },
-          { title: 'KingsLive · CTROOM', value: 'kingslive' },
-          { title: '1942: Truly Forgotten', value: '1942' },
+          { title: 'DfwNemt', value: 'dfwnemt' },
+          { title: 'RideNEMT', value: 'ridenemt' },
           { title: 'Roomba Dashboard', value: 'roomba-dashboard' },
-          { title: 'NEMT Billing', value: 'nemt-billing' },
-          { title: 'My Sweet Emporium', value: 'sweet-emporium' },
+          { title: 'Nami', value: 'nami' },
+          { title: 'AI Receptionist', value: 'ai-receptionist' },
+          { title: 'KudsiWebsite', value: 'kudsi' },
+          { title: '1942: Truly Forgotten', value: '1942' },
+          { title: 'AM African Market', value: 'am-african-market' },
         ],
         layout: 'dropdown',
       },

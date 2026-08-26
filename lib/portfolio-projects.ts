@@ -1,7 +1,7 @@
 /**
- * Portfolio projects — featured (top 3) + archive (expandable).
- * Keep descriptions short, professional, and skill-forward.
- * `id` is the stable key used for blog ↔ project linking (Sanity relatedProjectId).
+ * Portfolio projects — only work King actually ships / circled on GitHub.
+ * Top 3 featured; archive expands via dropdown.
+ * `id` links Sanity posts via relatedProjectId.
  */
 export type PortfolioProject = {
   id: string
@@ -13,7 +13,6 @@ export type PortfolioProject = {
   tech: string[]
   liveUrl?: string
   repoUrl?: string
-  /** Canonical blog post slug when one post is the project write-up */
   blogSlug?: string
 }
 
@@ -25,24 +24,81 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     year: '2026',
     status: 'Live',
     description:
-      'Tailors resumes to job posts with AI and tracks applications end to end.',
+      'AI resume tailoring and application tracking for landing the right role faster.',
     image: '/hireiq-cover.png',
     tech: ['Next.js', 'TypeScript', 'Supabase', 'Claude'],
     liveUrl: 'https://hireiq-nu.vercel.app',
     repoUrl: 'https://github.com/KingSharif1/HireIQ',
   },
   {
-    id: 'kingslive',
-    title: 'KingsLive · CTROOM',
+    id: 'dfwnemt',
+    title: 'DfwNemt',
     year: '2026',
     status: 'Live',
     description:
-      'Personal HQ for missions, Milo AI, Vault finance, and day-to-day ops.',
-    image: '/kingslive-cover.png',
-    tech: ['Next.js', 'TypeScript', 'Supabase', 'Teller', 'Sanity'],
-    liveUrl: 'https://kingsharif.com/ctroom',
-    repoUrl: 'https://github.com/KingSharif1/kingslive',
-    blogSlug: 'updating-portfolio',
+      'NEMT driver payment calculator — automates trip-to-payment billing. Live with paying customers.',
+    image: '/dfwnemt-cover.png',
+    tech: ['TypeScript', 'Next.js', 'SaaS'],
+    repoUrl: 'https://github.com/KingSharif1/DfwNemt',
+  },
+  {
+    id: 'ridenemt',
+    title: 'RideNEMT',
+    year: '2026',
+    status: 'Live',
+    description:
+      'RideCuro — non-emergency medical transportation SaaS for operators and riders.',
+    image: '/ridenemt-cover.png',
+    tech: ['TypeScript', 'Next.js', 'SaaS'],
+    repoUrl: 'https://github.com/KingSharif1/RideNEMT',
+  },
+]
+
+/** Archive — revealed via “All projects” dropdown */
+export const ARCHIVE_PROJECTS: PortfolioProject[] = [
+  {
+    id: 'roomba-dashboard',
+    title: 'Roomba Dashboard',
+    year: '2026',
+    status: 'In Progress',
+    description:
+      'Ops dashboard for Roomba status, runs, and home automation insights.',
+    image: '/roomba-cover.png',
+    tech: ['TypeScript', 'Next.js', 'APIs'],
+    repoUrl: 'https://github.com/KingSharif1/roomba-dashboard',
+  },
+  {
+    id: 'nami',
+    title: 'Nami',
+    year: '2026',
+    status: 'In Progress',
+    description:
+      'Product build in TypeScript — Nami experience and supporting tooling.',
+    image: '/nami-cover.png',
+    tech: ['TypeScript', 'Next.js'],
+    repoUrl: 'https://github.com/KingSharif1/nami',
+  },
+  {
+    id: 'ai-receptionist',
+    title: 'AI Receptionist',
+    year: '2026',
+    status: 'In Progress',
+    description:
+      'Automated receptionist for calls, booking, and front-desk workflows.',
+    image: '/ai-receptionist-cover.png',
+    tech: ['TypeScript', 'AI', 'APIs'],
+    repoUrl: 'https://github.com/KingSharif1/ai_receptionist',
+  },
+  {
+    id: 'kudsi',
+    title: 'KudsiWebsite',
+    year: '2025',
+    status: 'Live',
+    description:
+      'Community website for Kudsi — content, presence, and a clean TypeScript front end.',
+    image: '/kudsi-cover.png',
+    tech: ['TypeScript', 'Web'],
+    repoUrl: 'https://github.com/KingSharif1/KudsiWebsite',
   },
   {
     id: '1942',
@@ -56,42 +112,16 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     liveUrl: 'https://trulyforgtten.shop',
     repoUrl: 'https://github.com/KingSharif1/1942-truly-forgotten',
   },
-]
-
-/** Additional projects — revealed via “Show all” */
-export const ARCHIVE_PROJECTS: PortfolioProject[] = [
   {
-    id: 'roomba-dashboard',
-    title: 'Roomba Dashboard',
-    year: '2026',
-    status: 'In Progress',
-    description:
-      'Dashboard for Roomba status, runs, and home-ops insights. Build + write-ups landing here.',
-    image: '/kingslive-cover.png',
-    tech: ['Next.js', 'TypeScript', 'APIs'],
-    repoUrl: 'https://github.com/KingSharif1/roomba-dashboard',
-  },
-  {
-    id: 'nemt-billing',
-    title: 'NEMT Billing',
-    year: '2023',
+    id: 'am-african-market',
+    title: 'AM African Market',
+    year: '2025',
     status: 'Live',
     description:
-      'Invoicing and payments for non-emergency medical transport operators.',
-    image: '/nemtbiling.png',
-    tech: ['Next.js', 'TypeScript', 'Strapi', 'Context API'],
-    liveUrl: 'https://nemtbiling.com',
-  },
-  {
-    id: 'sweet-emporium',
-    title: 'My Sweet Emporium',
-    year: '2024',
-    status: 'Live',
-    description:
-      'Specialty candy e-commerce — catalog, inventory, and checkout.',
-    image: '/se-update.png',
-    tech: ['WordPress', 'WooCommerce', 'PHP'],
-    liveUrl: 'https://mysweetemporium.com',
+      'E-commerce for African market goods — catalog, inventory, and checkout.',
+    image: '/african-market-cover.png',
+    tech: ['TypeScript', 'E-commerce'],
+    repoUrl: 'https://github.com/KingSharif1/am-african-market',
   },
 ]
 
