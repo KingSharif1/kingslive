@@ -35,7 +35,7 @@ export function PortfolioProjectFormModal({ isOpen, onClose, onSaved, initial }:
   const [year, setYear] = useState(String(new Date().getFullYear()))
   const [status, setStatus] = useState<PortfolioProject['status']>('In Progress')
   const [description, setDescription] = useState('')
-  const [image, setImage] = useState('/hireiq-cover.png')
+  const [image, setImage] = useState('/hireiq-cover.jpg')
   const [techText, setTechText] = useState('')
   const [liveUrl, setLiveUrl] = useState('')
   const [repoUrl, setRepoUrl] = useState('')
@@ -63,7 +63,7 @@ export function PortfolioProjectFormModal({ isOpen, onClose, onSaved, initial }:
     setYear(initial?.year || String(new Date().getFullYear()))
     setStatus(initial?.status || 'In Progress')
     setDescription(initial?.description || '')
-    setImage(initial?.image || '/hireiq-cover.png')
+    setImage(initial?.image || '/hireiq-cover.jpg')
     setTechText((initial?.tech || []).join(', '))
     setLiveUrl(initial?.liveUrl || '')
     setRepoUrl(initial?.repoUrl || '')
@@ -127,7 +127,7 @@ export function PortfolioProjectFormModal({ isOpen, onClose, onSaved, initial }:
         year: year.trim(),
         status,
         description: description.trim(),
-        image: image.trim() || '/hireiq-cover.png',
+        image: image.trim() || '/hireiq-cover.jpg',
         tech: techText.split(',').map((t) => t.trim()).filter(Boolean),
         liveUrl: liveUrl.trim() || undefined,
         repoUrl: repoUrl.trim() || undefined,

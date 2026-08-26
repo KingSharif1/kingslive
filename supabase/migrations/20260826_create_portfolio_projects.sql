@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS public.portfolio_projects (
   year text NOT NULL,
   status text NOT NULL CHECK (status IN ('Deployed', 'In Progress')),
   description text NOT NULL DEFAULT '',
-  image text NOT NULL DEFAULT '/hireiq-cover.png',
+  image text NOT NULL DEFAULT '/hireiq-cover.jpg',
   tech text[] NOT NULL DEFAULT '{}',
   live_url text,
   repo_url text,

@@ -31,7 +31,7 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     status: 'Deployed',
     description:
       'AI resume tailoring and application tracking — match a resume to a job post, PDF preview, and keep every application in one place.',
-    image: '/hireiq-cover.png',
+    image: '/hireiq-cover.jpg',
     tech: ['Next.js', 'TypeScript', 'Supabase', 'Claude', 'Tailwind'],
     liveUrl: 'https://hireiq.kingsharif.com',
     repoUrl: 'https://github.com/KingSharif1/HireIQ',
@@ -47,7 +47,7 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     status: 'Deployed',
     description:
       'NEMT SaaS for operators and riders — scheduling, trips, and operations for non-emergency medical transport.',
-    image: '/ridenemt-cover.png',
+    image: '/ridenemt-cover.jpg',
     tech: ['TypeScript', 'Next.js', 'Supabase', 'SaaS'],
     liveUrl: 'https://app.ridenemt.com',
     repoUrl: 'https://github.com/KingSharif1/RideNEMT',
@@ -63,7 +63,7 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     status: 'Deployed',
     description:
       'Live ops dashboard for Roomba status, run history, and home automation controls.',
-    image: '/roomba-cover.png',
+    image: '/roomba-cover.jpg',
     tech: ['TypeScript', 'Next.js', 'APIs'],
     liveUrl: 'https://roomba.kingsharif.com',
     repoUrl: 'https://github.com/KingSharif1/roomba-dashboard',
@@ -82,7 +82,7 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
     status: 'Deployed',
     description:
       'NEMT driver payment calculator — automates trip-to-payment billing. Live with paying customers.',
-    image: '/dfwnemt-cover.png',
+    image: '/dfwnemt-cover.jpg',
     tech: ['TypeScript', 'Next.js', 'SaaS'],
     liveUrl: 'https://nemtbiling.com',
     repoUrl: 'https://github.com/KingSharif1/DfwNemt',
@@ -98,7 +98,7 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
     status: 'Deployed',
     description:
       'TypeScript product experience with supporting tooling for the Nami platform.',
-    image: '/nami-cover.png',
+    image: '/nami-cover.jpg',
     tech: ['TypeScript', 'Next.js'],
     liveUrl: 'https://nami.kingsharif.com',
     repoUrl: 'https://github.com/KingSharif1/nami',
@@ -114,7 +114,7 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
     status: 'Deployed',
     description:
       'Automated receptionist for calls, booking, and front-desk workflows — Vapi admin console.',
-    image: '/ai-receptionist-cover.png',
+    image: '/ai-receptionist-cover.jpg',
     tech: ['TypeScript', 'AI', 'Vapi'],
     liveUrl: 'https://vapi.kingsharif.com/admin',
     repoUrl: 'https://github.com/KingSharif1/ai_receptionist',
@@ -130,7 +130,7 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
     status: 'Deployed',
     description:
       'Community website for Kudusi — content, presence, and a TypeScript front end.',
-    image: '/kudsi-cover.png',
+    image: '/kudusi-cover.jpg',
     tech: ['TypeScript', 'Web'],
     liveUrl: 'https://www.kudusi.org',
     repoUrl: 'https://github.com/KingSharif1/KudsiWebsite',
@@ -146,7 +146,7 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
     status: 'Deployed',
     description:
       'Clothing shop front end with manifesto video intro and a coming-soon storefront.',
-    image: '/1942-forgotten.png',
+    image: '/1942-forgotten.jpg',
     tech: ['React', 'TypeScript', 'Vite', 'Tailwind'],
     liveUrl: 'https://trulyforgtten.shop',
     repoUrl: 'https://github.com/KingSharif1/1942-truly-forgotten',
@@ -162,7 +162,7 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
     status: 'Deployed',
     description:
       'E-commerce for A&M African Market in Abilene — catalog, store info, and online presence.',
-    image: '/african-market-cover.png',
+    image: '/african-market-cover.jpg',
     tech: ['TypeScript', 'Next.js', 'E-commerce'],
     liveUrl: 'https://amafricanmarket.com',
     repoUrl: 'https://github.com/KingSharif1/am-african-market',

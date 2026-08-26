@@ -1,5 +1,11 @@
 # CHANGELOG.md
 
+## 2026-08-26 — Task PORT-3b: Real website cover screenshots
+What: Captured live hero screenshots for all portfolio projects (HireIQ, RideNEMT, Roomba, DfwNemt/nemtbiling, Nami, AI Receptionist/LineDesk login, Kudusi, 1942, AM African Market). Stored as optimized JPEGs in `public/*-cover.jpg`. Kudusi required Cloudflare bypass via real browser.
+Files: `public/*-cover.jpg`, `public/1942-forgotten.jpg`, `lib/portfolio-projects.ts`, form default image path
+Why: User asked for real website images instead of placeholders
+Next: If Supabase already seeded old image paths, re-seed or edit covers in CTROOM
+
 ## 2026-08-26 — Task PORT-3: Timeline, dots, private GitHub, URLs
 What: Restored mouse-follow dot grid for light+dark (removed shell blur that hid it). Corrected live URLs (nemtbiling.com, kudusi.org, nami/vapi/roomba.kingsharif.com); renamed Kudsi→Kudusi. Public site only shows GitHub when `repoPublic`. Projects UI: top-3 light highlight cards; in-progress by timeline; Load all → chronological timeline. Public repos fetch commit count + latest commit via `/api/github/repo-stats`.
 Files: `app/globals.css`, `app/page.tsx`, `lib/portfolio-projects.ts`, `components/ProjectsSection.tsx`, `app/api/github/repo-stats/route.ts`, portfolio form/service/migration, TASKS/STATUS
