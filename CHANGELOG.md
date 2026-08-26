@@ -1,5 +1,11 @@
 # CHANGELOG.md
 
+## 2026-08-26 — Task UI-1b: Restore curves + skill logos/motion
+What: Rounded project/skill/button corners again; Skills section uses SVG logos + framer-motion stagger/hover.
+Files: `components/ProjectsSection.tsx`, `components/SkillsSection.tsx`
+Why: Sharp corners broke the existing rounded portfolio language; skills needed logos + motion
+Next: —
+
 ## 2026-08-26 — Task UI-1: Portfolio design consistency
 What: Stripped fluff copy from projects/skills; removed CTROOM from public footer; restored archive as simple show-all control (not a boxed `<details>`); aligned CTROOM GitHub/Portfolio chrome with HQ styling.
 Files: `components/ProjectsSection.tsx`, `components/Footer.tsx`, `components/SkillsSection.tsx`, `app/ctroom/components/views/GitHubView.tsx`, `PortfolioProjectsView.tsx`

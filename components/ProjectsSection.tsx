@@ -45,7 +45,7 @@ function ProjectRow({ project, index }: { project: PortfolioProject; index: numb
           {project.tech.map((tech) => (
             <span
               key={tech}
-              className="px-2.5 py-1 text-[11px] tracking-wide uppercase font-mono border border-border/70 text-muted-foreground"
+              className="px-2.5 py-1 text-[11px] tracking-wide uppercase font-mono rounded-full border border-border/70 text-muted-foreground"
             >
               {tech}
             </span>
@@ -83,7 +83,7 @@ function ProjectRow({ project, index }: { project: PortfolioProject; index: numb
         </div>
       </div>
 
-      <div className="lg:col-span-4 relative aspect-[4/3] overflow-hidden border border-border/60 group-hover:border-foreground/30 transition-all duration-500 bg-muted/20">
+      <div className="lg:col-span-4 relative aspect-[4/3] overflow-hidden rounded-2xl border border-border/60 group-hover:border-foreground/30 transition-all duration-500 bg-muted/20">
         <Image
           src={project.image}
           alt={project.title}
@@ -130,7 +130,7 @@ export function ProjectsSection({ projects }: { projects?: PortfolioProject[] })
           <button
             type="button"
             onClick={() => setShowAll((v) => !v)}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-mono tracking-wide uppercase border border-border/70 text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-mono tracking-wide uppercase rounded-full border border-border/70 text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
             aria-expanded={showAll}
           >
             {showAll ? 'Show featured' : `Show all projects (${total})`}
