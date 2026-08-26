@@ -23,6 +23,13 @@ Status: DONE
 Scope: `ARCHITECTURE.md`, `STATUS.md`, `TASKS.md`, `DECISIONS.md`, `CHANGELOG.md`, `docs/BLOG.md`, `.env.example`
 Result: Session-start docs restored
 
+## Task PORT-3 — Timeline + dots + private GitHub hide
+Status: DONE
+Scope: `lib/portfolio-projects.ts`, `components/ProjectsSection.tsx`, `app/globals.css`, `app/page.tsx`, `app/api/github/repo-stats/route.ts`, portfolio form/service/migration
+Result: Restored interactive bg dots (light+dark); fixed URLs (DfwNemt/Kudusi/Nami/AI Receptionist/Roomba); hide GitHub unless `repoPublic`; top-3 light highlights + load-all chronological timeline; public repos show commit count + latest commit via API
+Files changed: see CHANGELOG
+Notes: Message about timeline UX was cut off mid-sentence — shipped highlights + full timeline expand
+
 ## Task BLOG-2 — Backfill Sanity metadata
 Status: PENDING
 Scope: Sanity Studio content only (no code)

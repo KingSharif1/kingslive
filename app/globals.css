@@ -186,41 +186,54 @@ body {
   font-family: var(--font-sora), 'Sora', system-ui, sans-serif;
 }
 
-/* Interactive dot background */
+/* Interactive dot background — light + dark */
 @keyframes dot-pulse {
-  0% {
-    opacity: 0.1;
-  }
-
-  50% {
-    opacity: 0.3;
-  }
-
-  100% {
-    opacity: 0.1;
-  }
+  0% { opacity: 0.1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 0.1; }
 }
 
 body {
   position: relative;
   overflow-x: hidden;
+  --mouse-x: 50%;
+  --mouse-y: 50%;
 }
 
 body::before {
   content: "";
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100%;
   height: 100%;
-  background-image: radial-gradient(rgba(0, 0, 0, 0.15) 1px, transparent 1px);
-  background-size: 50px 50px;
+  background-image:
+    radial-gradient(
+      circle at var(--mouse-x) var(--mouse-y),
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0) 45%,
+      rgba(0, 0, 0, 0.12) 50%,
+      rgba(0, 0, 0, 0) 55%
+    ),
+    radial-gradient(rgba(0, 0, 0, 0.18) 1px, transparent 1px);
+  background-size: 100% 100%, 50px 50px;
+  background-position: 0 0;
   pointer-events: none;
   z-index: 0;
 }
 
+/* html.dark — ThemeProvider puts .dark on <html> */
+html.dark body::before,
 .dark body::before {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+  background-image:
+    radial-gradient(
+      circle at var(--mouse-x) var(--mouse-y),
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0) 45%,
+      rgba(255, 255, 255, 0.06) 50%,
+      rgba(255, 255, 255, 0) 55%
+    ),
+    radial-gradient(rgba(255, 255, 255, 0.22) 1px, transparent 1px);
+  background-size: 100% 100%, 50px 50px;
 }
 
 .dark {
@@ -244,20 +257,6 @@ body::before {
   --input: oklch(0.269 0 0);
   --chat: oklch(26.8% 0.007 34.298);
   --ring: oklch(0.439 0 0);
-}
-
-/* Add a subtle star effect to the background in dark mode */
-.dark body::before {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.2) 1px, transparent 1px);
-  background-size: 50px 50px;
-  pointer-events: none;
-  z-index: 0;
 }
 
 .glass-section {

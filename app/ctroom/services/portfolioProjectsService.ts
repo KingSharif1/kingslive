@@ -14,6 +14,8 @@ export type PortfolioProjectRow = {
   tech: string[] | null
   live_url: string | null
   repo_url: string | null
+  repo_public: boolean | null
+  timeline_date: string | null
   blog_slug: string | null
   featured: boolean
   sort_order: number
@@ -33,6 +35,8 @@ export function rowToProject(row: PortfolioProjectRow): PortfolioProject {
     tech: row.tech ?? [],
     liveUrl: row.live_url || undefined,
     repoUrl: row.repo_url || undefined,
+    repoPublic: row.repo_public ?? undefined,
+    timelineDate: row.timeline_date || undefined,
     blogSlug: row.blog_slug || undefined,
     featured: row.featured,
     sortOrder: row.sort_order,
@@ -53,6 +57,8 @@ export function projectToRow(
     tech: project.tech,
     live_url: project.liveUrl ?? null,
     repo_url: project.repoUrl ?? null,
+    repo_public: project.repoPublic ?? false,
+    timeline_date: project.timelineDate ?? null,
     blog_slug: project.blogSlug ?? null,
     featured: project.featured ?? false,
     sort_order: project.sortOrder ?? 0,
@@ -148,11 +154,21 @@ export class PortfolioProjectsService {
       ...projectToRow(project),
       created_at: undefined,
     }
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('portfolio_projects')
       .upsert(row)
       .select('*')
       .single()
+
+    // Older schemas may lack repo_public / timeline_date — retry without them
+    if (error && /repo_public|timeline_date/i.test(error.message || '')) {
+      const { repo_public: _rp, timeline_date: _td, ...legacy } = row as PortfolioProjectRow & {
+        created_at?: undefined
+      }
+      const retry = await supabase.from('portfolio_projects').upsert(legacy).select('*').single()
+      data = retry.data
+      error = retry.error
+    }
 
     if (error) throw error
     return rowToProject(data as PortfolioProjectRow)

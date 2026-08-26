@@ -39,6 +39,8 @@ export function PortfolioProjectFormModal({ isOpen, onClose, onSaved, initial }:
   const [techText, setTechText] = useState('')
   const [liveUrl, setLiveUrl] = useState('')
   const [repoUrl, setRepoUrl] = useState('')
+  const [repoPublic, setRepoPublic] = useState(false)
+  const [timelineDate, setTimelineDate] = useState('')
   const [blogSlug, setBlogSlug] = useState('')
   const [featured, setFeatured] = useState(false)
   const [sortOrder, setSortOrder] = useState(0)
@@ -65,6 +67,8 @@ export function PortfolioProjectFormModal({ isOpen, onClose, onSaved, initial }:
     setTechText((initial?.tech || []).join(', '))
     setLiveUrl(initial?.liveUrl || '')
     setRepoUrl(initial?.repoUrl || '')
+    setRepoPublic(initial?.repoPublic ?? false)
+    setTimelineDate(initial?.timelineDate || '')
     setBlogSlug(initial?.blogSlug || '')
     setFeatured(initial?.featured ?? false)
     setSortOrder(initial?.sortOrder ?? 0)
@@ -127,6 +131,8 @@ export function PortfolioProjectFormModal({ isOpen, onClose, onSaved, initial }:
         tech: techText.split(',').map((t) => t.trim()).filter(Boolean),
         liveUrl: liveUrl.trim() || undefined,
         repoUrl: repoUrl.trim() || undefined,
+        repoPublic,
+        timelineDate: timelineDate.trim() || undefined,
         blogSlug: blogSlug.trim() || undefined,
         featured,
         sortOrder: Number(sortOrder) || 0,
@@ -217,15 +223,25 @@ export function PortfolioProjectFormModal({ isOpen, onClose, onSaved, initial }:
             </select>
           </label>
           <label className="space-y-1">
-            <span className="text-[10px] font-mono uppercase text-white/40">Sort order</span>
+            <span className="text-[10px] font-mono uppercase text-white/40">Timeline date</span>
             <input
-              type="number"
-              value={sortOrder}
-              onChange={(e) => setSortOrder(Number(e.target.value))}
+              type="date"
+              value={timelineDate}
+              onChange={(e) => setTimelineDate(e.target.value)}
               className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-white outline-none"
             />
           </label>
         </div>
+
+        <label className="block space-y-1">
+          <span className="text-[10px] font-mono uppercase text-white/40">Sort order</span>
+          <input
+            type="number"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(Number(e.target.value))}
+            className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-white outline-none"
+          />
+        </label>
 
         <label className="block space-y-1">
           <span className="text-[10px] font-mono uppercase text-white/40">Skills / tech (comma-separated)</span>
@@ -359,6 +375,14 @@ export function PortfolioProjectFormModal({ isOpen, onClose, onSaved, initial }:
           <label className="inline-flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={featured} onChange={(e) => setFeatured(e.target.checked)} />
             Featured (top 3 area)
+          </label>
+          <label className="inline-flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={repoPublic}
+              onChange={(e) => setRepoPublic(e.target.checked)}
+            />
+            Public GitHub (show link + commits)
           </label>
           <label className="inline-flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={published} onChange={(e) => setPublished(e.target.checked)} />

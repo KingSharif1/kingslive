@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS public.portfolio_projects (
   tech text[] NOT NULL DEFAULT '{}',
   live_url text,
   repo_url text,
+  repo_public boolean NOT NULL DEFAULT false,
+  timeline_date date,
   blog_slug text,
   featured boolean NOT NULL DEFAULT false,
   sort_order int NOT NULL DEFAULT 0,
@@ -16,6 +18,12 @@ CREATE TABLE IF NOT EXISTS public.portfolio_projects (
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
+
+-- Additive for existing tables
+ALTER TABLE public.portfolio_projects
+  ADD COLUMN IF NOT EXISTS repo_public boolean NOT NULL DEFAULT false;
+ALTER TABLE public.portfolio_projects
+  ADD COLUMN IF NOT EXISTS timeline_date date;
 
 ALTER TABLE public.portfolio_projects ENABLE ROW LEVEL SECURITY;
 

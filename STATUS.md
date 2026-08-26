@@ -6,7 +6,7 @@
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Portfolio | Working | Top 3 featured + CTROOM editor (needs Supabase migration) |
+| Portfolio | Updated | Top-3 highlights + full timeline; private GitHub hidden; dots restored |
 | Blog | Fixed | Sanity `n31jvc6a`; Studio restored |
 | Studio | Restored | `/studio` |
 | CTROOM login | Fixed | Magic links via Brevo |
@@ -21,11 +21,11 @@
 - Supabase Auth Redirect URLs must include `https://kingsharif.com/auth/callback`
 - `GITHUB_TOKEN` (or Settings PAT) required for private repos + merge
 - Optional `VERCEL_DEPLOY_HOOKS` JSON for one-click production redeploy
-- Run `portfolio_projects` migration in kinglive cms SQL Editor
+- Run `portfolio_projects` migration (incl. `repo_public`, `timeline_date`) in kinglive cms SQL Editor; re-seed if old rows override static URLs
 
 ## Working on
 
-CTROOM GitHub hub (connect / merge / deploy).
+PORT-3 portfolio timeline / dots / URLs (this session).
 
 ## Next
 

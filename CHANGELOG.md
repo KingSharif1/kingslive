@@ -1,5 +1,11 @@
 # CHANGELOG.md
 
+## 2026-08-26 — Task PORT-3: Timeline, dots, private GitHub, URLs
+What: Restored mouse-follow dot grid for light+dark (removed shell blur that hid it). Corrected live URLs (nemtbiling.com, kudusi.org, nami/vapi/roomba.kingsharif.com); renamed Kudsi→Kudusi. Public site only shows GitHub when `repoPublic`. Projects UI: top-3 light highlight cards; in-progress by timeline; Load all → chronological timeline. Public repos fetch commit count + latest commit via `/api/github/repo-stats`.
+Files: `app/globals.css`, `app/page.tsx`, `lib/portfolio-projects.ts`, `components/ProjectsSection.tsx`, `app/api/github/repo-stats/route.ts`, portfolio form/service/migration, TASKS/STATUS
+Why: User asked for missing dots, private-repo GitHub hide, correct URLs/names, timeline UX, public commit activity
+Next: If Supabase portfolio table already seeded, re-seed or edit rows in CTROOM so URLs/repoPublic stick
+
 ## 2026-08-26 — Task PORT-2: Live URLs + fuller skills
 What: Verified production URLs from HireIQ docs + live hosts; expanded Skills to 22 tools used across projects (Framer, Vite, shadcn, Sanity, Claude, AI SDK, Teller, etc.).
 Files: `lib/portfolio-projects.ts`, `components/SkillsSection.tsx`

@@ -133,7 +133,7 @@ export default function Home() {
   if (!mounted) return null
 
   return (
-    <div className="min-h-screen bg-background/30 text-foreground relative">
+    <div className="min-h-screen bg-transparent text-foreground relative z-[1]">
       <nav className="fixed left-8 top-1/2 -translate-y-1/2 z-10 hidden lg:block">
         <div className="flex flex-col gap-4">
           {["intro", "projects", "skills", "connect"].map((section) => (
@@ -151,7 +151,7 @@ export default function Home() {
       {/* Header */}
       <Header isDark={isDark} toggleTheme={toggleTheme} />
 
-      <main className="max-w-4xl mx-auto px-6 sm:px-8 lg:px-16 pt-16 backdrop-blur-sm bg-background/20 backdrop-brightness-60 dark:backdrop-grayscale-100 dark:backdrop-brightness-50 dark:backdrop-blur-sm">
+      <main className="max-w-4xl mx-auto px-6 sm:px-8 lg:px-16 pt-16 bg-transparent">
         <header
           id="intro"
           ref={(el) => { sectionsRef.current[0] = el; }}
