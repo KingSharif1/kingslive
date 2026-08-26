@@ -14,6 +14,7 @@ Public portfolio + Sanity blog on kingsharif.com; private CTROOM HQ (auth, Milo,
 | Blog | `/blog`, `/blog/[slug]` | Sanity project `n31jvc6a` / dataset `production` |
 | Studio | `/studio` | Sanity Studio (NextStudio) |
 | CTROOM | `/ctroom` | Supabase (`kinglive cms`) + client state in `CtroomDashboard` |
+| GitHub hub | `/ctroom` → GitHub | PAT (`GITHUB_TOKEN` / Settings) + optional Vercel Deploy Hooks |
 | Vault | `/vault` + CTROOM vault view | Supabase `vault_transactions` + Teller |
 
 ## Blog data flow

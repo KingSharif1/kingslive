@@ -30,6 +30,13 @@ Result:
 Files changed:
 Notes: For each post, set publishedAt, excerpt, published=true, relatedProjectId where relevant
 
+## Task GH-1 — CTROOM GitHub hub (connect, merge, deploy)
+Status: DONE
+Scope: `app/ctroom/components/views/GitHubView.tsx`, `app/api/ctroom/github/**`, sidebar/types/dashboard, docs
+Result: New CTROOM GitHub view with connection status, repo select, PR merge, Vercel deploy hooks. Settings PAT / GITHUB_TOKEN still the connect path (no OAuth App).
+Files changed: GitHubView.tsx, merge/deploy/status routes, Sidebar, MobileHeader, CtroomDashboard, types, docs/GITHUB.md, .env.example, TASKS/STATUS/CHANGELOG
+Notes: Show connection status; select repo; merge open PRs; trigger Vercel deploy hooks
+
 ## Task CTROOM-VISION — Full HQ product
 Status: PENDING (deferred)
 Scope: ctroom/*

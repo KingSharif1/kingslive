@@ -3,7 +3,7 @@
  * Includes views, tasks, ideas, chat messages, and AI model configurations
  */
 
-export type View = 'dashboard' | 'chat' | 'missions' | 'planner' | 'ideas' | 'blog' | 'settings' | 'tasks' | 'vault' | 'dreamboard' | 'portfolio'
+export type View = 'dashboard' | 'chat' | 'missions' | 'planner' | 'ideas' | 'blog' | 'settings' | 'tasks' | 'vault' | 'dreamboard' | 'portfolio' | 'github'
 ;
 // Core Definitions
 export type ActionItemStatus = 'todo' | 'in-progress' | 'done' | 'archived';

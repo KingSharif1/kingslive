@@ -1,5 +1,12 @@
 # CHANGELOG.md
 
+## 2026-08-26 — Task GH-1: CTROOM GitHub hub
+What: Dedicated GitHub view — connection status (env PAT vs Settings), repo picker, merge open PRs, Vercel Deploy Hook redeploy. Admin-gated merge/deploy APIs.
+Files: `app/ctroom/components/views/GitHubView.tsx`, `app/api/ctroom/github/{status,merge,deploy}/route.ts`, Sidebar/MobileHeader/CtroomDashboard/types, `docs/GITHUB.md`, `.env.example`
+Why: User asked to see if GitHub is connected and to select a project then merge + deploy from CTROOM
+Decisions: PAT (not OAuth App) for v1; deploy via Vercel Deploy Hooks rather than full Vercel API OAuth
+Next: Optional GitHub OAuth App; wire portfolio/mission repos into the same hub
+
 ## 2026-08-26 — CTROOM portfolio editor + accurate project docs + merge prep
 
 What: CTROOM Portfolio view (CRUD, GitHub picker, website, cover upload, Featured/Deployed). Supabase migration + static fallback. Descriptions from HireIQ/1942 docs. Homepage loads DB when available.

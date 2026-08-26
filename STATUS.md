@@ -6,24 +6,26 @@
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Portfolio | Working | Top 3 featured + show-all archive |
-| Blog | Fixed (this cycle) | Sanity ID unified; Studio restored; excerpts/publish filters |
-| Studio | Restored | `/studio` was deleted; route back |
-| CTROOM login | Fixed (this cycle) | Magic links via Brevo, not GoTrue SMTP |
+| Portfolio | Working | Top 3 featured + CTROOM editor (needs Supabase migration) |
+| Blog | Fixed | Sanity `n31jvc6a`; Studio restored |
+| Studio | Restored | `/studio` |
+| CTROOM login | Fixed | Magic links via Brevo |
+| GitHub hub | New | CTROOM → GitHub: status, merge PRs, Vercel deploy hooks |
 | Vault | Partial | Live txs; enrichment/charts still roadmap |
 | Milo | Partial | Non-streaming, limited tools |
-| Docs | Added | ARCHITECTURE / STATUS / TASKS / DECISIONS / CHANGELOG / docs/BLOG.md |
+| Docs | Added | + `docs/GITHUB.md` |
 
 ## Flags / blockers
 
 - Vercel may still need `BREVO_API_KEY` + correct `NEXT_PUBLIC_SANITY_PROJECT_ID=n31jvc6a`
 - Supabase Auth Redirect URLs must include `https://kingsharif.com/auth/callback`
-- Existing Sanity posts should set `publishedAt` + `excerpt` in Studio for cleaner cards
-- CTROOM deep product vision is deferred — blog/portfolio first
+- `GITHUB_TOKEN` (or Settings PAT) required for private repos + merge
+- Optional `VERCEL_DEPLOY_HOOKS` JSON for one-click production redeploy
+- Run `portfolio_projects` migration in kinglive cms SQL Editor
 
 ## Working on
 
-Blog reliability + docs + project↔blog linking.
+CTROOM GitHub hub (connect / merge / deploy).
 
 ## Next
 

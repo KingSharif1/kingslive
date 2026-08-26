@@ -1,5 +1,12 @@
 # DECISIONS.md
 
+## 2026-08-26 — GitHub in CTROOM = PAT + Deploy Hooks (not OAuth)
+- **Context:** Need connection status, merge PRs, and deploy from CTROOM without a full GitHub App.
+- **Options:** GitHub OAuth App / GitHub App / Personal Access Token + Vercel Deploy Hooks.
+- **Choice:** PAT via `GITHUB_TOKEN` or Settings → Integrations; merge via GitHub REST; deploy via Deploy Hook URL (localStorage or `VERCEL_DEPLOY_HOOKS` JSON).
+- **Tradeoff:** No “Sign in with GitHub” button; token scopes must include write for merge. Deploy Hook is per-project, not auto-discovered.
+- **Revisit if:** Multi-user CTROOM or want OAuth UX / Vercel API project listing.
+
 ## 2026-08-26 — Blog CMS = Sanity project `n31jvc6a`
 - **Context:** `lib/sanity.ts` fell back to placeholder `py58y528` (no dataset). Real posts live on `n31jvc6a`.
 - **Options:** Keep dual IDs / migrate / unify on `n31jvc6a`.

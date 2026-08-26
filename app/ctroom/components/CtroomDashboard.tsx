@@ -22,6 +22,7 @@ import { PlannerView } from './views/PlannerView';
 import { MissionsView } from './views/MissionsView';
 import { BlogView } from './views/BlogView';
 import { PortfolioProjectsView } from './views/PortfolioProjectsView';
+import { GitHubView } from './views/GitHubView';
 import { SettingsView } from './views/SettingsView';
 import { VaultView } from './views/VaultView';
 import DreamboardView from './views/DreamboardView';
@@ -837,6 +838,13 @@ export function CtroomDashboard() {
                     {currentView === 'blog' && <BlogView />}
 
                     {currentView === 'portfolio' && <PortfolioProjectsView />}
+
+                    {currentView === 'github' && (
+                        <GitHubView
+                            githubToken={userSettings.apiKeys.github}
+                            onOpenSettings={() => setCurrentView('settings')}
+                        />
+                    )}
 
                     {currentView === 'settings' && (
                         <SettingsView

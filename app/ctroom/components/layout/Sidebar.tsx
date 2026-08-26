@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import {
     LayoutDashboard, MessageSquare, FileText, Settings,
     User, ChevronLeft, ChevronRight, Sun, Moon,
-    Target, Calendar, Vault, Sparkles, LogOut, Briefcase
+    Target, Calendar, Vault, Sparkles, LogOut, Briefcase, Github
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { View, UsageStats, ThemeMode } from '../../types/index';
@@ -30,6 +30,7 @@ const navItems = [
     { id: 'dreamboard', icon: Sparkles,         label: 'Dreamboard', dot: 'idle'   },
     { id: 'missions',   icon: Target,           label: 'Projects',   dot: 'idle'   },
     { id: 'portfolio',  icon: Briefcase,        label: 'Portfolio',  dot: 'idle'   },
+    { id: 'github',     icon: Github,           label: 'GitHub',     dot: 'idle'   },
     { id: 'planner',    icon: Calendar,         label: 'Planner',    dot: 'warn'   },
     { id: 'chat',       icon: MessageSquare,    label: 'Milo',       dot: 'idle'   },
     { id: 'vault',      icon: Vault,            label: 'Vault',      dot: 'idle'   },
