@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { ARCHIVE_PROJECTS, FEATURED_PROJECTS, type PortfolioProject } from '@/lib/portfolio-projects'
 
 function ProjectRow({ project, index }: { project: PortfolioProject; index: number }) {
-  const isLive = project.status === 'Live'
+  const isDeployed = project.status === 'Deployed'
 
   return (
     <article className="group grid lg:grid-cols-12 gap-5 sm:gap-8 py-7 sm:py-9 border-b border-border/40 hover:border-foreground/25 transition-colors duration-500">
@@ -15,8 +15,8 @@ function ProjectRow({ project, index }: { project: PortfolioProject; index: numb
         </span>
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono text-muted-foreground">{project.year}</span>
-          <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-          <span className={`text-xs ${isLive ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${isDeployed ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+          <span className={`text-xs font-medium ${isDeployed ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
             {project.status}
           </span>
         </div>
@@ -45,7 +45,7 @@ function ProjectRow({ project, index }: { project: PortfolioProject; index: numb
               rel="noopener noreferrer"
               className="text-foreground underline underline-offset-4 decoration-foreground/25 hover:decoration-foreground transition-colors"
             >
-              Visit site
+              Website
             </a>
           )}
           {project.repoUrl && (

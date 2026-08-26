@@ -1,13 +1,14 @@
 /**
- * Portfolio projects — only work King actually ships / circled on GitHub.
- * Top 3 featured; archive expands via dropdown.
- * `id` links Sanity posts via relatedProjectId.
+ * Portfolio projects — King's circled GitHub work.
+ * Top 3 featured; archive via dropdown.
+ * status: Deployed = live/shipped · In Progress = still building
+ * liveUrl only when a public website exists
  */
 export type PortfolioProject = {
   id: string
   title: string
   year: string
-  status: 'Live' | 'In Progress'
+  status: 'Deployed' | 'In Progress'
   description: string
   image: string
   tech: string[]
@@ -22,7 +23,7 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     id: 'hireiq',
     title: 'HireIQ',
     year: '2026',
-    status: 'Live',
+    status: 'Deployed',
     description:
       'AI resume tailoring and application tracking for landing the right role faster.',
     image: '/hireiq-cover.png',
@@ -31,41 +32,42 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     repoUrl: 'https://github.com/KingSharif1/HireIQ',
   },
   {
-    id: 'dfwnemt',
-    title: 'DfwNemt',
-    year: '2026',
-    status: 'Live',
-    description:
-      'NEMT driver payment calculator — automates trip-to-payment billing. Live with paying customers.',
-    image: '/dfwnemt-cover.png',
-    tech: ['TypeScript', 'Next.js', 'SaaS'],
-    repoUrl: 'https://github.com/KingSharif1/DfwNemt',
-  },
-  {
     id: 'ridenemt',
     title: 'RideNEMT',
     year: '2026',
-    status: 'Live',
+    status: 'Deployed',
     description:
       'RideCuro — non-emergency medical transportation SaaS for operators and riders.',
     image: '/ridenemt-cover.png',
     tech: ['TypeScript', 'Next.js', 'SaaS'],
     repoUrl: 'https://github.com/KingSharif1/RideNEMT',
   },
+  {
+    id: 'roomba-dashboard',
+    title: 'Roomba Dashboard',
+    year: '2026',
+    status: 'Deployed',
+    description:
+      'Ops dashboard for Roomba status, runs, and home automation insights.',
+    image: '/roomba-cover.png',
+    tech: ['TypeScript', 'Next.js', 'APIs'],
+    liveUrl: 'https://roomba-dashboard.vercel.app',
+    repoUrl: 'https://github.com/KingSharif1/roomba-dashboard',
+  },
 ]
 
 /** Archive — revealed via “All projects” dropdown */
 export const ARCHIVE_PROJECTS: PortfolioProject[] = [
   {
-    id: 'roomba-dashboard',
-    title: 'Roomba Dashboard',
+    id: 'dfwnemt',
+    title: 'DfwNemt',
     year: '2026',
-    status: 'In Progress',
+    status: 'Deployed',
     description:
-      'Ops dashboard for Roomba status, runs, and home automation insights.',
-    image: '/roomba-cover.png',
-    tech: ['TypeScript', 'Next.js', 'APIs'],
-    repoUrl: 'https://github.com/KingSharif1/roomba-dashboard',
+      'NEMT driver payment calculator — automates trip-to-payment billing. Live with paying customers.',
+    image: '/dfwnemt-cover.png',
+    tech: ['TypeScript', 'Next.js', 'SaaS'],
+    repoUrl: 'https://github.com/KingSharif1/DfwNemt',
   },
   {
     id: 'nami',
@@ -93,7 +95,7 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
     id: 'kudsi',
     title: 'KudsiWebsite',
     year: '2025',
-    status: 'Live',
+    status: 'Deployed',
     description:
       'Community website for Kudsi — content, presence, and a clean TypeScript front end.',
     image: '/kudsi-cover.png',
@@ -104,7 +106,7 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
     id: '1942',
     title: '1942: Truly Forgotten',
     year: '2025',
-    status: 'Live',
+    status: 'Deployed',
     description:
       'Brand storefront with cinematic manifesto video and product storytelling.',
     image: '/1942-forgotten.png',
@@ -116,7 +118,7 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
     id: 'am-african-market',
     title: 'AM African Market',
     year: '2025',
-    status: 'Live',
+    status: 'In Progress',
     description:
       'E-commerce for African market goods — catalog, inventory, and checkout.',
     image: '/african-market-cover.png',
