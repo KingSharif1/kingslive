@@ -90,21 +90,30 @@ export class AuthService {
         }
       }
       
-      // Send magic link
-      const { error } = await this.signInWithMagicLink(email)
-      
-      if (error) {
-        return { 
-          success: false, 
-          error: error.message, 
-          magicLinkSent: false 
+      // Deliver magic link via Brevo (bypasses broken Supabase Auth SMTP /otp)
+      const magicResponse = await fetch('/api/ctroom/auth/magic-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          redirectTo: `${window.location.origin}/auth/callback`,
+        }),
+      })
+
+      const magicResult = await magicResponse.json()
+
+      if (!magicResponse.ok || !magicResult.magicLinkSent) {
+        return {
+          success: false,
+          error: magicResult.error || 'Error sending magic link email',
+          magicLinkSent: false,
         }
       }
-      
-      return { 
-        success: true, 
-        error: null, 
-        magicLinkSent: true 
+
+      return {
+        success: true,
+        error: null,
+        magicLinkSent: true,
       }
     } catch (error: any) {
       console.error('Login error:', error)

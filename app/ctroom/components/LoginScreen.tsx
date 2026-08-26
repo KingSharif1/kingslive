@@ -142,8 +142,8 @@ export function LoginScreen() {
                     <Mail className="w-5 h-5" style={{ color: '#00ff88' }} />
                   </div>
                   <h2 className="font-mono font-semibold text-white mb-2 uppercase tracking-wide">Check your email</h2>
-                  <p className="text-sm text-white/40 mb-1">Magic link sent. Click it to sign in.</p>
-                  <p className="text-xs text-white/25 mb-6">Expires in 1 hour.</p>
+                  <p className="text-sm text-white/40 mb-1">Magic link sent from CTROOM HQ. Click it to sign in.</p>
+                  <p className="text-xs text-white/25 mb-6">Expires in 1 hour. Check spam if you do not see it.</p>
                   <div className="flex flex-col gap-3">
                     <button
                       onClick={() => { setState('idle'); setEmail(''); }}
