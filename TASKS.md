@@ -37,6 +37,13 @@ Result: New CTROOM GitHub view with connection status, repo select, PR merge, Ve
 Files changed: GitHubView.tsx, merge/deploy/status routes, Sidebar, MobileHeader, CtroomDashboard, types, docs/GITHUB.md, .env.example, TASKS/STATUS/CHANGELOG
 Notes: Show connection status; select repo; merge open PRs; trigger Vercel deploy hooks
 
+## Task UI-1 — Portfolio design consistency (no fluff / no public CTROOM)
+Status: DONE
+Scope: `components/ProjectsSection.tsx`, `components/Footer.tsx`, `components/SkillsSection.tsx`, `app/ctroom/components/views/GitHubView.tsx`, `PortfolioProjectsView.tsx`
+Result: Removed marketing subtitles and public CTROOM footer link; projects archive matches existing list + button pattern; CTROOM GitHub/Portfolio views use HQ styling
+Files changed: ProjectsSection, Footer, SkillsSection, GitHubView, PortfolioProjectsView, TASKS/CHANGELOG
+Notes: Public site stays portfolio-only; CTROOM stays private
+
 ## Task CTROOM-VISION — Full HQ product
 Status: PENDING (deferred)
 Scope: ctroom/*

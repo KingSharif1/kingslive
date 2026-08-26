@@ -98,9 +98,9 @@ export function PortfolioProjectsView() {
           <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/35 mb-2">
             Public site
           </p>
-          <h1 className="font-display text-3xl text-white">Portfolio projects</h1>
+          <h1 className="font-display text-3xl text-white">Portfolio</h1>
           <p className="text-sm text-white/45 mt-2 max-w-lg">
-            Edit what shows on kingsharif.com — featured top 3, archive, GitHub links, website URLs, covers, and skills.
+            Featured projects, archive, links, covers, and skills.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

@@ -48,12 +48,7 @@ export function SkillsSection() {
   return (
     <div className="space-y-12 sm:space-y-16">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div className="space-y-2">
-          <h2 className="text-3xl sm:text-4xl font-light font-sora tracking-tight">Skills & Expertise</h2>
-          <p className="text-sm text-muted-foreground max-w-md">
-            A tight stack — chosen for speed, clarity, and real product work.
-          </p>
-        </div>
+        <h2 className="text-3xl sm:text-4xl font-light font-sora tracking-tight">Skills & Expertise</h2>
         <div className="text-sm text-muted-foreground font-mono">STACK / 12</div>
       </div>
 

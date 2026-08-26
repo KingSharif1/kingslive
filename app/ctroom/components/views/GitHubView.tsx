@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 
 const HOOKS_KEY = 'ctroom-deploy-hooks'
+const ACCENT = '#00ff88'
 
 interface GithubUser {
   login: string
@@ -83,7 +84,7 @@ function loadHooks(): Record<string, string> {
   }
 }
 
-function saveHooks(map: Record<string, string>) {
+function persistHooks(map: Record<string, string>) {
   localStorage.setItem(HOOKS_KEY, JSON.stringify(map))
 }
 
@@ -92,7 +93,9 @@ function ghHeaders(token?: string): HeadersInit {
 }
 
 async function authHeaders(token?: string): Promise<HeadersInit> {
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
   return {
     ...ghHeaders(token),
     ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
@@ -142,13 +145,7 @@ export function GitHubView({ githubToken, onOpenSettings }: Props) {
         setRepos(reposJson.repos || [])
         if (!statusJson.user && reposJson.user) {
           setStatus((s) =>
-            s
-              ? {
-                  ...s,
-                  connected: true,
-                  user: reposJson.user,
-                }
-              : s
+            s ? { ...s, connected: true, user: reposJson.user } : s
           )
         }
       } else if (!statusJson.connected) {
@@ -201,9 +198,7 @@ export function GitHubView({ githubToken, onOpenSettings }: Props) {
     )
   }, [repos, query])
 
-  const envHasHook = Boolean(
-    selected && status?.deployHookRepos?.includes(selected)
-  )
+  const envHasHook = Boolean(selected && status?.deployHookRepos?.includes(selected))
   const hasLocalHook = Boolean(selected && hooks[selected])
   const canDeploy = envHasHook || hasLocalHook || Boolean(hookDraft.trim())
 
@@ -226,7 +221,9 @@ export function GitHubView({ githubToken, onOpenSettings }: Props) {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Merge failed')
-      setActionMsg(`Merged PR #${pr.number}${json.sha ? ` → ${String(json.sha).slice(0, 7)}` : ''}. If Vercel is linked to this repo, production deploy should start automatically.`)
+      setActionMsg(
+        `Merged #${pr.number}${json.sha ? ` → ${String(json.sha).slice(0, 7)}` : ''}`
+      )
       await loadDetail(selected)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Merge failed')
@@ -242,8 +239,8 @@ export function GitHubView({ githubToken, onOpenSettings }: Props) {
     if (url) next[selected] = url
     else delete next[selected]
     setHooks(next)
-    saveHooks(next)
-    setActionMsg(url ? 'Deploy hook saved locally for this repo.' : 'Deploy hook cleared.')
+    persistHooks(next)
+    setActionMsg(url ? 'Deploy hook saved.' : 'Deploy hook cleared.')
   }
 
   const deploy = async () => {
@@ -255,7 +252,7 @@ export function GitHubView({ githubToken, onOpenSettings }: Props) {
       if (hookDraft.trim() && hookDraft.trim() !== hooks[selected]) {
         const next = { ...hooks, [selected]: hookDraft.trim() }
         setHooks(next)
-        saveHooks(next)
+        persistHooks(next)
       }
       const headers = await authHeaders(githubToken)
       const res = await fetch('/api/ctroom/github/deploy', {
@@ -268,7 +265,7 @@ export function GitHubView({ githubToken, onOpenSettings }: Props) {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Deploy failed')
-      setActionMsg('Production deploy triggered via Vercel Deploy Hook.')
+      setActionMsg('Production deploy triggered.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Deploy failed')
     } finally {
@@ -276,94 +273,88 @@ export function GitHubView({ githubToken, onOpenSettings }: Props) {
     }
   }
 
+  const panel = 'rounded-xl border border-white/8 bg-white/[0.03]'
+  const monoLabel = 'font-mono text-[10px] uppercase tracking-[0.2em] text-white/35'
+
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="space-y-6 text-white max-w-6xl">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl text-foreground flex items-center gap-2">
-            <Github className="w-6 h-6" />
+          <p className={cn(monoLabel, 'mb-2')}>Integrations</p>
+          <h1 className="font-display text-3xl text-white flex items-center gap-2">
+            <Github className="w-7 h-7" />
             GitHub
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Connection status, pick a repo, merge PRs, and trigger Vercel deploys.
-          </p>
         </div>
         <button
           type="button"
           onClick={() => void refresh()}
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-xs font-mono uppercase tracking-wider text-white/60 hover:text-white"
         >
           <RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} />
           Refresh
         </button>
       </div>
 
-      {/* Connection banner */}
       <div
         className={cn(
-          'flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl border',
-          status?.connected
-            ? 'bg-emerald-500/5 border-emerald-500/20'
-            : 'bg-card border-border'
+          'flex flex-col sm:flex-row sm:items-center gap-4 p-4',
+          panel,
+          status?.connected && 'border-[#00ff88]/25 bg-[#00ff88]/5'
         )}
       >
         <div
           className={cn(
-            'w-12 h-12 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0',
-            status?.connected ? '' : 'bg-secondary'
+            'w-11 h-11 rounded-full flex items-center justify-center overflow-hidden shrink-0 border border-white/10',
+            !status?.connected && 'bg-white/5'
           )}
         >
           {status?.user?.avatar ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={status.user.avatar} alt="" className="w-full h-full object-cover" />
           ) : (
-            <Github className="w-5 h-5 text-muted-foreground" />
+            <Github className="w-5 h-5 text-white/40" />
           )}
         </div>
         <div className="flex-1 min-w-0">
           {loading && !status ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" /> Checking connection…
+            <div className="flex items-center gap-2 text-sm text-white/45">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Checking connection…
             </div>
           ) : status?.connected && status.user ? (
             <>
-              <div className="text-sm font-medium text-foreground flex items-center gap-2 flex-wrap">
+              <div className="text-sm font-medium text-white flex items-center gap-2 flex-wrap">
                 {status.user.name || status.user.login}
-                <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
+                <span className="inline-flex items-center gap-1 text-xs" style={{ color: ACCENT }}>
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   Connected
                 </span>
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">
-                  via {status.source === 'settings' ? 'Settings PAT' : 'GITHUB_TOKEN env'}
+                <span className="font-mono text-[10px] uppercase tracking-wider text-white/35">
+                  {status.source === 'settings' ? 'Settings PAT' : 'GITHUB_TOKEN'}
                 </span>
               </div>
-              <div className="text-xs text-muted-foreground mt-0.5">
-                @{status.user.login}
-                {status.scopes?.length
-                  ? ` · scopes: ${status.scopes.slice(0, 6).join(', ')}${status.scopes.length > 6 ? '…' : ''}`
-                  : ' · fine-grained or env token'}
-              </div>
+              <div className="text-xs text-white/40 mt-0.5">@{status.user.login}</div>
             </>
           ) : (
             <>
-              <div className="text-sm font-medium text-foreground flex items-center gap-2">
+              <div className="text-sm font-medium text-white flex items-center gap-2">
                 Not connected
                 <XCircle className="w-3.5 h-3.5 text-orange-400" />
               </div>
-              <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-                {status?.hint ||
-                  'Add a GitHub Personal Access Token with repo write access so CTROOM can list private repos, merge PRs, and sync projects.'}
+              <p className="text-xs text-white/40 mt-1 max-w-xl">
+                Add a PAT with repo write access in Settings → Integrations, or set GITHUB_TOKEN.
               </p>
             </>
           )}
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           {status?.user?.url && (
             <a
               href={status.user.url}
               target="_blank"
               rel="noreferrer"
-              className="p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground"
+              className="p-2 rounded-lg border border-white/10 text-white/50 hover:text-white"
             >
               <ExternalLink className="w-4 h-4" />
             </a>
@@ -372,11 +363,11 @@ export function GitHubView({ githubToken, onOpenSettings }: Props) {
             <button
               type="button"
               onClick={onOpenSettings}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-              style={{ background: '#00ff88', color: '#000' }}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono uppercase tracking-wider font-medium"
+              style={{ background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.35)', color: ACCENT }}
             >
               <Settings className="w-3.5 h-3.5" />
-              {status?.connected ? 'Manage token' : 'Connect'}
+              {status?.connected ? 'Manage' : 'Connect'}
             </button>
           )}
         </div>
@@ -385,10 +376,10 @@ export function GitHubView({ githubToken, onOpenSettings }: Props) {
       {(error || actionMsg) && (
         <div
           className={cn(
-            'text-sm px-4 py-3 rounded-lg border',
+            'text-sm px-4 py-3 rounded-xl border',
             error
               ? 'border-red-500/30 bg-red-500/10 text-red-300'
-              : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+              : 'border-[#00ff88]/30 bg-[#00ff88]/10 text-[#00ff88]'
           )}
         >
           {error || actionMsg}
@@ -396,51 +387,46 @@ export function GitHubView({ githubToken, onOpenSettings }: Props) {
       )}
 
       {!status?.connected && !loading ? (
-        <div className="rounded-xl border border-border p-6 space-y-3 text-sm text-muted-foreground">
-          <p className="text-foreground font-medium">How to connect</p>
+        <div className={cn(panel, 'p-5 space-y-3 text-sm text-white/45')}>
+          <p className="text-white font-medium">Connect GitHub</p>
           <ol className="list-decimal pl-5 space-y-2">
             <li>
               Create a{' '}
               <a
-                className="text-foreground underline underline-offset-2"
+                className="text-white underline underline-offset-2"
                 href="https://github.com/settings/tokens"
                 target="_blank"
                 rel="noreferrer"
               >
                 classic PAT
               </a>{' '}
-              with <code className="text-xs">repo</code> scope (needed to merge), or a fine-grained
-              token with Contents + Pull requests read/write on your repos.
+              with <code className="text-xs text-white/70">repo</code> scope.
             </li>
-            <li>
-              Either set <code className="text-xs">GITHUB_TOKEN</code> on Vercel, or paste the token
-              in Settings → Integrations and Save.
-            </li>
-            <li>Return here — status should show Connected, then pick a repo to merge / deploy.</li>
+            <li>Paste it in Settings → Integrations, or set GITHUB_TOKEN on Vercel.</li>
+            <li>Return here, pick a repo, then merge or deploy.</li>
           </ol>
         </div>
       ) : (
         <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-4 items-start">
-          {/* Repo list */}
-          <div className="rounded-xl border border-border overflow-hidden bg-card/40">
-            <div className="p-3 border-b border-border">
+          <div className={cn(panel, 'overflow-hidden')}>
+            <div className="p-3 border-b border-white/8">
               <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Filter repos…"
-                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-secondary/50 border border-border text-sm outline-none focus:border-white/20"
+                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white outline-none focus:border-white/25 placeholder:text-white/25"
                 />
               </div>
             </div>
-            <div className="max-h-[70vh] overflow-y-auto divide-y divide-border/60">
+            <div className="max-h-[70vh] overflow-y-auto divide-y divide-white/6">
               {loading ? (
-                <div className="p-8 flex justify-center text-muted-foreground">
+                <div className="p-8 flex justify-center text-white/40">
                   <Loader2 className="w-5 h-5 animate-spin" />
                 </div>
               ) : filtered.length === 0 ? (
-                <div className="p-6 text-sm text-muted-foreground">No repos found.</div>
+                <div className="p-6 text-sm text-white/40">No repos found.</div>
               ) : (
                 filtered.map((repo) => (
                   <button
@@ -448,21 +434,19 @@ export function GitHubView({ githubToken, onOpenSettings }: Props) {
                     type="button"
                     onClick={() => void loadDetail(repo.fullName)}
                     className={cn(
-                      'w-full text-left px-4 py-3 hover:bg-secondary/40 transition-colors',
-                      selected === repo.fullName && 'bg-secondary/60'
+                      'w-full text-left px-4 py-3 hover:bg-white/[0.04] transition-colors',
+                      selected === repo.fullName && 'bg-white/[0.06]'
                     )}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-foreground truncate">
-                        {repo.name}
-                      </span>
+                      <span className="text-sm font-medium text-white truncate">{repo.name}</span>
                       {repo.private ? (
-                        <Lock className="w-3 h-3 text-muted-foreground" />
+                        <Lock className="w-3 h-3 text-white/30" />
                       ) : (
-                        <Globe className="w-3 h-3 text-muted-foreground" />
+                        <Globe className="w-3 h-3 text-white/30" />
                       )}
                     </div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                    <div className="text-[11px] text-white/35 mt-0.5 truncate">
                       {repo.fullName}
                       {repo.language ? ` · ${repo.language}` : ''}
                     </div>
@@ -472,28 +456,27 @@ export function GitHubView({ githubToken, onOpenSettings }: Props) {
             </div>
           </div>
 
-          {/* Detail panel */}
-          <div className="rounded-xl border border-border bg-card/40 min-h-[320px]">
+          <div className={cn(panel, 'min-h-[320px]')}>
             {!selected ? (
-              <div className="h-full p-10 text-center text-sm text-muted-foreground">
-                Select a repo to see open PRs, merge, and deploy.
+              <div className="h-full p-10 text-center text-sm text-white/40">
+                Select a repo to merge PRs or deploy.
               </div>
             ) : detailLoading ? (
               <div className="p-10 flex justify-center">
-                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                <Loader2 className="w-5 h-5 animate-spin text-white/40" />
               </div>
             ) : !detail ? (
-              <div className="p-6 text-sm text-muted-foreground">Could not load repo detail.</div>
+              <div className="p-6 text-sm text-white/40">Could not load repo.</div>
             ) : (
               <div className="p-4 sm:p-5 space-y-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-medium text-foreground">{detail.fullName}</h2>
+                    <h2 className="text-lg font-medium text-white">{detail.fullName}</h2>
                     {detail.description && (
-                      <p className="text-xs text-muted-foreground mt-1">{detail.description}</p>
+                      <p className="text-xs text-white/40 mt-1">{detail.description}</p>
                     )}
-                    <p className="text-[11px] text-muted-foreground mt-2 font-mono">
-                      default: {detail.defaultBranch}
+                    <p className="text-[11px] text-white/30 mt-2 font-mono">
+                      {detail.defaultBranch}
                       {detail.language ? ` · ${detail.language}` : ''}
                     </p>
                   </div>
@@ -501,43 +484,38 @@ export function GitHubView({ githubToken, onOpenSettings }: Props) {
                     href={detail.htmlUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground"
+                    className="p-2 rounded-lg border border-white/10 text-white/45 hover:text-white"
                   >
                     <ExternalLink className="w-4 h-4" />
                   </a>
                 </div>
 
-                {/* Deploy */}
-                <section className="space-y-2 rounded-lg border border-border p-3">
+                <section className="space-y-2 rounded-lg border border-white/8 p-3 bg-white/[0.02]">
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <h3 className={cn(monoLabel, 'flex items-center gap-1.5')}>
                       <Rocket className="w-3.5 h-3.5" />
                       Deploy
                     </h3>
                     {(envHasHook || hasLocalHook) && (
-                      <span className="text-[10px] text-emerald-400 font-mono">
+                      <span className="text-[10px] font-mono" style={{ color: ACCENT }}>
                         {envHasHook ? 'env hook' : 'local hook'}
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Merging to <code>{detail.defaultBranch}</code> usually auto-deploys if the repo
-                    is linked in Vercel. Use a Deploy Hook for a manual production redeploy.
-                  </p>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
-                      <Link2 className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <Link2 className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-white/30" />
                       <input
                         value={hookDraft}
                         onChange={(e) => setHookDraft(e.target.value)}
-                        placeholder="https://api.vercel.com/v1/integrations/deploy/…"
-                        className="w-full pl-8 pr-2 py-2 rounded-lg bg-secondary/50 border border-border text-xs outline-none focus:border-white/20"
+                        placeholder="Vercel deploy hook URL"
+                        className="w-full pl-8 pr-2 py-2 rounded-lg bg-white/5 border border-white/10 text-xs text-white outline-none focus:border-white/25 placeholder:text-white/25"
                       />
                     </div>
                     <button
                       type="button"
                       onClick={saveHook}
-                      className="px-3 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground"
+                      className="px-3 py-2 rounded-lg border border-white/10 text-xs text-white/50 hover:text-white"
                     >
                       Save
                     </button>
@@ -546,8 +524,12 @@ export function GitHubView({ githubToken, onOpenSettings }: Props) {
                     type="button"
                     disabled={!canDeploy || deploying}
                     onClick={() => void deploy()}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-40"
-                    style={{ background: '#00ff88', color: '#000' }}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono uppercase tracking-wider font-medium disabled:opacity-40"
+                    style={{
+                      background: 'rgba(0,255,136,0.15)',
+                      border: '1px solid rgba(0,255,136,0.35)',
+                      color: ACCENT,
+                    }}
                   >
                     {deploying ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -558,21 +540,20 @@ export function GitHubView({ githubToken, onOpenSettings }: Props) {
                   </button>
                 </section>
 
-                {/* PRs */}
                 <section className="space-y-3">
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <h3 className={cn(monoLabel, 'flex items-center gap-1.5')}>
                       <GitPullRequest className="w-3.5 h-3.5" />
-                      Open pull requests
+                      Open PRs
                     </h3>
-                    <label className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                    <label className="text-[11px] text-white/40 flex items-center gap-1.5">
                       Merge as
                       <select
                         value={mergeMethod}
                         onChange={(e) =>
                           setMergeMethod(e.target.value as 'squash' | 'merge' | 'rebase')
                         }
-                        className="bg-secondary border border-border rounded px-1.5 py-1 text-xs text-foreground"
+                        className="bg-white/5 border border-white/10 rounded px-1.5 py-1 text-xs text-white"
                       >
                         <option value="squash">squash</option>
                         <option value="merge">merge</option>
@@ -582,24 +563,24 @@ export function GitHubView({ githubToken, onOpenSettings }: Props) {
                   </div>
 
                   {detail.pullRequests.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No open PRs.</p>
+                    <p className="text-sm text-white/40">No open PRs.</p>
                   ) : (
                     <ul className="space-y-2">
                       {detail.pullRequests.map((pr) => (
                         <li
                           key={pr.number}
-                          className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 rounded-lg border border-border"
+                          className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 rounded-lg border border-white/8"
                         >
                           <div className="flex-1 min-w-0">
                             <a
                               href={pr.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-sm text-foreground hover:underline"
+                              className="text-sm text-white hover:underline"
                             >
                               #{pr.number} {pr.title}
                             </a>
-                            <div className="text-[11px] text-muted-foreground mt-0.5">
+                            <div className="text-[11px] text-white/35 mt-0.5">
                               @{pr.user}
                               {pr.draft ? ' · draft' : ''}
                             </div>
@@ -608,7 +589,7 @@ export function GitHubView({ githubToken, onOpenSettings }: Props) {
                             type="button"
                             disabled={pr.draft || merging === pr.number}
                             onClick={() => void mergePr(pr)}
-                            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-secondary disabled:opacity-40"
+                            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 disabled:opacity-40"
                           >
                             {merging === pr.number ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -623,20 +604,17 @@ export function GitHubView({ githubToken, onOpenSettings }: Props) {
                   )}
                 </section>
 
-                {/* Recent commits */}
                 {detail.commits?.length > 0 && (
                   <section className="space-y-2">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Recent commits
-                    </h3>
+                    <h3 className={monoLabel}>Recent commits</h3>
                     <ul className="space-y-1.5">
                       {detail.commits.slice(0, 8).map((c) => (
-                        <li key={c.sha} className="text-xs text-muted-foreground flex gap-2">
+                        <li key={c.sha} className="text-xs text-white/40 flex gap-2">
                           <a
                             href={c.url}
                             target="_blank"
                             rel="noreferrer"
-                            className="font-mono text-foreground/80 hover:underline shrink-0"
+                            className="font-mono text-white/70 hover:underline shrink-0"
                           >
                             {c.sha}
                           </a>

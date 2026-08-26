@@ -1,5 +1,11 @@
 # CHANGELOG.md
 
+## 2026-08-26 — Task UI-1: Portfolio design consistency
+What: Stripped fluff copy from projects/skills; removed CTROOM from public footer; restored archive as simple show-all control (not a boxed `<details>`); aligned CTROOM GitHub/Portfolio chrome with HQ styling.
+Files: `components/ProjectsSection.tsx`, `components/Footer.tsx`, `components/SkillsSection.tsx`, `app/ctroom/components/views/GitHubView.tsx`, `PortfolioProjectsView.tsx`
+Why: New sections looked unlike the rest of the site; public portfolio should not advertise CTROOM
+Next: Keep public marketing copy minimal when editing projects
+
 ## 2026-08-26 — Task GH-1: CTROOM GitHub hub
 What: Dedicated GitHub view — connection status (env PAT vs Settings), repo picker, merge open PRs, Vercel Deploy Hook redeploy. Admin-gated merge/deploy APIs.
 Files: `app/ctroom/components/views/GitHubView.tsx`, `app/api/ctroom/github/{status,merge,deploy}/route.ts`, Sidebar/MobileHeader/CtroomDashboard/types, `docs/GITHUB.md`, `.env.example`

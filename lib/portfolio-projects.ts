@@ -27,7 +27,7 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     year: '2026',
     status: 'Deployed',
     description:
-      'AI resume tailoring and application tracking: match a resume to a job post, then manage every application in one place.',
+      'AI-assisted resume matching and application tracking — score fit against a job post and keep every application organized.',
     image: '/hireiq-cover.png',
     tech: ['Next.js', 'TypeScript', 'Supabase', 'Claude'],
     liveUrl: 'https://hireiq-nu.vercel.app',
@@ -41,7 +41,7 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     year: '2026',
     status: 'Deployed',
     description:
-      'RideCuro — NEMT SaaS platform for non-emergency medical transportation operators and riders.',
+      'NEMT SaaS for operators and riders — scheduling, trips, and operations for non-emergency medical transport.',
     image: '/ridenemt-cover.png',
     tech: ['TypeScript', 'Next.js', 'SaaS'],
     repoUrl: 'https://github.com/KingSharif1/RideNEMT',
@@ -54,7 +54,7 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     year: '2026',
     status: 'Deployed',
     description:
-      'ROOMBA // CONTROL — live ops dashboard for Roomba status, runs, and home automation insights.',
+      'Live ops dashboard for Roomba status, run history, and home automation controls.',
     image: '/roomba-cover.png',
     tech: ['TypeScript', 'Next.js', 'APIs'],
     liveUrl: 'https://roomba-dashboard.vercel.app',
@@ -84,7 +84,7 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
     year: '2026',
     status: 'In Progress',
     description:
-      'Product build in TypeScript — Nami experience and supporting tooling.',
+      'TypeScript product experience with supporting tooling for the Nami platform.',
     image: '/nami-cover.png',
     tech: ['TypeScript', 'Next.js'],
     repoUrl: 'https://github.com/KingSharif1/nami',

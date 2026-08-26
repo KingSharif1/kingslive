@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import {
@@ -20,8 +21,16 @@ function ProjectRow({ project, index }: { project: PortfolioProject; index: numb
         </span>
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono text-muted-foreground">{project.year}</span>
-          <span className={`w-1.5 h-1.5 rounded-full ${isDeployed ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-          <span className={`text-xs font-medium ${isDeployed ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${isDeployed ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}
+          />
+          <span
+            className={`text-xs font-medium ${
+              isDeployed
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-amber-600 dark:text-amber-400'
+            }`}
+          >
             {project.status}
           </span>
         </div>
@@ -63,19 +72,12 @@ function ProjectRow({ project, index }: { project: PortfolioProject; index: numb
               GitHub
             </a>
           )}
-          {project.blogSlug ? (
+          {project.blogSlug && (
             <Link
               href={`/blog/${project.blogSlug}`}
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               Related writing
-            </Link>
-          ) : (
-            <Link
-              href={`/blog?project=${project.id}`}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Posts about this
             </Link>
           )}
         </div>
@@ -99,36 +101,41 @@ function ProjectRow({ project, index }: { project: PortfolioProject; index: numb
 }
 
 export function ProjectsSection({ projects }: { projects?: PortfolioProject[] }) {
+  const [showAll, setShowAll] = useState(false)
+
   const { featured, archive } = projects?.length
     ? splitFeaturedArchive(projects)
     : { featured: FEATURED_PROJECTS, archive: ARCHIVE_PROJECTS }
 
+  const visible = showAll ? [...featured, ...archive] : featured
   const total = featured.length + archive.length
 
   return (
     <div className="space-y-12 sm:space-y-16">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div className="space-y-2">
-          <h2 className="text-3xl sm:text-4xl font-light font-sora tracking-tight">Featured Projects</h2>
-          <p className="text-sm text-muted-foreground max-w-md">
-            Three highlights from GitHub — open the archive for the full set.
-          </p>
-        </div>
+        <h2 className="text-3xl sm:text-4xl font-light font-sora tracking-tight">
+          Featured Projects
+        </h2>
         <div className="text-sm text-muted-foreground font-mono">2025 — 2026</div>
       </div>
 
       <div className="space-y-2">
-        {featured.map((project, index) => (
+        {visible.map((project, index) => (
           <ProjectRow key={project.id} project={project} index={index} />
         ))}
       </div>
 
       {archive.length > 0 && (
-        <details className="group border border-border/60 open:border-foreground/25 transition-colors">
-          <summary className="cursor-pointer list-none flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5 text-sm font-mono tracking-wide uppercase text-muted-foreground hover:text-foreground hover:bg-accent/20 transition-colors [&::-webkit-details-marker]:hidden">
-            <span>All projects ({total}) · show archive</span>
+        <div className="flex justify-center pt-2">
+          <button
+            type="button"
+            onClick={() => setShowAll((v) => !v)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-mono tracking-wide uppercase border border-border/70 text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+            aria-expanded={showAll}
+          >
+            {showAll ? 'Show featured' : `Show all projects (${total})`}
             <svg
-              className="w-4 h-4 shrink-0 transition-transform group-open:rotate-180"
+              className={`w-4 h-4 transition-transform ${showAll ? 'rotate-180' : ''}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -136,17 +143,8 @@ export function ProjectsSection({ projects }: { projects?: PortfolioProject[] })
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
-          </summary>
-          <div className="border-t border-border/40 px-0">
-            {archive.map((project, index) => (
-              <ProjectRow
-                key={project.id}
-                project={project}
-                index={featured.length + index}
-              />
-            ))}
-          </div>
-        </details>
+          </button>
+        </div>
       )}
     </div>
   )
