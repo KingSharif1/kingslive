@@ -1,6 +1,51 @@
-# TASKS.md — shared agent queue
+## Task BLOG-4 — Notes room polish + webpack/load fixes + deploy
+Status: DONE
+Scope: blog pages, next.config, CtroomDashboard lazy views, Studio loading
+Result: Server-rendered notes list; likes via API (no Supabase in blog JS); 3:2 contained covers; petals homepage-only; CTROOM views lazy.
+Files changed: see CHANGELOG 2026-08-31 BLOG-4
 
-> Claim one task, finish it, mark DONE, stop unless told otherwise.
+## Task PORT-7b — repo_public columns + Studio quote hydration
+Status: DONE
+Scope: Supabase `portfolio_projects`, Studio mount, quote style
+Result: Columns added on kinglive cms; HireIQ/KingsLive/1942 marked public. Studio client-only; quote style is a span.
+Files changed: see CHANGELOG 2026-08-31
+
+## Task PORT-7 — CTROOM project save + frontend visibility
+Status: DONE
+Scope: portfolio service/API, form, homepage, `portfolio_projects` seed
+Result: Saves go through admin API (service role) so RLS no longer blocks. 11 seed rows in kinglive cms. `published` = show on frontend. Homepage no longer overlays static seed.
+Files changed: see CHANGELOG 2026-08-30 PORT-7
+
+## Task AUTH-2 — Login scanline overflow + same-tab magic-link handoff
+Status: DONE
+Scope: `LoginScreen.tsx`, `globals.css`, `app/auth/callback/route.ts`, `app/auth/complete/page.tsx`, `lib/ctroom-auth-channel.ts`
+Result: Scanline clipped so it cannot grow the document (Windows blue scrollbar flash). Magic-link click still opens whatever tab the email client chooses; `/auth/complete` broadcasts so the waiting CTROOM tab signs in.
+Files changed: see CHANGELOG 2026-08-30 AUTH-2
+
+## Task PORT-6 — Numbered project rows, generic skills, faster first paint
+Status: DONE
+Scope: `components/ProjectsSection.tsx`, `components/SkillsSection.tsx`, `app/page.tsx`, petals, `app/ctroom/loading.tsx`
+Result: Full-width numbered project rows (no HighlightCards); skill hints are Product UI / Data / Models / Editors; added Three.js, AWS, Cursor, Windsurf, Antigravity; homepage no longer waits on `mounted`; fewer petals; CTROOM route loading shell
+Files changed: see CHANGELOG 2026-08-30 PORT-6
+
+## Task BLOG-3 — Blog is a different room from the portfolio
+Status: DONE
+Scope: `app/blog/**`, `components/BlogNav.tsx`, `app/globals.css`
+Result: `/blog` is paper/ink + bleed type + shelf volumes; posts use BlogNav, full-bleed cover, reading column. Homepage still uses numbered blog teasers. Not portfolio glass/Header.
+Files changed: see CHANGELOG 2026-08-30 BLOG-3
+
+## Task PORT-5 — Flowers, unique skills, dead weight
+Status: DONE
+Scope: ParticleBackground, globals.css, SkillsSection, unused UI/mocks
+Result: Sakura petals restored on public routes only; mouse-follow ring + logo follower removed; skills are unique (Stripe, Strapi, xAI, GitHub, Neon, React Native, Groq); deleted mocks + unused carousel/pagination/mode-toggle
+Files changed: see CHANGELOG 2026-08-30
+
+## Task PORT-4 — Portfolio layout, copy, atmosphere
+Status: DONE
+Scope: `app/page.tsx`, `app/blog/**`, `components/ProjectsSection.tsx`, `components/SkillsSection.tsx`, `lib/portfolio-projects.ts`, ambient bg, chrome
+Result: Restored glass page shell; numbered project rows (top 3 featured, rest newest-first on load-all); longer copy; extra projects (KingsLive, Sweet Emporium); Simple Icons; rotating role; commit counts without messages; blog matches portfolio chrome
+Files changed: see CHANGELOG 2026-08-27
+Notes: Public GitHub only lists HireIQ, kingslive, 1942 as public — other repos stay private (no GitHub link)
 
 ## Task BLOG-1 — Make blog work end-to-end
 Status: DONE

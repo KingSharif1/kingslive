@@ -1,5 +1,69 @@
 # CHANGELOG.md
 
+## 2026-08-31 — Task BLOG-4: Notes polish, webpack crash, faster CTROOM
+What: Blog copy is a journal. King · Notes → `/blog`; Home → `/`. Covers are a contained 3:2 photo (~280px). Likes go through `/api/blog/likes`. Notes list fetches `/api/blog/notes` so the page JS does not import Sanity/Supabase. Waiting API calls show pulse placeholders (blog shelf, homepage posts/projects, GitHub commit meta). Petals are homepage-only. CTROOM views lazy-load.
+Files: `app/blog/page.tsx`, `BlogLikeButton.tsx`, `app/api/blog/likes/route.ts`, `app/api/blog/notes/route.ts`, `globals.css`, `next.config.js`, `lazyViews.tsx`, `app/page.tsx`, `ProjectsSection.tsx`
+Why: `/blog` crashed on `import('@/lib/supabase-lazy')`; images were oversized; first compile pulled 1500+ modules; empty gaps while APIs ran
+Decisions: Server APIs for likes/notes. Canvas webpack externals are server-only. No dual lucide transforms.
+Next: Production deploy
+
+## 2026-08-31 — Studio SSR crash, theme hydration, image warnings
+What: Studio config no longer loads on the server (jsdom `default-stylesheet.css` ENOENT). Theme toggle dropped styled-jsx so class hashes match. Next `images.qualities` includes 85; favicon `sizes` set; homepage reuses the shared Supabase client.
+Files: `StudioClient.tsx`, `StudioApp.tsx`, `ThemeTransition.tsx`, `globals.css`, `next.config.js`, `Header.tsx`, `BlogNav.tsx`, `portfolioProjectsService.ts`
+Why: `/` and `/studio` were 500s; theme button hydrated with different `jsx-*` hashes
+Next: Restart `npm run dev` after `next.config.js` change
+
+
+## 2026-08-31 — portfolio_projects columns + Studio quote HTML
+What: Added `repo_public` and `timeline_date` on kinglive cms; set public GitHub on HireIQ, KingsLive, 1942 plus timeline dates. Studio mounts client-only; Quote style renders as a span so Sanity UI cannot nest `<div>` in `<p>`. Recurring scan maps `yearly` → `annual`.
+Files: `sanity/schemaTypes/blockContentType.ts`, `app/studio/[[...tool]]/*`, `lib/vault/recurringScan.ts`
+Why: Those columns were missing so GitHub-public could not persist. Studio logged a hydration warning from invalid quote markup.
+Decisions: DDL via Supabase MCP on `fcdzbnuyzdzqkuizvexk`. Studio `ssr: false` avoids hydrating Sanity PTE.
+Next: Public GitHub checkbox in CTROOM should now stick after save
+
+
+## 2026-08-30 — Task PORT-7: Project settings actually persist
+What: CTROOM project save used a session-less anon client, so RLS rejected writes and the UI was editing a static fallback. Writes now go through `/api/ctroom/portfolio` with the admin session. Seeded 11 rows into `portfolio_projects`. `published` / Hide from site controls the public homepage. Stopped merging static seed over DB values.
+Files: `app/api/ctroom/portfolio/route.ts`, `portfolioProjectsService.ts`, `PortfolioProjectFormModal.tsx`, `PortfolioProjectsView.tsx`, `lib/portfolio-projects.ts`, `components/ProjectsSection.tsx`, `app/page.tsx`, `lib/vault/recurringScan.ts`
+Why: Save looked like it worked on fake rows; homepage ignored DB edits
+Decisions: Service-role API for admin CRUD (same pattern as bootstrap). Recurring scan maps unknown `bill_type` to `subscription`/`bill`/`loan` so Vault sync does not 23514.
+Next: Run the two `ALTER TABLE` lines in `20260826_create_portfolio_projects.sql` if GitHub-public / timeline date should persist (`repo_public` column is still missing on the live table)
+
+## 2026-08-30 — Task AUTH-2: Login slide + magic-link tab handoff
+What: Contained the CRT scanline so `top: 100%` cannot add document height (that was the random slide + blue scrollbar). After `/auth/callback`, land on `/auth/complete` which tells the original CTROOM tab to sign in via BroadcastChannel + session poll.
+Files: `app/globals.css`, `app/ctroom/components/LoginScreen.tsx`, `app/auth/callback/route.ts`, `app/auth/complete/page.tsx`, `lib/ctroom-auth-channel.ts`
+Why: Email clients cannot target an existing tab. The waiting tab can still become the live session.
+Decisions: `window.close()` on the extra tab is best-effort (browsers block it unless script-opened). Fallback copy + “Enter CTROOM here”.
+Next: Confirm `no-reply@kingsharif.com` in production env if Vercel still lacks `BREVO_API_KEY`
+
+
+## 2026-08-30 — Task PORT-6: Rows back, generic skills, faster paint
+What: Projects are numbered 12-col rows again (bigger type + cover). Skills use short hints only (Product UI, Data, Models, Editors) plus Three.js, Neon, Strapi, AWS, Cursor, Windsurf, Antigravity. Homepage renders immediately instead of a blank `mounted` gate. Fewer petals. CTROOM `loading.tsx` for first paint.
+Files: `components/ProjectsSection.tsx`, `components/SkillsSection.tsx`, `app/page.tsx`, `components/ParticleBackground.tsx`, `app/ctroom/loading.tsx`
+Why: Compact HighlightCards and project-name blurbs felt like a step backward; first paint was blocked until hydrate
+Decisions: Milo token streaming is still later — this pass is layout + perceived load, not a chat rewrite
+Next: Stream Milo responses when we pick that task
+
+## 2026-08-30 — Task BLOG-3: Notes room (not portfolio)
+What: Blog list/posts left the glass shell. Paper + ink, bleed “notes”, bookshelf volumes, petal selection, BlogNav (“King · Notes”). Posts: bleed cover, serif title, `blog-read` column; likes/comments/share kept.
+Files: `app/blog/page.tsx`, `app/blog/[slug]/page.tsx`, `components/BlogNav.tsx`, `app/globals.css`
+Why: Matching the homepage made the blog generic; refs (Alim / checklist.design / Ahmed / Omer) are a reading room, not a project list
+Decisions: Homepage “Latest from the Blog” stays numbered rows. `/blog` is its own world.
+Next: Sanity metadata backfill (BLOG-2)
+
+## 2026-08-30 — Task PORT-5: Petals back, no mouse ring, unique skills
+What: Restored falling-petal canvas on `/`, `/blog`, legal pages (off on CTROOM/studio). Removed mouse spotlight circle and logo follower. Skills list is unique with Stripe, Strapi, Neon, xAI, GitHub, React Native, Groq. Dropped unused mocks + carousel/pagination/mode-toggle; embla/html2canvas already gone from package.json.
+Files: `components/ParticleBackground.tsx`, `ParticleBackgroundWrapper.tsx`, `SkillsSection.tsx`, `app/globals.css`, `app/layout.tsx`, `components/usePortfolioTheme.ts`
+Why: User wanted flowers, no follow-circle, no duplicate skill marks, a cleaner/faster public site
+Next: Do not delete CTROOM/Vault/Studio — those are product, not junk
+
+## 2026-08-27 — Task PORT-4: Portfolio glass, rows, skills, blog chrome
+What: Restored frosted `bg-background/30` + main backdrop; projects as numbered 12-col rows (top 3 featured, Load all newest→oldest); longer descriptions; added KingsLive + My Sweet Emporium; Simple Icons + short skill labels; rotating title; repo stats show commit count + created/updated only; drifting light orbs + logo follow; blog list/post use the same header/shell/row language.
+Files: `app/page.tsx`, `app/layout.tsx`, `app/globals.css`, `app/blog/page.tsx`, `app/blog/[slug]/page.tsx`, `components/ProjectsSection.tsx`, `components/SkillsSection.tsx`, `components/ParticleBackground.tsx`, `components/AmbientAtmosphere.tsx`, `components/RotatingRole.tsx`, `lib/portfolio-projects.ts`, `lib/portfolio-chrome.ts`, `app/api/github/repo-stats/route.ts`, `public/kingslive-cover.jpg`, `public/sweet-emporium-cover.jpg`
+Why: New production drifted from the old list layout and glass page; skills copy/logos and blog UI didn’t match
+Decisions: Kept 3D raymarch mascot out — too heavy; used logo lerp + soft lights. Public GitHub only has HireIQ/kingslive/1942.
+Next: Re-seed `portfolio_projects` in CTROOM if you want DB rows to match seed (homepage already overlays seed copy)
+
 ## 2026-08-26 — Task PORT-3b: Real website cover screenshots
 What: Captured live hero screenshots for all portfolio projects (HireIQ, RideNEMT, Roomba, DfwNemt/nemtbiling, Nami, AI Receptionist/LineDesk login, Kudusi, 1942, AM African Market). Stored as optimized JPEGs in `public/*-cover.jpg`. Kudusi required Cloudflare bypass via real browser.
 Files: `public/*-cover.jpg`, `public/1942-forgotten.jpg`, `lib/portfolio-projects.ts`, form default image path

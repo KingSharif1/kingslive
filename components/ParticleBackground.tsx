@@ -10,12 +10,11 @@ export function ParticleBackground() {
     const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
 
     useEffect(() => {
-        // Check for reduced motion preference and mobile
         const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
         setPrefersReducedMotion(motionQuery.matches)
         setIsMobile(window.innerWidth < 768)
-        
-        let timeoutId: NodeJS.Timeout
+
+        let timeoutId: ReturnType<typeof setTimeout>
         const updateSize = () => {
             clearTimeout(timeoutId)
             timeoutId = setTimeout(() => {
@@ -42,9 +41,8 @@ export function ParticleBackground() {
     }, [])
 
     useEffect(() => {
-        // Skip animation on mobile or if user prefers reduced motion
         if (prefersReducedMotion || isMobile) return
-        
+
         const canvas = canvasRef.current
         if (!canvas || size.width === 0 || size.height === 0) return
 
@@ -60,12 +58,10 @@ export function ParticleBackground() {
 
         const { random, PI, sin, floor } = Math
 
-        // Beautiful sakura petal colors
-        const petalColors = isDark 
+        const petalColors = isDark
             ? ['#ffb7b2', '#ff9aa2', '#ffdac1', '#ffeef0', '#ffd1dc', '#ffccd5']
             : ['#ffb7b2', '#ff9aa2', '#ffc8c8', '#ffeef0', '#ffd1dc', '#ffe4e8']
 
-        // Petal class - simple falling cherry blossom petals
         class Petal {
             x: number
             y: number
@@ -85,7 +81,7 @@ export function ParticleBackground() {
                 this.size = 6 + random() * 10
                 this.rotation = random() * PI * 2
                 this.rotationSpeed = (random() - 0.5) * 0.03
-                this.speedY = 0.2 + random() * 0.4 // Gentle falling
+                this.speedY = 0.2 + random() * 0.4
                 this.speedX = (random() - 0.2) * 0.2
                 this.opacity = 0.4 + random() * 0.4
                 this.color = petalColors[floor(random() * petalColors.length)]
@@ -95,37 +91,31 @@ export function ParticleBackground() {
 
             update(time: number) {
                 this.y += this.speedY
-                // Gentle swaying motion
                 this.x += this.speedX + sin(time * 0.0008 + this.swayPhase) * this.swayAmplitude
                 this.rotation += this.rotationSpeed
 
-                // Reset when off screen
                 if (this.y > size.height + 30) {
                     this.y = -20 - random() * 30
                     this.x = random() * size.width
                     this.speedY = 0.4 + random() * 0.8
                     this.opacity = 0.4 + random() * 0.4
                 }
-                // Wrap horizontally
                 if (this.x < -30) this.x = size.width + 20
                 if (this.x > size.width + 30) this.x = -20
             }
 
             draw() {
                 if (!ctx) return
-                ctx?.save()
-                ctx?.translate(floor(this.x), floor(this.y))
-                ctx?.rotate(this.rotation)
+                ctx.save()
+                ctx.translate(floor(this.x), floor(this.y))
+                ctx.rotate(this.rotation)
                 ctx.globalAlpha = this.opacity
 
-                // Draw a beautiful petal shape
                 ctx.fillStyle = this.color
                 ctx.beginPath()
-                // Main petal body - curved ellipse
                 ctx.ellipse(0, 0, this.size * 0.35, this.size * 0.8, 0, 0, PI * 2)
                 ctx.fill()
 
-                // Add a subtle gradient/highlight
                 ctx.globalAlpha = this.opacity * 0.3
                 ctx.fillStyle = '#ffffff'
                 ctx.beginPath()
@@ -140,27 +130,21 @@ export function ParticleBackground() {
         let animationId: number
         let time = 0
 
-        // Initialize petals scattered across the screen
         const init = () => {
             petals = []
-            // Create initial petals - some scattered, some starting from top
-            const numPetals = Math.min(35, Math.floor((size.width * size.height) / 25000))
-            
+            const numPetals = Math.min(16, Math.floor((size.width * size.height) / 45000))
             for (let i = 0; i < numPetals; i++) {
-                petals.push(new Petal(i > numPetals / 2)) // Half start scattered, half from top
+                petals.push(new Petal(i > numPetals / 2))
             }
         }
 
         const animate = () => {
             ctx.clearRect(0, 0, size.width, size.height)
             time += 16
-
-            // Update and draw all petals
-            petals.forEach(petal => {
+            petals.forEach((petal) => {
                 petal.update(time)
                 petal.draw()
             })
-
             animationId = requestAnimationFrame(animate)
         }
 
@@ -172,7 +156,6 @@ export function ParticleBackground() {
         }
     }, [size, isDark, prefersReducedMotion, isMobile])
 
-    // Don't render canvas on mobile or reduced motion
     if (prefersReducedMotion || isMobile) {
         return null
     }

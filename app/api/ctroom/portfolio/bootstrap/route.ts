@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { ALL_PROJECTS } from '@/lib/portfolio-projects'
-import { projectToRow } from '@/app/ctroom/services/portfolioProjectsService'
+import { projectToRow } from '@/app/ctroom/services/portfolioProjectRow'
 import { verifyAdminAuth } from '../../middleware'
 
 /**
@@ -36,7 +36,13 @@ export async function POST(request: NextRequest) {
     created_at: new Date().toISOString(),
   }))
 
-  const { error } = await admin.from('portfolio_projects').upsert(rows)
+  let { error } = await admin.from('portfolio_projects').upsert(rows)
+
+  if (error && /repo_public|timeline_date/i.test(error.message || '')) {
+    const legacy = rows.map(({ repo_public: _a, timeline_date: _b, ...rest }) => rest)
+    const retry = await admin.from('portfolio_projects').upsert(legacy)
+    error = retry.error
+  }
 
   if (error) {
     let migrationSql = ''

@@ -4,6 +4,12 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AuthService } from '../services/authService';
 import { Mail, ArrowRight, Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import {
+  CTROOM_AUTH_CHANNEL,
+  CTROOM_AUTH_SIGNED_IN,
+  CTROOM_LOGIN_WAITER_KEY,
+} from '@/lib/ctroom-auth-channel';
 
 type LoginState = 'idle' | 'loading' | 'sent' | 'error';
 
@@ -26,6 +32,44 @@ export function LoginScreen() {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (state !== 'sent') return
+
+    sessionStorage.setItem(CTROOM_LOGIN_WAITER_KEY, '1')
+
+    let entered = false
+    const enterCtroom = () => {
+      if (entered) return
+      entered = true
+      sessionStorage.removeItem(CTROOM_LOGIN_WAITER_KEY)
+      window.location.reload()
+    }
+
+    const channel = new BroadcastChannel(CTROOM_AUTH_CHANNEL)
+    channel.onmessage = (event) => {
+      if (event.data === CTROOM_AUTH_SIGNED_IN) enterCtroom()
+    }
+
+    const poll = window.setInterval(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) enterCtroom()
+    }, 2000)
+
+    const onFocus = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) enterCtroom()
+    }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onFocus)
+
+    return () => {
+      channel.close()
+      window.clearInterval(poll)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onFocus)
+    }
+  }, [state])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
@@ -41,7 +85,7 @@ export function LoginScreen() {
   };
 
   return (
-    <div className="flex min-h-screen overflow-hidden" style={{ background: 'oklch(12% 0 265)', color: '#e5e5e5' }}>
+    <div className="relative flex h-screen overflow-hidden" style={{ background: 'oklch(12% 0 265)', color: '#e5e5e5' }}>
       {/* CRT overlay */}
       <div className="hq-crt" />
       {/* Scanline sweep */}
@@ -142,11 +186,15 @@ export function LoginScreen() {
                     <Mail className="w-5 h-5" style={{ color: '#00ff88' }} />
                   </div>
                   <h2 className="font-mono font-semibold text-white mb-2 uppercase tracking-wide">Check your email</h2>
-                  <p className="text-sm text-white/40 mb-1">Magic link sent from CTROOM HQ. Click it to sign in.</p>
-                  <p className="text-xs text-white/25 mb-6">Expires in 1 hour. Check spam if you do not see it.</p>
+                  <p className="text-sm text-white/40 mb-1">Magic link sent from CTROOM HQ. Click it — this tab will sign you in.</p>
+                  <p className="text-xs text-white/25 mb-6">Expires in 1 hour. Email may open a second tab you can close.</p>
                   <div className="flex flex-col gap-3">
                     <button
-                      onClick={() => { setState('idle'); setEmail(''); }}
+                      onClick={() => {
+                        sessionStorage.removeItem(CTROOM_LOGIN_WAITER_KEY)
+                        setState('idle')
+                        setEmail('')
+                      }}
                       className="text-sm text-white/30 hover:text-white/60 transition-colors underline-offset-4 hover:underline font-mono"
                     >
                       Use a different email

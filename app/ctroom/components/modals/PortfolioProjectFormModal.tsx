@@ -386,7 +386,7 @@ export function PortfolioProjectFormModal({ isOpen, onClose, onSaved, initial }:
           </label>
           <label className="inline-flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={published} onChange={(e) => setPublished(e.target.checked)} />
-            Published on site
+            Show on frontend
           </label>
         </div>
 

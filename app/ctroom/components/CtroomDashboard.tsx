@@ -15,17 +15,19 @@ import {
 } from '../types/';
 import { Sidebar } from './layout/Sidebar';
 import { MobileHeader } from './layout/MobileHeader';
-import { DashboardView } from './views/DashboardView';
-import { ChatView } from './views/ChatView';
-import { IdeasView } from './views/IdeasView';
-import { PlannerView } from './views/PlannerView';
-import { MissionsView } from './views/MissionsView';
-import { BlogView } from './views/BlogView';
-import { PortfolioProjectsView } from './views/PortfolioProjectsView';
-import { GitHubView } from './views/GitHubView';
-import { SettingsView } from './views/SettingsView';
-import { VaultView } from './views/VaultView';
-import DreamboardView from './views/DreamboardView';
+import {
+    DashboardView,
+    ChatView,
+    IdeasView,
+    PlannerView,
+    MissionsView,
+    BlogView,
+    PortfolioProjectsView,
+    GitHubView,
+    SettingsView,
+    VaultView,
+    DreamboardView,
+} from './views/lazyViews';
 import { TaskFormModal } from './modals/TaskFormModal';
 import { MissionDetailModal } from './modals/MissionDetailModal';
 import { UsageModal } from './modals/UsageModal';

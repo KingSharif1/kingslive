@@ -23,6 +23,7 @@ import {
 import { cn } from '@/lib/utils';
 import VaultCharts from './VaultCharts';
 import { RecurringReviewQueue } from '../vault/RecurringReviewQueue';
+import { BillsCalendarSummary } from '../vault/BillsCalendarSummary';
 import { SeeTab } from '../vault/SeeTab';
 import { UnderstandTab } from '../vault/UnderstandTab';
 import { EnvelopeBudget } from '../vault/EnvelopeBudget';

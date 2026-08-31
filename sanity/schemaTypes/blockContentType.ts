@@ -1,5 +1,24 @@
+import {createElement} from 'react'
 import {defineType, defineArrayMember} from 'sanity'
 import {ImageIcon, CodeBlockIcon, InlineIcon} from '@sanity/icons'
+import type {BlockStyleProps} from 'sanity'
+
+/** Inline wrapper so Sanity's default <p> around quote styles stays valid HTML. */
+function QuoteStyle(props: BlockStyleProps) {
+  return createElement(
+    'span',
+    {
+      style: {
+        display: 'block',
+        borderLeft: '3px solid currentColor',
+        paddingLeft: '0.75rem',
+        fontStyle: 'italic',
+        opacity: 0.9,
+      },
+    },
+    props.children
+  )
+}
 
 /**
  * This is the schema type for block content used in the post document type
@@ -31,7 +50,7 @@ export const blockContentType = defineType({
         {title: 'H4', value: 'h4'},
         {title: 'H5', value: 'h5'},
         {title: 'H6', value: 'h6'},
-        {title: 'Quote', value: 'blockquote'},
+        {title: 'Quote', value: 'blockquote', component: QuoteStyle},
       ],
       lists: [
         {title: 'Bullet', value: 'bullet'},

@@ -49,6 +49,7 @@ export function Header({ isDark, toggleTheme }: { isDark: boolean; toggleTheme: 
                 src="/favicon.ico"
                 alt="Logo"
                 fill
+                sizes="40px"
                 className="object-contain"
               />
             </div>

@@ -59,7 +59,8 @@ export async function POST(request: NextRequest) {
       options: { redirectTo: safeRedirect },
     })
 
-    if (linkError || !data?.properties?.action_link) {
+    const tokenHash = data?.properties?.hashed_token
+    if (linkError || !tokenHash) {
       console.error('generateLink failed:', linkError)
       return NextResponse.json(
         { error: linkError?.message || 'Failed to generate magic link' },
@@ -67,13 +68,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const actionLink = data.properties.action_link
+    // PKCE-incompatible: do not email action_link. Use hashed_token + verifyOtp in /auth/callback.
+    const loginUrl = new URL(safeRedirect)
+    loginUrl.searchParams.set('token_hash', tokenHash)
+    loginUrl.searchParams.set('type', 'magiclink')
+    const actionLink = loginUrl.toString()
 
     try {
       await emailApi.post('/smtp/email', {
         sender: {
           name: 'CTROOM HQ',
-          email: 'no-reply@kingsharif.live',
+          email: 'no-reply@kingsharif.com',
         },
         to: [{ email: cleanEmail }],
         subject: 'Your CTROOM magic link',
@@ -101,7 +106,12 @@ export async function POST(request: NextRequest) {
         `,
       })
     } catch (emailErr: unknown) {
-      console.error('Brevo magic-link send failed:', emailErr)
+      const axiosErr = emailErr as { response?: { status?: number; data?: unknown } }
+      console.error(
+        'Brevo magic-link send failed:',
+        axiosErr.response?.status,
+        axiosErr.response?.data ?? emailErr
+      )
       return NextResponse.json(
         { error: 'Error sending magic link email' },
         { status: 502 }

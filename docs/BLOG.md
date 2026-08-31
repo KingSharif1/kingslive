@@ -5,6 +5,7 @@
 1. Write in **Sanity Studio** at `/studio` (or Sanity-hosted studio for project `n31jvc6a`).
 2. Public site reads via `lib/sanity-queries.ts` → CDN client in `lib/sanity.ts`.
 3. Homepage “Latest from the Blog” and `/blog` share the same query helpers.
+4. **Visuals are not shared.** `/` is glass + numbered rows. `/blog` is a notes room (`blog-world`: paper, bleed type, shelf volumes) — a journal of what King builds, does, and talks about. `King · Notes` → `/blog`. `Home` → `/`. Posts use `BlogNav`, not the portfolio `Header`.
 
 ## Required env
 
@@ -33,7 +34,7 @@ For each post in Studio:
 | `kingslive` | KingsLive · CTROOM |
 | `1942` | 1942: Truly Forgotten |
 | `roomba-dashboard` | Roomba Dashboard |
-| `nemt-billing` | NEMT Billing |
+| `dfwnemt` | NEMT Billing |
 | `sweet-emporium` | My Sweet Emporium |
 
 - From a **project**: “Posts about this” → `/blog?project=<id>`

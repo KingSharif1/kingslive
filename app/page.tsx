@@ -1,16 +1,23 @@
 "use client"
 
 import Link from "next/link"
-import Image from "next/image"
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import { Header } from "@/components/Header"
 import { Footer } from "@/components/Footer"
 import { ProjectsSection } from "@/components/ProjectsSection"
 import { SkillsSection } from "@/components/SkillsSection"
-import { getPublishedPosts, BlogPost } from "@/lib/sanity-queries"
+import { RotatingRole } from "@/components/RotatingRole"
+import { usePortfolioTheme } from "@/components/usePortfolioTheme"
+import { PORTFOLIO_MAIN, PORTFOLIO_PAGE } from "@/lib/portfolio-chrome"
 import { fetchPublishedProjects } from "@/app/ctroom/services/portfolioProjectsService"
+import type { BlogPost } from "@/lib/sanity-queries"
 import type { PortfolioProject } from "@/lib/portfolio-projects"
+
+const ParticleBackground = dynamic(
+  () => import("@/components/ParticleBackground").then((mod) => ({ default: mod.ParticleBackground })),
+  { ssr: false }
+)
 
 // Lazy load heavy components
 const ContactForm = dynamic(() => import("@/components/ContactForm").then(mod => ({ default: mod.ContactForm })), {
@@ -19,54 +26,25 @@ const ContactForm = dynamic(() => import("@/components/ContactForm").then(mod =>
 })
 
 export default function Home() {
-  const [isDark, setIsDark] = useState(false)
+  const { isDark, mounted, toggleTheme } = usePortfolioTheme()
   const [showContactForm, setShowContactForm] = useState(false)
-  const [mounted, setMounted] = useState(false)
   const [activeSection, setActiveSection] = useState("")
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
-  const [portfolioProjects, setPortfolioProjects] = useState<PortfolioProject[]>([])
+  const [blogLoading, setBlogLoading] = useState(true)
+  const [portfolioProjects, setPortfolioProjects] = useState<PortfolioProject[] | undefined>(undefined)
   const sectionsRef = useRef<(HTMLElement | null)[]>([null, null, null, null])
 
   useEffect(() => {
-    setMounted(true)
-    
-    const darkMode = localStorage.getItem('darkMode') === 'true'
-    setIsDark(darkMode)
-    if (darkMode) {
-      document.documentElement.classList.add('dark')
-    }
-
-    // Fetch blog posts
-    getPublishedPosts().then(posts => {
-      setBlogPosts(posts.slice(0, 2)) // Get latest 2 posts
-    }).catch(console.error)
+    fetch('/api/blog/notes')
+      .then((r) => r.json())
+      .then((d) => setBlogPosts(Array.isArray(d.posts) ? d.posts.slice(0, 2) : []))
+      .catch(() => setBlogPosts([]))
+      .finally(() => setBlogLoading(false))
 
     fetchPublishedProjects().then(({ projects }) => {
       setPortfolioProjects(projects)
-    }).catch(console.error)
-
-    // Throttled mouse move handler for dot effect
-    let lastMove = 0
-    const handleMouseMove = (e: MouseEvent) => {
-      const now = Date.now()
-      if (now - lastMove < 50) return // Throttle to 20fps max
-      lastMove = now
-      const x = (e.clientX / window.innerWidth) * 100
-      const y = (e.clientY / window.innerHeight) * 100
-      document.body.style.setProperty('--mouse-x', `${x}%`)
-      document.body.style.setProperty('--mouse-y', `${y}%`)
-    }
-
-    window.addEventListener('mousemove', handleMouseMove, { passive: true })
-    return () => window.removeEventListener('mousemove', handleMouseMove)
+    }).catch(() => setPortfolioProjects([]))
   }, [])
-
-  useEffect(() => {
-    if (mounted) {
-      localStorage.setItem('darkMode', String(isDark))
-      document.documentElement.classList.toggle('dark', isDark)
-    }
-  }, [isDark, mounted])
 
   useEffect(() => {
     // console.log('Active section changed to:', activeSection)
@@ -126,14 +104,9 @@ export default function Home() {
     return () => observer.disconnect()
   }, [mounted])
 
-  const toggleTheme = () => {
-    setIsDark(!isDark)
-  }
-
-  if (!mounted) return null
-
   return (
-    <div className="min-h-screen bg-transparent text-foreground relative z-[1]">
+    <div className={PORTFOLIO_PAGE}>
+      <ParticleBackground />
       <nav className="fixed left-8 top-1/2 -translate-y-1/2 z-10 hidden lg:block">
         <div className="flex flex-col gap-4">
           {["intro", "projects", "skills", "connect"].map((section) => (
@@ -151,7 +124,7 @@ export default function Home() {
       {/* Header */}
       <Header isDark={isDark} toggleTheme={toggleTheme} />
 
-      <main className="max-w-4xl mx-auto px-6 sm:px-8 lg:px-16 pt-16 bg-transparent">
+      <main className={PORTFOLIO_MAIN}>
         <header
           id="intro"
           ref={(el) => { sectionsRef.current[0] = el; }}
@@ -181,7 +154,7 @@ export default function Home() {
                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                     Open to opportunities
                   </div>
-                  <div>Web Developer</div>
+                  <RotatingRole />
                 </div>
               </div>
             </div>
@@ -205,6 +178,7 @@ export default function Home() {
 
         <section
           id="projects"
+          data-projects-rev="rows"
           ref={(el) => { sectionsRef.current[1] = el; }}
           className="min-h-screen py-20 sm:py-32 opacity-100"
         >
@@ -228,40 +202,53 @@ export default function Home() {
               </Link>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
-              {blogPosts.length > 0 ? blogPosts.map((post) => (
+            <div className="space-y-0">
+              {blogLoading ? (
+                [0, 1].map((i) => (
+                  <div
+                    key={i}
+                    className="grid lg:grid-cols-12 gap-4 sm:gap-8 py-6 sm:py-8 border-b border-border/50"
+                    aria-hidden
+                  >
+                    <div className="lg:col-span-2 space-y-3">
+                      <div className="wait-block h-8 w-10" />
+                      <div className="wait-block h-3 w-16" />
+                    </div>
+                    <div className="lg:col-span-10 space-y-3">
+                      <div className="wait-block h-3 w-20" />
+                      <div className="wait-block h-6 w-3/4 max-w-md" />
+                      <div className="wait-block h-4 w-full max-w-lg" />
+                    </div>
+                  </div>
+                ))
+              ) : blogPosts.length > 0 ? blogPosts.map((post, i) => (
                 <Link
                   key={post.id}
                   href={`/blog/${post.slug}`}
-                  className="group p-6 rounded-2xl border border-border bg-card/50 shadow-sm hover:shadow-md hover:border-foreground/20 hover:bg-accent/30 transition-all duration-300"
+                  className="group grid lg:grid-cols-12 gap-4 sm:gap-8 py-6 sm:py-8 border-b border-border/50 hover:border-border transition-colors duration-500"
                 >
-                  <div className="flex items-center gap-3 mb-4">
+                  <div className="lg:col-span-2">
+                    <span className="text-2xl font-light font-sora text-muted-foreground/70 tabular-nums">
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                    <div className="text-xs font-mono text-muted-foreground mt-2">
+                      {new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                    </div>
+                  </div>
+                  <div className="lg:col-span-10 space-y-2">
                     {post.tags[0] && (
-                      <span className="px-3 py-1 text-xs font-medium bg-primary/10 text-primary rounded-full">
+                      <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
                         {post.tags[0]}
                       </span>
                     )}
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-medium font-outfit mb-2 group-hover:text-primary transition-colors">
-                    {post.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed font-roboto line-clamp-2">
-                    {post.excerpt}
-                  </p>
-                  <div className="mt-4 flex items-center gap-2 text-sm text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                    Read more
-                    <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                    </svg>
+                    <h3 className="text-lg sm:text-xl font-medium font-sora">{post.title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
+                      {post.excerpt}
+                    </p>
                   </div>
                 </Link>
               )) : (
-                <div className="col-span-2 text-center py-8 text-muted-foreground">
-                  <p>No blog posts yet. Check back soon!</p>
-                </div>
+                <p className="py-8 text-muted-foreground">No blog posts yet.</p>
               )}
             </div>
           </div>
@@ -269,6 +256,7 @@ export default function Home() {
 
         <section
           id="skills"
+          data-port="6"
           ref={(el) => { sectionsRef.current[2] = el; }}
           className="py-20 sm:py-32 opacity-95"
         >

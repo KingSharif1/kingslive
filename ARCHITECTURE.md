@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — KingsLive
 
-> Last updated: 2026-08-26
+> Last updated: 2026-08-31
 
 ## System (one line)
 
@@ -10,10 +10,10 @@ Public portfolio + Sanity blog on kingsharif.com; private CTROOM HQ (auth, Milo,
 
 | Surface | Route | Source of truth |
 |---------|-------|-----------------|
-| Portfolio | `/` | Static React + `lib/portfolio-projects.ts` |
+| Portfolio | `/` | Supabase `portfolio_projects` (`published = true`), static seed only if table missing |
 | Blog | `/blog`, `/blog/[slug]` | Sanity project `n31jvc6a` / dataset `production` |
 | Studio | `/studio` | Sanity Studio (NextStudio) |
-| CTROOM | `/ctroom` | Supabase (`kinglive cms`) + client state in `CtroomDashboard` |
+| CTROOM | `/ctroom` | Supabase (`kinglive cms`) + client state in `CtroomDashboard`; views via `lazyViews.tsx` |
 | GitHub hub | `/ctroom` → GitHub | PAT (`GITHUB_TOKEN` / Settings) + optional Vercel Deploy Hooks |
 | Vault | `/vault` + CTROOM vault view | Supabase `vault_transactions` + Teller |
 
@@ -24,8 +24,10 @@ Sanity Studio (/studio)
   → documents type "post"
   → CDN read via lib/sanity.ts (projectId from sanity/env.ts)
   → lib/sanity-queries.ts transforms to BlogPost
-  → app/blog/* + homepage Latest from the Blog
+  → app/blog/* (notes UI) + homepage Latest from the Blog (portfolio rows)
 ```
+
+`/blog` chrome: `blog-world` + `BlogNav`. Do not reuse `PORTFOLIO_PAGE` / `Header` there.
 
 Project ↔ post linking:
 - Sanity field `relatedProjectId` (e.g. `hireiq`, `roomba-dashboard`)
@@ -38,9 +40,12 @@ Project ↔ post linking:
 LoginScreen → POST /api/ctroom/auth/verify (admin_users)
            → POST /api/ctroom/auth/magic-link
                 → supabase.auth.admin.generateLink
-                → Brevo SMTP email
-           → /auth/callback exchanges code → sets ctroom_last_active
+                → Brevo SMTP (sender no-reply@kingsharif.com)
+           → /auth/callback verifies token_hash → sets cookies + ctroom_last_active
+           → /auth/complete broadcasts to the waiting login tab → /ctroom
 ```
+
+Email clients always open the link in a new browsing context. We cannot target the original tab from the `<a>`. `/auth/complete` tells the waiting `/ctroom` tab via BroadcastChannel (plus session poll); the extra tab can close.
 
 Do **not** rely on Supabase built-in Auth email (`/otp`) — it was failing with “Error sending magic link email”.
 
@@ -53,6 +58,7 @@ app/ctroom/         Private HQ
 lib/sanity*.ts      CMS client + queries
 lib/portfolio-projects.ts
 components/         Portfolio chrome (Header, Footer, Projects, Skills)
+                    Petals: ParticleBackground on public routes only (not /ctroom or /studio)
 docs/               ADRs + feature notes
 ```
 

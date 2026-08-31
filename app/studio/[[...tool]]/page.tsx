@@ -1,15 +1,14 @@
 /**
- * This route is responsible for the built-in authoring environment using Sanity Studio.
- * https://nextjs.org/docs/routing/dynamic-routes#catch-all-routes
+ * Sanity Studio — client-only so PTE quote markup cannot hydrate against
+ * invalid <p><div> HTML that Sanity UI emits for blockquotes.
  */
 
-import { NextStudio } from 'next-sanity/studio'
-import config from '../../../sanity.config'
+import { StudioClient } from './StudioClient'
 
 export const dynamic = 'force-static'
 
 export { metadata, viewport } from 'next-sanity/studio'
 
 export default function StudioPage() {
-  return <NextStudio config={config} />
+  return <StudioClient />
 }

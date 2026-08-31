@@ -2,7 +2,6 @@ import './globals.css'
 import { Unbounded, Sora, Young_Serif, Inter, JetBrains_Mono } from 'next/font/google'
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
-import { ParticleBackgroundWrapper } from "@/components/ParticleBackgroundWrapper"
 
 // Portfolio fonts
 const unbounded = Unbounded({
@@ -75,7 +74,6 @@ export default function RootLayout({
       </head>
       <body className={`${unbounded.variable} ${sora.variable} ${youngSerif.variable} ${inter.variable} ${jetbrainsMono.variable} font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <ParticleBackgroundWrapper />
           {children}
           <Toaster
             richColors

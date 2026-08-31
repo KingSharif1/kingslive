@@ -1,77 +1,19 @@
-import { createClient } from '@supabase/supabase-js'
-import {
-  ALL_PROJECTS,
-  type PortfolioProject,
-} from '@/lib/portfolio-projects'
+import { supabase } from '@/lib/supabase'
+import { ALL_PROJECTS, type PortfolioProject } from '@/lib/portfolio-projects'
+import { projectToRow, rowToProject, type PortfolioProjectRow } from './portfolioProjectRow'
 
-export type PortfolioProjectRow = {
-  id: string
-  title: string
-  year: string
-  status: 'Deployed' | 'In Progress'
-  description: string
-  image: string
-  tech: string[] | null
-  live_url: string | null
-  repo_url: string | null
-  repo_public: boolean | null
-  timeline_date: string | null
-  blog_slug: string | null
-  featured: boolean
-  sort_order: number
-  published: boolean
-  created_at?: string
-  updated_at?: string
-}
+export type { PortfolioProjectRow }
+export { projectToRow, rowToProject }
 
-export function rowToProject(row: PortfolioProjectRow): PortfolioProject {
-  return {
-    id: row.id,
-    title: row.title,
-    year: row.year,
-    status: row.status,
-    description: row.description,
-    image: row.image,
-    tech: row.tech ?? [],
-    liveUrl: row.live_url || undefined,
-    repoUrl: row.repo_url || undefined,
-    repoPublic: row.repo_public ?? undefined,
-    timelineDate: row.timeline_date || undefined,
-    blogSlug: row.blog_slug || undefined,
-    featured: row.featured,
-    sortOrder: row.sort_order,
-    published: row.published,
+async function adminHeaders(): Promise<HeadersInit> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.access_token) {
+    throw new Error('Sign in to CTROOM to edit projects')
   }
-}
-
-export function projectToRow(
-  project: Partial<PortfolioProject> & { id: string }
-): Partial<PortfolioProjectRow> {
   return {
-    id: project.id,
-    title: project.title,
-    year: project.year,
-    status: project.status,
-    description: project.description,
-    image: project.image,
-    tech: project.tech,
-    live_url: project.liveUrl ?? null,
-    repo_url: project.repoUrl ?? null,
-    repo_public: project.repoPublic ?? false,
-    timeline_date: project.timelineDate ?? null,
-    blog_slug: project.blogSlug ?? null,
-    featured: project.featured ?? false,
-    sort_order: project.sortOrder ?? 0,
-    published: project.published ?? true,
-    updated_at: new Date().toISOString(),
+    Authorization: `Bearer ${session.access_token}`,
+    'Content-Type': 'application/json',
   }
-}
-
-function browserClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
 }
 
 function isMissingTable(error: { code?: string; message?: string } | null) {
@@ -84,14 +26,13 @@ function isMissingTable(error: { code?: string; message?: string } | null) {
   )
 }
 
-/** Public read — falls back to static seed if table missing / empty */
+/** Public read — static seed only if the table is missing or the query fails */
 export async function fetchPublishedProjects(): Promise<{
   projects: PortfolioProject[]
   source: 'supabase' | 'static'
   tableMissing?: boolean
 }> {
   try {
-    const supabase = browserClient()
     const { data, error } = await supabase
       .from('portfolio_projects')
       .select('*')
@@ -107,7 +48,7 @@ export async function fetchPublishedProjects(): Promise<{
     }
 
     if (!data?.length) {
-      return { projects: ALL_PROJECTS, source: 'static' }
+      return { projects: [], source: 'supabase' }
     }
 
     return {
@@ -125,74 +66,54 @@ export class PortfolioProjectsService {
     projects: PortfolioProject[]
     tableMissing: boolean
   }> {
-    const supabase = browserClient()
-    const { data, error } = await supabase
-      .from('portfolio_projects')
-      .select('*')
-      .order('sort_order', { ascending: true })
-
-    if (error) {
-      if (isMissingTable(error)) {
-        return { projects: ALL_PROJECTS, tableMissing: true }
-      }
-      throw error
+    const res = await fetch('/api/ctroom/portfolio', { headers: await adminHeaders() })
+    const body = await res.json()
+    if (res.status === 409 || body.tableMissing) {
+      return { projects: [], tableMissing: true }
     }
-
-    if (!data?.length) {
-      return { projects: ALL_PROJECTS, tableMissing: false }
-    }
-
+    if (!res.ok) throw new Error(body.error || 'Failed to load projects')
     return {
-      projects: data.map((row) => rowToProject(row as PortfolioProjectRow)),
+      projects: (body.projects || []) as PortfolioProject[],
       tableMissing: false,
     }
   }
 
   static async upsert(project: PortfolioProject): Promise<PortfolioProject> {
-    const supabase = browserClient()
-    const row = {
-      ...projectToRow(project),
-      created_at: undefined,
-    }
-    let { data, error } = await supabase
-      .from('portfolio_projects')
-      .upsert(row)
-      .select('*')
-      .single()
-
-    // Older schemas may lack repo_public / timeline_date — retry without them
-    if (error && /repo_public|timeline_date/i.test(error.message || '')) {
-      const { repo_public: _rp, timeline_date: _td, ...legacy } = row as PortfolioProjectRow & {
-        created_at?: undefined
-      }
-      const retry = await supabase.from('portfolio_projects').upsert(legacy).select('*').single()
-      data = retry.data
-      error = retry.error
-    }
-
-    if (error) throw error
-    return rowToProject(data as PortfolioProjectRow)
+    const res = await fetch('/api/ctroom/portfolio', {
+      method: 'POST',
+      headers: await adminHeaders(),
+      body: JSON.stringify(project),
+    })
+    const body = await res.json()
+    if (!res.ok) throw new Error(body.error || 'Save failed')
+    return body.project as PortfolioProject
   }
 
   static async remove(id: string): Promise<void> {
-    const supabase = browserClient()
-    const { error } = await supabase.from('portfolio_projects').delete().eq('id', id)
-    if (error) throw error
+    const res = await fetch(`/api/ctroom/portfolio?id=${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: await adminHeaders(),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(body.error || 'Delete failed')
   }
 
   static async seedFromStatic(): Promise<number> {
-    const supabase = browserClient()
-    const rows = ALL_PROJECTS.map((p, i) => ({
-      ...projectToRow({ ...p, featured: p.featured ?? i < 3, sortOrder: p.sortOrder ?? i }),
-      created_at: new Date().toISOString(),
-    }))
-    const { error } = await supabase.from('portfolio_projects').upsert(rows)
-    if (error) throw error
-    return rows.length
+    const res = await fetch('/api/ctroom/portfolio/bootstrap', {
+      method: 'POST',
+      headers: await adminHeaders(),
+    })
+    const body = await res.json()
+    if (res.status === 409 && body.needsMigration) {
+      const err = new Error(body.error || 'Create the portfolio_projects table first')
+      ;(err as Error & { needsMigration?: boolean }).needsMigration = true
+      throw err
+    }
+    if (!res.ok) throw new Error(body.error || 'Seed failed')
+    return body.seeded as number
   }
 
   static async uploadCover(file: File): Promise<string> {
-    const supabase = browserClient()
     const ext = file.name.split('.').pop() || 'png'
     const path = `portfolio/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
     const { error } = await supabase.storage.from('images').upload(path, file, { upsert: false })

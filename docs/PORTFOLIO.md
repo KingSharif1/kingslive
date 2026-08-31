@@ -23,7 +23,7 @@
 - `live_url`, `repo_url`, `blog_slug`
 - `image` — `/public/...` or Supabase Storage URL
 - `featured` — top section vs archive dropdown
-- `sort_order`, `published`
+- `sort_order`, `published` (Show on frontend). Uncheck to keep the row in CTROOM only.
 
 ## Featured vs archive
 

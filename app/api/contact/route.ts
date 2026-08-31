@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     await emailApi.post('/smtp/email', {
       sender: {
         name: 'Contact Form - Kings Live',
-        email: 'no-reply@kingsharif.live'
+        email: 'no-reply@kingsharif.com'
       },
       to: [{
         email: process.env.CONTACT_EMAIL_RECIPIENT,

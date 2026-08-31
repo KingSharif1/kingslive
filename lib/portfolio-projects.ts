@@ -30,13 +30,13 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     year: '2026',
     status: 'Deployed',
     description:
-      'AI resume tailoring and application tracking — match a resume to a job post, PDF preview, and keep every application in one place.',
+      'AI resume tailoring and application tracking. Match a resume to a job post, preview a tailored PDF, and keep every application in one desk — so the paperwork actually gets finished.',
     image: '/hireiq-cover.jpg',
     tech: ['Next.js', 'TypeScript', 'Supabase', 'Claude', 'Tailwind'],
     liveUrl: 'https://hireiq.kingsharif.com',
     repoUrl: 'https://github.com/KingSharif1/HireIQ',
     repoPublic: true,
-    timelineDate: '2026-03-01',
+    timelineDate: '2026-06-08',
     featured: true,
     sortOrder: 0,
   },
@@ -46,9 +46,9 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     year: '2026',
     status: 'Deployed',
     description:
-      'NEMT SaaS for operators and riders — scheduling, trips, and operations for non-emergency medical transport.',
+      'SaaS for non-emergency medical transport — operators and riders share scheduling, trip ops, and billing in one place instead of spreadsheets and phone tag.',
     image: '/ridenemt-cover.jpg',
-    tech: ['TypeScript', 'Next.js', 'Supabase', 'SaaS'],
+    tech: ['TypeScript', 'Next.js', 'Supabase'],
     liveUrl: 'https://app.ridenemt.com',
     repoUrl: 'https://github.com/KingSharif1/RideNEMT',
     repoPublic: false,
@@ -62,7 +62,7 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     year: '2026',
     status: 'Deployed',
     description:
-      'Live ops dashboard for Roomba status, run history, and home automation controls.',
+      'Live ops dashboard for a Roomba: dock status, run history, map and camera views, and home-automation controls from one screen.',
     image: '/roomba-cover.jpg',
     tech: ['TypeScript', 'Next.js', 'APIs'],
     liveUrl: 'https://roomba.kingsharif.com',
@@ -76,28 +76,44 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
 
 export const ARCHIVE_PROJECTS: PortfolioProject[] = [
   {
-    id: 'dfwnemt',
-    title: 'DfwNemt',
+    id: 'kingslive',
+    title: 'KingsLive',
     year: '2026',
     status: 'Deployed',
     description:
-      'NEMT driver payment calculator — automates trip-to-payment billing. Live with paying customers.',
+      'Personal platform — this site. Public portfolio and writing, plus a private HQ for missions, finance, and AI. Built as a real product, not a demo.',
+    image: '/kingslive-cover.jpg',
+    tech: ['Next.js', 'TypeScript', 'Supabase', 'Sanity', 'Tailwind'],
+    liveUrl: 'https://kingsharif.com',
+    repoUrl: 'https://github.com/KingSharif1/kingslive',
+    repoPublic: true,
+    timelineDate: '2026-08-01',
+    featured: false,
+    sortOrder: 3,
+  },
+  {
+    id: 'dfwnemt',
+    title: 'NEMT Billing',
+    year: '2026',
+    status: 'Deployed',
+    description:
+      'A web app I built with Next.js to streamline billing for non-emergency medical transportation — trip-to-payment calculator, invoices, and live use with paying customers.',
     image: '/dfwnemt-cover.jpg',
-    tech: ['TypeScript', 'Next.js', 'SaaS'],
+    tech: ['TypeScript', 'Next.js'],
     liveUrl: 'https://nemtbiling.com',
     repoUrl: 'https://github.com/KingSharif1/DfwNemt',
     repoPublic: false,
     timelineDate: '2026-01-15',
     featured: false,
-    sortOrder: 3,
+    sortOrder: 4,
   },
   {
     id: 'nami',
     title: 'Nami',
-    year: '2026',
+    year: '2025',
     status: 'Deployed',
     description:
-      'TypeScript product experience with supporting tooling for the Nami platform.',
+      'Personal finance product UI — a calm dark terminal for cashflow, accounts, and the next move with money, without looking like a bank brochure.',
     image: '/nami-cover.jpg',
     tech: ['TypeScript', 'Next.js'],
     liveUrl: 'https://nami.kingsharif.com',
@@ -105,39 +121,7 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
     repoPublic: false,
     timelineDate: '2025-12-01',
     featured: false,
-    sortOrder: 4,
-  },
-  {
-    id: 'ai-receptionist',
-    title: 'AI Receptionist',
-    year: '2026',
-    status: 'Deployed',
-    description:
-      'Automated receptionist for calls, booking, and front-desk workflows — Vapi admin console.',
-    image: '/ai-receptionist-cover.jpg',
-    tech: ['TypeScript', 'AI', 'Vapi'],
-    liveUrl: 'https://vapi.kingsharif.com/admin',
-    repoUrl: 'https://github.com/KingSharif1/ai_receptionist',
-    repoPublic: false,
-    timelineDate: '2025-11-01',
-    featured: false,
     sortOrder: 5,
-  },
-  {
-    id: 'kudsi',
-    title: 'Kudusi',
-    year: '2025',
-    status: 'Deployed',
-    description:
-      'Community website for Kudusi — content, presence, and a TypeScript front end.',
-    image: '/kudusi-cover.jpg',
-    tech: ['TypeScript', 'Web'],
-    liveUrl: 'https://www.kudusi.org',
-    repoUrl: 'https://github.com/KingSharif1/KudsiWebsite',
-    repoPublic: false,
-    timelineDate: '2025-09-01',
-    featured: false,
-    sortOrder: 6,
   },
   {
     id: '1942',
@@ -145,15 +129,47 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
     year: '2025',
     status: 'Deployed',
     description:
-      'Clothing shop front end with manifesto video intro and a coming-soon storefront.',
+      'Clothing shop front with a manifesto video intro, archival aesthetic, and a coming-soon storefront. Built in React and Vite.',
     image: '/1942-forgotten.jpg',
     tech: ['React', 'TypeScript', 'Vite', 'Tailwind'],
     liveUrl: 'https://trulyforgtten.shop',
     repoUrl: 'https://github.com/KingSharif1/1942-truly-forgotten',
     repoPublic: true,
-    timelineDate: '2025-06-01',
+    timelineDate: '2025-12-06',
+    featured: false,
+    sortOrder: 6,
+  },
+  {
+    id: 'ai-receptionist',
+    title: 'AI Receptionist',
+    year: '2025',
+    status: 'Deployed',
+    description:
+      'Automated front desk for calls, booking, and intake — Vapi-powered receptionist with an admin console (LineDesk) for operators.',
+    image: '/ai-receptionist-cover.jpg',
+    tech: ['TypeScript', 'Vapi', 'Next.js'],
+    liveUrl: 'https://vapi.kingsharif.com/admin',
+    repoUrl: 'https://github.com/KingSharif1/ai_receptionist',
+    repoPublic: false,
+    timelineDate: '2025-11-01',
     featured: false,
     sortOrder: 7,
+  },
+  {
+    id: 'kudsi',
+    title: 'Kudusi',
+    year: '2025',
+    status: 'Deployed',
+    description:
+      'Nonprofit site for Kudusi — programs, events, and a public presence for academic consulting and mentorship for the rising generation.',
+    image: '/kudusi-cover.jpg',
+    tech: ['TypeScript', 'Next.js'],
+    liveUrl: 'https://www.kudusi.org',
+    repoUrl: 'https://github.com/KingSharif1/KudsiWebsite',
+    repoPublic: false,
+    timelineDate: '2025-09-01',
+    featured: false,
+    sortOrder: 8,
   },
   {
     id: 'am-african-market',
@@ -161,15 +177,29 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
     year: '2025',
     status: 'Deployed',
     description:
-      'E-commerce for A&M African Market in Abilene — catalog, store info, and online presence.',
+      'E-commerce and storefront for A&M African Market in Abilene — catalog, hours, and a way to find West African groceries without guessing at the aisle.',
     image: '/african-market-cover.jpg',
-    tech: ['TypeScript', 'Next.js', 'E-commerce'],
+    tech: ['TypeScript', 'Next.js'],
     liveUrl: 'https://amafricanmarket.com',
     repoUrl: 'https://github.com/KingSharif1/am-african-market',
     repoPublic: false,
     timelineDate: '2025-04-01',
     featured: false,
-    sortOrder: 8,
+    sortOrder: 9,
+  },
+  {
+    id: 'sweet-emporium',
+    title: 'My Sweet Emporium',
+    year: '2024',
+    status: 'Deployed',
+    description:
+      'Exotic candy e-commerce for unique and international sweets — catalog, inventory, and checkout on WordPress and WooCommerce.',
+    image: '/sweet-emporium-cover.jpg',
+    tech: ['WordPress', 'WooCommerce'],
+    liveUrl: 'https://mysweetemporium.com',
+    featured: false,
+    sortOrder: 10,
+    timelineDate: '2024-06-01',
   },
 ]
 
@@ -231,5 +261,12 @@ export function formatTimelineLabel(project: PortfolioProject): string {
   const iso = getTimelineDate(project)
   const d = new Date(`${iso}T12:00:00`)
   if (Number.isNaN(d.getTime())) return project.year
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+}
+
+export function formatMonthYear(iso: string | null | undefined): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
   return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
 }

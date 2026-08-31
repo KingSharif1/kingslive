@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { ChevronLeft, Calendar, User, Tag, Heart, Share2, Clock, ArrowLeft, Copy, Check, X, Twitter, Facebook, Linkedin, MessageSquare } from "lucide-react"
+import { Heart, Share2, Copy, Check, X, Twitter, Facebook, Linkedin, MessageSquare } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import ScrollProgress from "@/app/components/ScrollProgress"
-import { ThemeToggle } from "@/components/theme-toggle"
+import { BlogNav } from "@/components/BlogNav"
+import { usePortfolioTheme } from "@/components/usePortfolioTheme"
 import { getPostBySlug, BlogPost, countPortableTextWords } from "@/lib/sanity-queries"
 import { getProjectById } from "@/lib/portfolio-projects"
 import { PortableText, PortableTextComponents } from '@portabletext/react'
@@ -28,7 +29,7 @@ const portableTextComponents: PortableTextComponents = {
     h6: ({ children }) => <h6 className="text-base font-semibold font-fraunces mt-4 mb-2 text-[var(--foreground)]">{children}</h6>,
     normal: ({ children }) => <p className="text-base leading-relaxed mb-6 text-[var(--foreground)] font-open-sans">{children}</p>,
     blockquote: ({ children }) => (
-      <blockquote className="border-l-4 border-[var(--accent)] pl-6 py-2 my-6 italic text-xl text-[var(--foreground)] bg-[var(--accent)]/5 rounded-r-lg">
+      <blockquote className="border-l-2 border-[var(--blog-bloom)] pl-6 py-2 my-6 italic text-xl text-[var(--blog-ink)]">
         {children}
       </blockquote>
     ),
@@ -56,7 +57,7 @@ const portableTextComponents: PortableTextComponents = {
           href={value?.href}
           target={target}
           rel={target === '_blank' ? 'noopener noreferrer' : undefined}
-          className="text-blue-600 dark:text-blue-400 hover:underline"
+          className="text-[var(--blog-bloom)] underline decoration-from-font underline-offset-4"
         >
           {children}
         </a>
@@ -89,7 +90,7 @@ const portableTextComponents: PortableTextComponents = {
 
       return (
         <figure className="my-8">
-          <div className="relative w-full rounded-lg overflow-hidden">
+          <div className="relative w-full overflow-hidden">
             <Image
               src={src}
               alt={value.alt || 'Blog post image'}
@@ -414,56 +415,24 @@ function trackViewCount(postId: string): void {
 
 async function fetchLikesFromDB(postId: string): Promise<number> {
   try {
-    const { data, error } = await supabase
-      .from('blog_post_analytics')
-      .select('likes')
-      .eq('post_id', postId)
-      .single()
-
-    if (error && error.code !== 'PGRST116') {
-      console.error('Error fetching likes:', error)
-      return 0
-    }
-    return data?.likes || 0
-  } catch (err) {
-    console.error('Error fetching likes:', err)
+    const res = await fetch(`/api/blog/likes?postId=${encodeURIComponent(postId)}`)
+    const data = await res.json()
+    return typeof data.likes === 'number' ? data.likes : 0
+  } catch {
     return 0
   }
 }
 
 async function incrementLikeInDB(postId: string): Promise<number> {
   try {
-    // First try to get existing record
-    const { data: existing } = await supabase
-      .from('blog_post_analytics')
-      .select('likes')
-      .eq('post_id', postId)
-      .single()
-
-    if (existing) {
-      // Update existing record
-      const { data, error } = await supabase
-        .from('blog_post_analytics')
-        .update({ likes: (existing.likes || 0) + 1, last_updated: new Date().toISOString() })
-        .eq('post_id', postId)
-        .select('likes')
-        .single()
-
-      if (error) throw error
-      return data?.likes || (existing.likes || 0) + 1
-    } else {
-      // Insert new record
-      const { data, error } = await supabase
-        .from('blog_post_analytics')
-        .insert({ post_id: postId, likes: 1, view_count: 0 })
-        .select('likes')
-        .single()
-
-      if (error) throw error
-      return data?.likes || 1
-    }
-  } catch (err) {
-    console.error('Error incrementing like:', err)
+    const res = await fetch('/api/blog/likes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ postId }),
+    })
+    const data = await res.json()
+    return typeof data.likes === 'number' ? data.likes : 0
+  } catch {
     return 0
   }
 }
@@ -646,15 +615,9 @@ function ShareModal({ isOpen, onClose, title, url }: { isOpen: boolean; onClose:
   )
 }
 
-// Calculate reading time
-function getReadingTime(content: string): number {
-  const wordsPerMinute = 200
-  const words = content.split(/\s+/).length
-  return Math.ceil(words / wordsPerMinute)
-}
-
 export default function BlogPostPage() {
   const params = useParams()
+  const { isDark, mounted, toggleTheme } = usePortfolioTheme()
   const [post, setPost] = useState<SlugPagePost | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [showShareModal, setShowShareModal] = useState(false)
@@ -687,36 +650,22 @@ export default function BlogPostPage() {
     setShowShareModal(true)
   }
 
-  if (isLoading) {
+  if (isLoading || !mounted) {
     return (
-      <main className="min-h-screen bg-[var(--background)]">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-20">
-          <div className="animate-pulse space-y-6">
-            <div className="h-4 w-24 bg-[var(--muted)] rounded" />
-            <div className="h-12 w-3/4 bg-[var(--muted)] rounded" />
-            <div className="h-6 w-1/2 bg-[var(--muted)] rounded" />
-            <div className="space-y-3 pt-8">
-              <div className="h-4 w-full bg-[var(--muted)] rounded" />
-              <div className="h-4 w-full bg-[var(--muted)] rounded" />
-              <div className="h-4 w-2/3 bg-[var(--muted)] rounded" />
-            </div>
-          </div>
-        </div>
+      <main className="blog-world flex min-h-screen items-center justify-center font-mono text-xs tracking-widest uppercase">
+        Opening…
       </main>
     )
   }
 
   if (!post) {
     return (
-      <main className="min-h-screen bg-[var(--background)] flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-[var(--foreground)] mb-4">Post not found</h1>
-          <Link
-            href="/blog"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--secondary)] hover:bg-[var(--accent)] transition-colors text-[var(--foreground)]"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to blog
+      <main className="blog-world min-h-screen">
+        <BlogNav isDark={isDark} toggleTheme={toggleTheme} />
+        <div className="px-5 sm:px-10 lg:px-16 py-24">
+          <h1 className="font-fraunces text-4xl mb-6">This volume isn’t on the shelf.</h1>
+          <Link href="/blog" className="text-[11px] font-mono tracking-[0.22em] uppercase">
+            ← Notes
           </Link>
         </div>
       </main>
@@ -730,7 +679,8 @@ export default function BlogPostPage() {
   const readingTime = Math.max(1, Math.ceil(wordCount / 200))
 
   return (
-    <>
+    <div className={`blog-world${isDark ? ' dark' : ''}`}>
+      <BlogNav isDark={isDark} toggleTheme={toggleTheme} />
       <ScrollProgress />
       <ShareModal
         isOpen={showShareModal}
@@ -738,165 +688,80 @@ export default function BlogPostPage() {
         title={post.title}
         url={typeof window !== 'undefined' ? window.location.href : ''}
       />
-      <main className="min-h-screen bg-[var(--background)]">
-
-        {/* Floating Dock (Desktop Left) */}
-        <aside className="hidden lg:flex fixed left-8 top-1/2 -translate-y-1/2 flex-col items-center gap-4 p-3 rounded-full bg-[var(--background)]/80 backdrop-blur-md border border-[var(--border)] shadow-lg z-50">
-          {/* Back Button */}
-          <Link
-            href="/blog"
-            className="p-3 rounded-full bg-[var(--secondary)] hover:bg-[var(--accent)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-all"
-            title="Back to Blog"
-          >
-            <ArrowLeft className="w-5 h-5" />
+      <main className="pb-28">
+        <aside className="hidden lg:flex fixed left-4 top-1/2 -translate-y-1/2 z-30 flex-col gap-6 text-[var(--blog-muted)]">
+          <Link href="/blog" className="text-[10px] font-mono tracking-[0.22em] uppercase hover:text-[var(--blog-ink)]" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+            Notes
           </Link>
-
-          <div className="w-8 h-px bg-[var(--border)]" />
-
-          {/* Actions Group */}
-          <div className="flex flex-col gap-4 items-center">
-            <LikeButton postId={post.id} initialLikes={post.views || 0} size="default" />
-
-            <button
-              onClick={() => {
-                const commentsSection = document.getElementById('comments')
-                if (commentsSection) {
-                  commentsSection.scrollIntoView({ behavior: 'smooth' })
-                  // Dispatch event to open form
-                  window.dispatchEvent(new Event('open-comments'))
-                }
-              }}
-              className="p-3 rounded-full hover:bg-[var(--secondary)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors relative"
-              title="Comments"
-            >
-              <MessageSquare className="w-5 h-5" />
-            </button>
-
-            <button
-              onClick={handleShare}
-              className="p-3 rounded-full hover:bg-[var(--secondary)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
-              title="Share"
-            >
-              <Share2 className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="w-8 h-px bg-[var(--border)]" />
-
-          {/* Theme Toggle */}
-          <ThemeToggle />
+          <button type="button" onClick={handleShare} className="hover:text-[var(--blog-ink)]" title="Share">
+            <Share2 className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              document.getElementById('comments')?.scrollIntoView({ behavior: 'smooth' })
+              window.dispatchEvent(new Event('open-comments'))
+            }}
+            className="hover:text-[var(--blog-ink)]"
+            title="Comments"
+          >
+            <MessageSquare className="w-4 h-4" />
+          </button>
         </aside>
 
-        {/* Mobile Header (Sticky Top) - Simplified */}
-        <header className="lg:hidden sticky top-0 z-40 backdrop-blur-xl bg-[var(--background)]/80 border-b border-[var(--border)]">
-          <div className="px-4 py-3 flex items-center justify-between">
-            <Link
-              href="/blog"
-              className="p-2 -ml-2 rounded-full hover:bg-[var(--secondary)] transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5 text-[var(--foreground)]" />
-            </Link>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  const commentsSection = document.getElementById('comments')
-                  if (commentsSection) {
-                    commentsSection.scrollIntoView({ behavior: 'smooth' })
-                    window.dispatchEvent(new Event('open-comments'))
-                  }
-                }}
-                className="p-2 rounded-full hover:bg-[var(--secondary)] transition-colors"
-              >
-                <MessageSquare className="w-5 h-5 text-[var(--foreground)]" />
-              </button>
-              <ThemeToggle />
-              <button
-                onClick={handleShare}
-                className="p-2 rounded-full hover:bg-[var(--secondary)] transition-colors"
-              >
-                <Share2 className="w-5 h-5 text-[var(--foreground)]" />
-              </button>
-            </div>
+        {post.cover_image && (
+          <div className="blog-cover-bleed relative mb-10">
+            <Image
+              src={post.cover_image}
+              alt=""
+              fill
+              quality={85}
+              priority
+              className="object-cover object-center"
+              sizes="(min-width: 672px) 42rem, 100vw"
+            />
           </div>
-        </header>
+        )}
 
-        {/* Article Content - with left margin on desktop */}
-        <article className="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16 lg:py-20 lg:pl-20">
-          {/* Meta */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
-            <div className="flex flex-wrap items-center gap-4 text-sm text-[var(--muted-foreground)] mb-6">
-              <span className="flex items-center gap-1.5">
-                <Calendar className="w-4 h-4" />
-                {new Date(post.created_at).toLocaleDateString('en-US', {
-                  month: 'long',
-                  day: 'numeric',
-                  year: 'numeric'
-                })}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <User className="w-4 h-4" />
-                {post.author}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4" />
-                {readingTime} min read
-              </span>
-            </div>
+        <article className="blog-read px-5 sm:px-0 pt-4 sm:pt-8">
+          <p className="text-[11px] font-mono tracking-[0.22em] uppercase text-[var(--blog-muted)] mb-5">
+            {new Date(post.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+            <span className="mx-3">·</span>
+            {readingTime} min
+            {post.author ? <span className="mx-3">·</span> : null}
+            {post.author}
+          </p>
 
-            {/* Title */}
-            <h1 className="font-fraunces text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--foreground)] mb-6 leading-tight">
-              {post.title}
-            </h1>
+          <h1 className="font-fraunces text-4xl sm:text-5xl lg:text-6xl leading-[1.05] tracking-tight mb-6">
+            {post.title}
+          </h1>
 
-            {/* Excerpt */}
-            <p className="text-lg sm:text-xl text-[var(--muted-foreground)] leading-relaxed font-open-sans">
+          {post.excerpt && (
+            <p className="text-lg sm:text-xl leading-relaxed text-[var(--blog-muted)] mb-8">
               {post.excerpt}
             </p>
+          )}
 
-            {/* Tags */}
-            {post.tags && post.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-6">
-                {post.tags.map(tag => (
-                  <Link
-                    href={`/blog?tag=${tag}`}
-                    key={tag}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--secondary)] text-sm text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)] transition-colors"
-                  >
-                    <Tag className="w-3 h-3" />
-                    {tag}
-                  </Link>
-                ))}
-              </div>
-            )}
-
-            {relatedProject && (
-              <div className="mt-6">
-                <Link
-                  href={relatedProject.liveUrl || `/#projects`}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--secondary)] transition-colors"
-                >
-                  <span className="text-[var(--muted-foreground)] font-mono text-xs uppercase tracking-wider">Project</span>
-                  {relatedProject.title}
+          {post.tags && post.tags.length > 0 && (
+            <div className="flex flex-wrap gap-x-5 gap-y-2 mb-10 text-[11px] font-mono tracking-[0.18em] uppercase text-[var(--blog-muted)]">
+              {post.tags.map((tag) => (
+                <Link key={tag} href={`/blog?tag=${tag}`} className="hover:text-[var(--blog-ink)]">
+                  {tag}
                 </Link>
-              </div>
-            )}
-          </motion.div>
+              ))}
+            </div>
+          )}
 
-          {/* Divider */}
-          <motion.div
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ delay: 0.2 }}
-            className="h-px bg-gradient-to-r from-transparent via-[var(--border)] to-transparent mb-10"
-          />
+          {relatedProject && (
+            <Link
+              href={relatedProject.liveUrl || '/#projects'}
+              className="inline-block mb-10 text-[11px] font-mono tracking-[0.18em] uppercase text-[var(--blog-bloom)]"
+            >
+              Project · {relatedProject.title}
+            </Link>
+          )}
 
-          {/* Content */}
-          <div className="prose prose-lg max-w-none dark:prose-invert">
+          <div className="prose prose-lg max-w-none dark:prose-invert prose-headings:font-fraunces prose-p:text-[var(--blog-ink)]">
             {post.content ? (
               <PortableText value={post.content} components={portableTextComponents} />
             ) : post.markdownContent ? (
@@ -906,35 +771,18 @@ export default function BlogPostPage() {
             )}
           </div>
 
-          {/* Footer Actions */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="mt-16 pt-8 border-t border-[var(--border)]"
-          >
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-center sm:text-left">
-                <p className="text-sm text-[var(--muted-foreground)] mb-2">Enjoyed this article?</p>
-                <p className="text-lg font-medium text-[var(--foreground)]">Show some love!</p>
-              </div>
-              <LikeButton postId={post.id} initialLikes={post.views || 0} size="large" />
-            </div>
-          </motion.div>
+          <div className="mt-16 pt-8 border-t border-[var(--blog-ink)]/10 flex items-center justify-between gap-4">
+            <Link href="/blog" className="text-[11px] font-mono tracking-[0.22em] uppercase">
+              ← Shelf
+            </Link>
+            <LikeButton postId={post.id} initialLikes={post.views || 0} size="large" />
+          </div>
 
-          {/* Comments Section - Lazy loaded */}
-          <Suspense fallback={
-            <div className="mt-16 pt-12 border-t border-[var(--border)]">
-              <div className="animate-pulse space-y-4">
-                <div className="h-8 w-32 bg-[var(--muted)] rounded" />
-                <div className="h-24 bg-[var(--muted)] rounded-xl" />
-              </div>
-            </div>
-          }>
+          <Suspense fallback={<div className="mt-16 h-24" />}>
             <Comments postId={post.id} autoApproveHours={24} />
           </Suspense>
         </article>
       </main>
-    </>
+    </div>
   )
 }

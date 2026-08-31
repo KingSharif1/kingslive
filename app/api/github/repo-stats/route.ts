@@ -9,6 +9,7 @@ type RepoStats = {
   commitCount: number | null
   lastCommitAt: string | null
   lastCommitMessage: string | null
+  createdAt: string | null
   updatedAt: string | null
   stars: number
 }
@@ -49,6 +50,7 @@ export async function GET(request: NextRequest) {
         commitCount: null,
         lastCommitAt: null,
         lastCommitMessage: null,
+        createdAt: null,
         updatedAt: null,
         stars: 0,
       } satisfies RepoStats)
@@ -62,6 +64,7 @@ export async function GET(request: NextRequest) {
       full_name: string
       private: boolean
       pushed_at: string | null
+      created_at: string | null
       updated_at: string | null
       stargazers_count: number
       default_branch: string
@@ -74,6 +77,7 @@ export async function GET(request: NextRequest) {
         commitCount: null,
         lastCommitAt: null,
         lastCommitMessage: null,
+        createdAt: null,
         updatedAt: null,
         stars: 0,
       } satisfies RepoStats)
@@ -117,7 +121,8 @@ export async function GET(request: NextRequest) {
       commitCount,
       lastCommitAt,
       lastCommitMessage,
-      updatedAt: repo.updated_at,
+      createdAt: repo.created_at,
+      updatedAt: repo.updated_at || repo.pushed_at,
       stars: repo.stargazers_count ?? 0,
     }
 

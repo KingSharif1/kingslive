@@ -100,7 +100,7 @@ export function PortfolioProjectsView() {
           </p>
           <h1 className="font-display text-3xl text-white">Portfolio</h1>
           <p className="text-sm text-white/45 mt-2 max-w-lg">
-            Featured projects, archive, links, covers, and skills.
+            Featured, archive, links, covers, skills. Uncheck “Show on frontend” to keep a project in CTROOM without listing it on the public site.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -149,6 +149,10 @@ export function PortfolioProjectsView() {
 
       {loading ? (
         <p className="text-white/40 text-sm">Loading projects…</p>
+      ) : projects.length === 0 ? (
+        <p className="text-white/40 text-sm">
+          No projects in the database yet. Seed defaults or add one.
+        </p>
       ) : (
         <div className="space-y-2">
           {projects.map((project) => {
@@ -183,7 +187,12 @@ export function PortfolioProjectsView() {
                     )}
                     {project.published === false && (
                       <span className="text-[10px] font-mono uppercase tracking-wider text-white/35">
-                        Hidden
+                        Hidden from site
+                      </span>
+                    )}
+                    {project.published !== false && (
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-white/35">
+                        On site
                       </span>
                     )}
                   </div>
@@ -203,6 +212,23 @@ export function PortfolioProjectsView() {
                   </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const saved = await PortfolioProjectsService.upsert({
+                          ...project,
+                          published: project.published === false,
+                        })
+                        handleSaved(saved)
+                      } catch (err: unknown) {
+                        setError(err instanceof Error ? err.message : 'Could not update visibility')
+                      }
+                    }}
+                    className="px-2 py-1 rounded-lg border border-white/10 text-[10px] font-mono uppercase tracking-wider text-white/60 hover:text-white"
+                  >
+                    {project.published === false ? 'Show on site' : 'Hide from site'}
+                  </button>
                   <button
                     type="button"
                     onClick={() => {

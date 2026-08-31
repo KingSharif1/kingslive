@@ -90,14 +90,21 @@ export async function runRecurringScan(
   let cancelled = 0;
   let pendingReview = 0;
 
+  const SUBSCRIPTION_BILL_TYPES = new Set(['subscription', 'bill', 'loan'])
+
   if (candidates.length > 0) {
-    const rows = candidates.map(c => ({
+    const rows = candidates
+      .filter((c) => c.billType !== 'denylist')
+      .map(c => ({
       user_id:            userId,
       name:               c.name,
       emoji:              c.emoji,
       category:           c.category,
       amount:             c.amount,
-      frequency:          c.frequency === 'biweekly' ? 'bi-weekly' : c.frequency, // legacy display tolerance
+      frequency:
+        c.frequency === 'biweekly' ? 'bi-weekly'
+        : c.frequency === 'yearly' ? 'annual'
+        : c.frequency,
       merchant_pattern:   c.merchantPattern,
       next_billing_date:  c.nextBillingDate,
       last_charge_date:   c.lastChargeDate,
@@ -107,7 +114,7 @@ export async function runRecurringScan(
       avg_interval_days:  c.avgIntervalDays,
       confidence:         c.confidence,
       status:             c.status,
-      bill_type:          c.billType,
+      bill_type:          SUBSCRIPTION_BILL_TYPES.has(c.billType) ? c.billType : 'subscription',
       is_active:          c.status === 'active',
       auto_detected:      true,
       cancelled_at:       c.status === 'cancelled' ? new Date().toISOString() : null,
@@ -125,6 +132,18 @@ export async function runRecurringScan(
       else inserted++;
       if (c.status === 'cancelled') cancelled++;
       if (c.status === 'pending_review') pendingReview++;
+    }
+
+    if (rows.length === 0) {
+      return {
+        scanned: txs.length,
+        detected: candidates.length,
+        inserted,
+        updated,
+        cancelled,
+        pendingReview,
+        candidates,
+      }
     }
 
     // Supabase upsert with ON CONFLICT requires the column list to match the

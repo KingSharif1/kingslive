@@ -193,11 +193,23 @@ body {
   100% { opacity: 0.1; }
 }
 
+@keyframes themeExpandCenter {
+  0% { clip-path: circle(0px at 50vw 50vh); }
+  100% { clip-path: circle(150vmax at 50vw 50vh); }
+}
+
+body.theme-transitioning header,
+body.theme-transitioning header > div {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
 body {
   position: relative;
   overflow-x: hidden;
-  --mouse-x: 50%;
-  --mouse-y: 50%;
 }
 
 body::before {
@@ -206,34 +218,164 @@ body::before {
   inset: 0;
   width: 100%;
   height: 100%;
-  background-image:
-    radial-gradient(
-      circle at var(--mouse-x) var(--mouse-y),
-      rgba(0, 0, 0, 0) 0%,
-      rgba(0, 0, 0, 0) 45%,
-      rgba(0, 0, 0, 0.12) 50%,
-      rgba(0, 0, 0, 0) 55%
-    ),
-    radial-gradient(rgba(0, 0, 0, 0.18) 1px, transparent 1px);
-  background-size: 100% 100%, 50px 50px;
-  background-position: 0 0;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.18) 1px, transparent 1px);
+  background-size: 50px 50px;
   pointer-events: none;
   z-index: 0;
 }
 
-/* html.dark — ThemeProvider puts .dark on <html> */
 html.dark body::before,
 .dark body::before {
-  background-image:
-    radial-gradient(
-      circle at var(--mouse-x) var(--mouse-y),
-      rgba(255, 255, 255, 0) 0%,
-      rgba(255, 255, 255, 0) 45%,
-      rgba(255, 255, 255, 0.06) 50%,
-      rgba(255, 255, 255, 0) 55%
-    ),
-    radial-gradient(rgba(255, 255, 255, 0.22) 1px, transparent 1px);
-  background-size: 100% 100%, 50px 50px;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.22) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+/* Blog is a different room from the portfolio — no glass, no numbered rows, no edges */
+.blog-world {
+  --blog-ink: #1a1612;
+  --blog-paper: #ece4d4;
+  --blog-muted: #6b6156;
+  --blog-bloom: #e89a9a;
+  --blog-spine: #4a3228;
+  --foreground: var(--blog-ink);
+  --muted-foreground: var(--blog-muted);
+  --background: var(--blog-paper);
+  --secondary: color-mix(in srgb, var(--blog-ink) 8%, transparent);
+  --accent: var(--blog-bloom);
+  --border: color-mix(in srgb, var(--blog-ink) 12%, transparent);
+  background-color: var(--blog-paper);
+  color: var(--blog-ink);
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+  overflow-x: hidden;
+}
+
+html.dark .blog-world,
+.blog-world.dark {
+  --blog-ink: #f0e6d8;
+  --blog-paper: #0e0c0b;
+  --blog-muted: #9a8f84;
+  --blog-bloom: #ffb7b2;
+  --blog-spine: #c9b0a2;
+}
+
+.blog-world ::selection {
+  background: color-mix(in srgb, var(--blog-bloom) 55%, transparent);
+  color: var(--blog-ink);
+}
+
+.blog-bleed {
+  font-family: var(--font-display), 'Young Serif', Georgia, serif;
+  font-size: clamp(5rem, 22vw, 16rem);
+  line-height: 0.75;
+  letter-spacing: -0.07em;
+  margin-left: -6vw;
+  width: 120vw;
+  color: var(--blog-ink);
+  opacity: 0.1;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.blog-volume {
+  display: grid;
+  grid-template-columns: 3.25rem 1fr;
+  gap: 1.25rem 1.75rem;
+}
+
+@media (min-width: 1024px) {
+  .blog-volume {
+    grid-template-columns: 3.5rem minmax(0, 1fr) 17.5rem;
+    align-items: start;
+  }
+}
+
+.blog-spine {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--blog-spine);
+  padding-top: 0.35rem;
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.blog-volume:hover .blog-spine {
+  transform: rotate(180deg) translateY(-10px);
+}
+
+.blog-volume__art {
+  grid-column: 1 / -1;
+  width: 100%;
+  max-width: 22rem;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--blog-ink) 6%, transparent);
+}
+
+@media (min-width: 1024px) {
+  .blog-volume__art {
+    grid-column: 3;
+    grid-row: 1;
+    width: 17.5rem;
+    max-width: none;
+    margin-top: 0.15rem;
+  }
+}
+
+.blog-title-link {
+  background-image: linear-gradient(var(--blog-bloom), var(--blog-bloom));
+  background-size: 0 2px;
+  background-repeat: no-repeat;
+  background-position: 0 92%;
+  transition: background-size 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.blog-volume:hover .blog-title-link,
+.blog-title-link:hover {
+  background-size: 100% 2px;
+}
+
+.blog-read {
+  max-width: 38rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.blog-cover-bleed {
+  width: min(100%, 42rem);
+  margin-left: auto;
+  margin-right: auto;
+  height: 14rem;
+  max-height: 14rem;
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .blog-cover-bleed {
+    height: 18rem;
+    max-height: 18rem;
+  }
+}
+
+@keyframes wait-pulse {
+  0%, 100% { opacity: 0.28; }
+  50% { opacity: 0.62; }
+}
+
+.wait-block {
+  animation: wait-pulse 1.15s ease-in-out infinite;
+  background: currentColor;
+  opacity: 0.14;
+  border-radius: 2px;
+}
+
+.wait-copy {
+  animation: wait-pulse 1.15s ease-in-out infinite;
 }
 
 .dark {
@@ -687,20 +829,27 @@ html.dark body::before,
   --hq-glass: rgba(255, 255, 255, 0.04);
 }
 
-/* Scanline sweep (login screen) */
+/* Scanline sweep (login screen) — band lives inside a clipped overlay so
+   top: 100% cannot grow the document and flash a Windows scrollbar. */
 @keyframes hq-scanline {
   0%   { top: -120px; }
   100% { top: 100%; }
 }
 .hq-scanline {
   position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 10;
+}
+.hq-scanline::after {
+  content: '';
+  position: absolute;
   left: 0;
   width: 100%;
   height: 120px;
   background: linear-gradient(0deg, transparent 0%, rgba(255,255,255,0.025) 50%, transparent 100%);
   animation: hq-scanline 12s linear infinite;
-  pointer-events: none;
-  z-index: 10;
 }
 
 /* CRT pixel-line overlay */
