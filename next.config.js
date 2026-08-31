@@ -107,13 +107,6 @@ const nextConfig = {
     ],
   },
 
-  // Optimize imports for better tree-shaking
-  // Note: framer-motion removed from modularizeImports - use optimizePackageImports instead
-  experimental: {
-    parallelServerBuildTraces: true,
-    parallelServerCompiles: true,
-  },
-
   transpilePackages: [
     'sanity', '@sanity/ui', '@sanity/icons', '@sanity/vision', 'next-sanity',
     'recharts', 'react-smooth', 'recharts-scale',
