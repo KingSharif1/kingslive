@@ -1,3 +1,27 @@
+## Task BLOG-8 — Table schema: `noteTable`, not `table`
+Status: DONE
+Scope: Sanity schema + post PortableText
+Result: Pin/Signal tables are `_type: noteTable` (inline on `blockContent` — PTE drops shared type refs from the insert bar). Existing red `table` blocks must be deleted and re-inserted.
+Files changed: `sanity/schemaTypes/blockContentType.ts`, `app/blog/[slug]/page.tsx`, `docs/BLOG.md`
+
+## Task BLOG-7 — Pad sheet, full-height margin, draft preview
+Status: DONE
+Scope: blog CSS, Studio Presentation, draft-mode API, note fetch
+Result: Calm field around a legal-pad sheet; red double-rule runs the page height; body type sits on a 1.75rem line grid. Studio **Preview** tab loads the real post, including drafts.
+Files changed: `globals.css`, `sanity.config.ts`, `app/api/draft-mode/**`, `app/api/blog/note/[slug]/route.ts`, `lib/sanity.ts`, `lib/sanity-queries.ts`, `app/blog/[slug]/page.tsx`, `BlogNav.tsx`, `docs/BLOG.md`
+
+## Task BLOG-6 — Notebook reading + Photos / Table / FAQ
+Status: DONE
+Scope: Sanity blockContent, post PortableText, blog CSS, layout font
+Result: Photos (1–3), two-column Table, FAQ dropdowns. Legal-pad reading column. Borderless captions. Callouts are a left rule.
+Files changed: `blockContentType.ts`, `app/blog/[slug]/page.tsx`, `components/blog/BlogPhotos.tsx`, `BlogTable.tsx`, `BlogFaq.tsx`, `globals.css`, `app/layout.tsx`, `lib/sanity-queries.ts`, `docs/BLOG.md`
+
+## Task BLOG-5 — Side-by-side photos in a post
+Status: DONE
+Scope: Sanity blockContent, post PortableText, blog CSS
+Result: Studio insert **Image row (2–3)**; 2 or 3 photos render in a grid on `/blog/[slug]`.
+Files changed: `blockContentType.ts`, `lib/sanity.ts`, `lib/sanity-queries.ts`, `app/blog/[slug]/page.tsx`, `globals.css`
+
 ## Task BLOG-4 — Notes room polish + webpack/load fixes + deploy
 Status: DONE
 Scope: blog pages, next.config, CtroomDashboard lazy views, Studio loading

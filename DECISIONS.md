@@ -1,5 +1,35 @@
 # DECISIONS.md
 
+## 2026-09-01 — Never name a Portable Text object `table`
+- **Context:** Inserting our Pin/Signal table on localhost showed “type table is not allowed by the schema”.
+- **Options:** Enable Sanity’s native table plugin / keep `_type: table` as a registered type / rename to `noteTable`.
+- **Choice:** Inline `noteTable` on `blockContent`. Native tables are n×m cells of nested Portable Text; we want two columns (Pin / Signal). Shared `schema.types` refs do not show in this PTE insert bar.
+- **Tradeoff:** One existing invalid block must be deleted and re-inserted. Site still renders old `_type: table` if it was saved.
+- **Revisit if:** You want a real spreadsheet table in the body.
+
+## 2026-09-01 — Draft preview is Presentation, not a fake mock
+- **Context:** Need to see a draft note as it will look on the site.
+- **Options:** Iframe plugin / custom preview pane / Sanity Presentation + Next draft mode.
+- **Choice:** Presentation tool + `/api/draft-mode/enable` + previewClient (`previewDrafts`). Public CDN still published-only.
+- **Tradeoff:** Needs `SANITY_API_TOKEN`. Live click-to-edit (stega) not wired yet.
+- **Revisit if:** You want overlays that jump from the page back into the exact block.
+
+## 2026-09-01 — Blog tools: Photos + Table + FAQ dropdowns
+- **Context:** Tech notes need pinout tables, accordion FAQ, one photo insert, and captions that are not cards.
+- **Options:** Markdown tables / auto-group images / dedicated Portable Text objects.
+- **Choice:** Studio blocks. **Photos** (1–3). **Table** is two columns. **FAQ** is `<details>`/`<summary>`. Callout restyled to a margin rule. Newsreader for body on the pad.
+- **Tradeoff:** Existing H2+paragraph FAQ must be moved into the FAQ block. Image / Image row stay as legacy so old posts still open in Studio.
+- **Revisit if:** Need 3+ table columns or rich-text FAQ answers.
+
+
+
+## 2026-09-01 — Image row is a body block, not CSS on consecutive images
+- **Context:** Want 2–3 photos side by side in a note.
+- **Options:** Auto-group consecutive Image blocks / markdown tables / dedicated `imageRow` type.
+- **Choice:** Studio block **Image row (2–3)** so layout is intentional.
+- **Tradeoff:** Must insert that block (two Image blocks still stack). Worth it.
+- **Revisit if:** You want 4+ in a grid.
+
 ## 2026-08-31 — Webpack chunks: async, not all
 - **Context:** `/blog` threw `Cannot read properties of undefined (reading 'call')` after likes lazy-import Supabase.
 - **Options:** Remove custom splitChunks / keep `chunks: 'all'` / restrict to async.

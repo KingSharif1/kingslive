@@ -1,13 +1,13 @@
 # STATUS.md — KingsLive
 
-> Last updated: 2026-08-31
+> Last updated: 2026-09-01
 
 ## Snapshot
 
 | Area | Status | Notes |
 |------|--------|-------|
 | Portfolio | Updated | 11 rows; `repo_public` + `timeline_date` columns live |
-| Blog | Updated | Server-rendered journal; contained 3:2 covers; King·Notes → `/blog` |
+| Blog | Updated | Pad sheet + Studio Preview. Table insert is `noteTable` (not reserved `table`) |
 | Studio | Restored | `/studio` + route loading shell; client-only mount |
 | CTROOM login | Fixed | Magic links via Brevo; original tab signs in after click |
 | GitHub hub | New | CTROOM → GitHub: status, merge PRs, Vercel deploy hooks |
@@ -24,7 +24,7 @@
 
 ## Working on
 
-Shipped BLOG-4 to master (commit + production deploy).
+Shipping BLOG-6/7/8 to master (notebook notes, Studio tools, draft preview).
 
 ## Next
 

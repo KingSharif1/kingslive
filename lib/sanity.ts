@@ -20,9 +20,12 @@ export const previewClient = createClient({
   apiVersion,
   useCdn: false,
   token: process.env.SANITY_API_TOKEN,
+  perspective: 'previewDrafts',
+  stega: { enabled: false },
 })
 
 export { projectId, dataset, apiVersion }
+export { sanityImageSrc } from '@/lib/sanity-image'
 
 /** ISR / client cache window (seconds) */
 export const REVALIDATE_TIME = 60

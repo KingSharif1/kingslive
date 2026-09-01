@@ -1,5 +1,37 @@
 # CHANGELOG.md
 
+## 2026-09-01 — Task BLOG-8: Table is `noteTable`, not reserved `table`
+What: Studio was rejecting Pin/Signal blocks (`_type: table`) and then hiding Photos/Table/FAQ from the insert bar when those objects were registered as shared schema types. They are inline `blockContent` members again; the table is `noteTable`.
+Files: `sanity/schemaTypes/blockContentType.ts`, `app/blog/[slug]/page.tsx`, `docs/BLOG.md`
+Why: The object we inserted matched our schema (`col1`/`col2`) but PTE would not allow `_type: table`.
+Decisions: Keep a two-column pinout, not Sanity’s native n×m table plugin. Public renderer still accepts leftover `_type: table` JSON if a draft saved it.
+Next: In `/studio`, delete the red error block, hard-refresh, insert **Table** again.
+
+## 2026-09-01 — Task BLOG-7: Sheet on a calm field + Studio draft preview
+What: Notes column is the pad (equal blue rules, type between them). Around it is a quieter field. The red double margin is a full-height background rule. Studio has a **Preview** tab that opens the real `/blog/[slug]` page, including unpublished drafts (needs `SANITY_API_TOKEN`).
+Files: `globals.css`, `sanity.config.ts`, `app/api/draft-mode/enable/route.ts`, `app/api/draft-mode/disable/route.ts`, `app/api/blog/note/[slug]/route.ts`, `lib/sanity.ts`, `lib/sanity-queries.ts`, `app/blog/[slug]/page.tsx`, `BlogNav.tsx`, `docs/BLOG.md`
+Why: Lined paper behind the whole page felt busy; rules and type were off-grid; drafts were invisible on the public route.
+Decisions: Presentation tool (iframe), not a fake Studio mock. Line grid is 1.75rem for both CSS rules and body line-height.
+Next: In `/studio`, open **Preview**. Set `SANITY_API_TOKEN` if drafts 401.
+
+
+
+## 2026-09-01 — Task BLOG-6: Notebook reading + Photos / Table / FAQ
+What: Notes read like a legal pad (grid paper, double red margin, blue lines). Body type is Newsreader; titles stay Young Serif. Studio insert **Photos** (1–3, reorder), **Table** (two columns), **FAQ** (dropdowns). Captions sit under images with no box. Callouts are a left rule, not a blue card. Old Image / Image row blocks still render and stay editable as legacy.
+Files: `blockContentType.ts`, `app/blog/[slug]/page.tsx`, `components/blog/*`, `globals.css`, `app/layout.tsx`, `lib/sanity-queries.ts`, `docs/BLOG.md`
+Why: Tech posts need pinout tables, accordion FAQ, and one photo tool instead of Image + Image row. Captions and callouts were boxing content that should sit on the paper.
+Decisions: Native `<details>` for FAQ. Two-column table (pin/signal). Keep legacy image types so existing posts still edit in Studio.
+Next: In `/studio`, insert FAQ / Table / Photos on the Roomba note; publish
+
+
+
+## 2026-09-01 — Task BLOG-5: Image row (2–3 photos)
+What: Studio body block **Image row (2–3)** puts two or three photos side by side on the published note. Optional per-photo and row captions.
+Files: `sanity/schemaTypes/blockContentType.ts`, `lib/sanity.ts`, `lib/sanity-queries.ts`, `app/blog/[slug]/page.tsx`, `app/globals.css`, `docs/BLOG.md`
+Why: Consecutive Image blocks stack full-width; a dedicated row is the explicit layout.
+Decisions: Max 3. Same 4:5 crop so mixed shots line up.
+Next: In `/studio`, insert Image row, add 2–3 images, publish
+
 ## 2026-08-31 — Task BLOG-4: Notes polish, webpack crash, faster CTROOM
 What: Blog copy is a journal. King · Notes → `/blog`; Home → `/`. Covers are a contained 3:2 photo (~280px). Likes go through `/api/blog/likes`. Notes list fetches `/api/blog/notes` so the page JS does not import Sanity/Supabase. Waiting API calls show pulse placeholders (blog shelf, homepage posts/projects, GitHub commit meta). Petals are homepage-only. CTROOM views lazy-load.
 Files: `app/blog/page.tsx`, `BlogLikeButton.tsx`, `app/api/blog/likes/route.ts`, `app/api/blog/notes/route.ts`, `globals.css`, `next.config.js`, `lazyViews.tsx`, `app/page.tsx`, `ProjectsSection.tsx`

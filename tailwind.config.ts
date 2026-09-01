@@ -18,6 +18,7 @@ const config: Config = {
         // ─── Ctroom font system ─────────────────────────────
         // font-display → section titles, view headings
         display: ['var(--font-display)', 'serif'],
+        note: ['var(--font-note)', 'Georgia', 'serif'],
         // font-inter  → body, labels, buttons (ctroom default)
         inter: ['var(--font-inter)', 'sans-serif'],
         // font-mono   → stats, numbers, XP, project code tags

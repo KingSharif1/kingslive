@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — KingsLive
 
-> Last updated: 2026-08-31
+> Last updated: 2026-09-01
 
 ## System (one line)
 
@@ -27,7 +27,11 @@ Sanity Studio (/studio)
   → app/blog/* (notes UI) + homepage Latest from the Blog (portfolio rows)
 ```
 
-`/blog` chrome: `blog-world` + `BlogNav`. Do not reuse `PORTFOLIO_PAGE` / `Header` there.
+`/blog` chrome: `blog-world` is a calm field. Reading column `.blog-read` is the legal pad (equal blue rules, type on a 1.75rem grid). Red double margin is a full-height background rule on `blog-world--note`. Body: Georgia. Titles: Young Serif. Do not reuse `PORTFOLIO_PAGE` / `Header` there.
+
+Studio **Preview** tab uses Presentation + Next draft mode (`/api/draft-mode/enable`). Drafts need `SANITY_API_TOKEN`. Body fetch for a note goes through `/api/blog/note/[slug]` so the token never hits the browser.
+
+Body blocks (Studio insert): Photos, Table (`noteTable` — never `_type: table`), FAQ, Callout, Code. Defined inline on `blockContent` in `blockContentType.ts`. Legacy Image / Image row still render.
 
 Project ↔ post linking:
 - Sanity field `relatedProjectId` (e.g. `hireiq`, `roomba-dashboard`)

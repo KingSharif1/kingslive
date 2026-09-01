@@ -14,7 +14,16 @@ NEXT_PUBLIC_SANITY_PROJECT_ID=n31jvc6a
 NEXT_PUBLIC_SANITY_DATASET=production
 ```
 
-Optional write token for drafts/preview: `SANITY_API_TOKEN`.
+Optional write token for drafts/preview: `SANITY_API_TOKEN` (Viewer or Editor). Required for the Studio **Preview** tab to show unpublished drafts.
+
+## Draft preview
+
+1. Open `/studio` (localhost).
+2. Click **Preview** next to Structure (top of Studio).
+3. Open the post. The right side is the real `/blog/[slug]` page, including draft body.
+4. If that 401s, add `SANITY_API_TOKEN` to `.env.local` and restart the dev server yourself.
+
+The public `/blog/[slug]` URL still only shows published notes.
 
 ## Publishing checklist
 
@@ -25,6 +34,24 @@ For each post in Studio:
 - [ ] `publishedAt` set
 - [ ] Categories for tags
 - [ ] `relatedProjectId` if the post is about a portfolio project
+
+## Body tools (tech notes)
+
+In Studio, click **+** in the body:
+
+| Insert | Use for |
+|--------|---------|
+| **Photos** | One image, or 2–3 side by side. Drag to reorder. Caption under, no border. |
+| **Table** | Two columns (Pin / Signal, term / meaning). Hairline rows. Stored as `noteTable` — do not name a block `table` (Sanity reserves that). |
+| **FAQ** | Question + answer rows. Renders as dropdowns on the site. |
+| **Callout** | A margin note (left rule), not a colored card. |
+| **Code Block** | Snippets with language + optional filename. |
+
+Do **not** use **Image** or **Image row (legacy)** for new work — they stay so old posts still edit.
+
+**FAQ already written as an H2 + paragraphs:** delete those blocks, insert **FAQ**, paste each question and answer into its own row. The public page will not auto-convert a heading named “FAQ”.
+
+**Captions:** always under the image, serif, no box. If a photo looks boxed, it was inside a Callout — that is now a left rule, not a blue card.
 
 ## Project ↔ post linking
 
@@ -50,6 +77,7 @@ For each post in Studio:
 | Post not found by slug | `published: false` or wrong slug | Toggle published; check slug.current |
 | Empty excerpt cards | No excerpt + empty body text | Add excerpt or body paragraphs |
 | Broken inline images | Wrong project in CDN URL | Fallbacks now use `n31jvc6a` |
+| “type table is not allowed by the schema” | `_type: table` is reserved by Studio’s Portable Text editor | Delete the red error block. Insert **Table** again (now `noteTable`). Hard-refresh `/studio` after schema compile. |
 
 ## Legacy note
 

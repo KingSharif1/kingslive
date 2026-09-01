@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react"
+import { useState, useEffect, useCallback, useRef, Suspense } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
@@ -9,14 +9,15 @@ import { motion, AnimatePresence } from "framer-motion"
 import ScrollProgress from "@/app/components/ScrollProgress"
 import { BlogNav } from "@/components/BlogNav"
 import { usePortfolioTheme } from "@/components/usePortfolioTheme"
-import { getPostBySlug, BlogPost, countPortableTextWords } from "@/lib/sanity-queries"
+import { BlogPost, countPortableTextWords } from "@/lib/sanity-queries"
 import { getProjectById } from "@/lib/portfolio-projects"
 import { PortableText, PortableTextComponents } from '@portabletext/react'
 import ReactMarkdown from 'react-markdown'
 import { supabase } from "@/lib/supabase"
-
-// Lazy load Comments - not needed for initial render
-const Comments = lazy(() => import("./Comments"))
+import { BlogPhotos, toBlogPhotos } from "@/components/blog/BlogPhotos"
+import { BlogTable } from "@/components/blog/BlogTable"
+import { BlogFaq } from "@/components/blog/BlogFaq"
+import Comments from "./Comments"
 
 // PortableText components for proper rendering
 const portableTextComponents: PortableTextComponents = {
@@ -65,50 +66,20 @@ const portableTextComponents: PortableTextComponents = {
     },
   },
   types: {
-    image: ({ value }) => {
-      // Handle different possible image structures from Sanity
-      const imageUrl = value?.asset?.url || value?.asset?._ref
-      if (!imageUrl) {
-        console.log('Image value:', value)
-        return null
-      }
-
-      let src = imageUrl
-      if (!src.startsWith('http')) {
-        // Robust Sanity Image URL construction
-        // Ref format: image-hash-dimensions-extension
-        const refPattern = /^image-([a-f\d]+)-(\d+x\d+)-(\w+)$/
-        const match = imageUrl.match(refPattern)
-        if (match) {
-          const [, hash, dimensions, extension] = match
-          src = `https://cdn.sanity.io/images/${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'n31jvc6a'}/${process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'}/${hash}-${dimensions}.${extension}`
-        } else {
-          // Fallback for simple replacements (older format or if regex fails)
-          src = `https://cdn.sanity.io/images/${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'n31jvc6a'}/${process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'}/${imageUrl.replace('image-', '').replace('-jpg', '.jpg').replace('-png', '.png').replace('-webp', '.webp').replace('-gif', '.gif')}`
-        }
-      }
-
-      return (
-        <figure className="my-8">
-          <div className="relative w-full overflow-hidden">
-            <Image
-              src={src}
-              alt={value.alt || 'Blog post image'}
-              width={800}
-              height={600}
-              className="w-full h-auto object-cover"
-              priority={false}
-              unoptimized={!src.startsWith('http')}
-            />
-          </div>
-          {value.caption && (
-            <figcaption className="text-center text-sm text-[var(--muted-foreground)] mt-3 italic font-open-sans">
-              {value.caption}
-            </figcaption>
-          )}
-        </figure>
-      )
-    },
+    image: ({ value }) => <BlogPhotos images={toBlogPhotos(value)} />,
+    photos: ({ value }) => (
+      <BlogPhotos images={toBlogPhotos(value?.images)} caption={value?.caption} />
+    ),
+    imageRow: ({ value }) => (
+      <BlogPhotos images={toBlogPhotos(value?.images)} caption={value?.caption} />
+    ),
+    table: ({ value }) => (
+      <BlogTable col1={value?.col1} col2={value?.col2} rows={value?.rows} caption={value?.caption} />
+    ),
+    noteTable: ({ value }) => (
+      <BlogTable col1={value?.col1} col2={value?.col2} rows={value?.rows} caption={value?.caption} />
+    ),
+    faq: ({ value }) => <BlogFaq heading={value?.heading} items={value?.items} />,
     code: ({ value }) => (
       <div className="my-6 rounded-lg overflow-hidden border border-[var(--border)]">
         {/* Header with language/filename */}
@@ -138,119 +109,34 @@ const portableTextComponents: PortableTextComponents = {
       </div>
     ),
     callout: ({ value }) => {
-      const styles: Record<string, { headerBg: string; contentBg: string; borderColor: string; titleColor: string }> = {
-        info: {
-          headerBg: 'bg-blue-500 dark:bg-blue-600',
-          contentBg: 'bg-blue-50 dark:bg-blue-900/10',
-          borderColor: 'border-blue-500 dark:border-blue-600',
-          titleColor: 'text-white'
-        },
-        warning: {
-          headerBg: 'bg-yellow-500 dark:bg-yellow-600',
-          contentBg: 'bg-yellow-50 dark:bg-yellow-900/10',
-          borderColor: 'border-yellow-500 dark:border-yellow-600',
-          titleColor: 'text-black dark:text-white'
-        },
-        danger: {
-          headerBg: 'bg-red-500 dark:bg-red-600',
-          contentBg: 'bg-red-50 dark:bg-red-900/10',
-          borderColor: 'border-red-500 dark:border-red-600',
-          titleColor: 'text-white'
-        },
-        success: {
-          headerBg: 'bg-green-500 dark:bg-green-600',
-          contentBg: 'bg-green-50 dark:bg-green-900/10',
-          borderColor: 'border-green-500 dark:border-green-600',
-          titleColor: 'text-white'
-        },
-        accent: {
-          headerBg: 'bg-[var(--accent)]',
-          contentBg: 'bg-[var(--accent)]/5',
-          borderColor: 'border-[var(--accent)]',
-          titleColor: 'text-white'
-        },
-        minimal: {
-          headerBg: 'bg-[var(--secondary)]',
-          contentBg: 'bg-[var(--background)]',
-          borderColor: 'border-[var(--border)]',
-          titleColor: 'text-[var(--foreground)]'
-        },
-      }
-
-      // Fallback for old data or default
-      const styleKey = value?.style || value?.type || 'info'
-      // Map old 'tip'/'pro' to new styles if needed, or just let them fallback to default/closest
-      const mappedKey = styleKey === 'tip' || styleKey === 'pro' ? 'accent' : styleKey
-
-      const style = styles[mappedKey] || styles.info
-
-      // Nested components for callout content
       const calloutComponents: PortableTextComponents = {
         block: {
-          normal: ({ children }) => <p className="text-[var(--foreground)] font-open-sans leading-relaxed mb-2 last:mb-0">{children}</p>,
+          normal: ({ children }) => <p className="font-open-sans leading-relaxed mb-2 last:mb-0">{children}</p>,
         },
         marks: {
-          strong: ({ children }) => <strong className="font-bold">{children}</strong>,
-          code: ({ children }) => <code className="bg-black/10 dark:bg-white/10 px-1.5 py-0.5 rounded text-sm font-mono">{children}</code>,
+          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+          em: ({ children }) => <em className="italic">{children}</em>,
+          code: ({ children }) => <code className="font-mono text-[0.9em]">{children}</code>,
           link: ({ value: linkValue, children }) => (
-            <a href={linkValue?.href} className="underline hover:opacity-80" target="_blank" rel="noopener noreferrer">{children}</a>
+            <a href={linkValue?.href} className="underline underline-offset-4" target="_blank" rel="noopener noreferrer">{children}</a>
           ),
         },
         types: {
-          image: ({ value: imgValue }) => {
-            const imgUrl = imgValue?.asset?.url || imgValue?.asset?._ref
-            if (!imgUrl) return null
-            let src = imgUrl
-            if (!src.startsWith('http')) {
-              // Robust Sanity Image URL construction
-              // Ref format: image-hash-dimensions-extension
-              const refPattern = /^image-([a-f\d]+)-(\d+x\d+)-(\w+)$/
-              const match = imgUrl.match(refPattern)
-              if (match) {
-                const [, hash, dimensions, extension] = match
-                src = `https://cdn.sanity.io/images/${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'n31jvc6a'}/${process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'}/${hash}-${dimensions}.${extension}`
-              } else {
-                // Fallback
-                src = `https://cdn.sanity.io/images/${process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'n31jvc6a'}/${process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'}/${imgUrl.replace('image-', '').replace('-jpg', '.jpg').replace('-png', '.png').replace('-webp', '.webp').replace('-gif', '.gif')}`
-              }
-            }
-            return (
-              <div className="my-4 rounded-lg overflow-hidden border border-black/5 dark:border-white/5">
-                <Image
-                  src={src}
-                  alt={imgValue?.alt || 'Callout image'}
-                  width={600}
-                  height={400}
-                  className="w-full h-auto"
-                />
-              </div>
-            )
-          }
-        }
+          image: ({ value: imgValue }) => <BlogPhotos images={toBlogPhotos(imgValue)} />,
+        },
       }
 
-      return (
-        <div className={`my-8 rounded-xl overflow-hidden border-2 shadow-md ${style.borderColor}`}>
-          {/* Header Bar */}
-          {value?.title && (
-            <div className={`${style.headerBg} p-3 text-center border-b-2 ${style.borderColor}`}>
-              <h4 className={`text-xl font-black font-fraunces tracking-wide ${style.titleColor} drop-shadow-sm`}>
-                {value.title}
-              </h4>
-            </div>
-          )}
+      const kicker = value?.title || value?.type || 'Note'
 
-          {/* Content Area */}
-          <div className={`p-6 ${style.contentBg}`}>
-            <div className="text-[var(--foreground)]/90">
-              {Array.isArray(value?.content) ? (
-                <PortableText value={value.content} components={calloutComponents} />
-              ) : (
-                <p className="font-open-sans leading-relaxed">{value?.content}</p>
-              )}
-            </div>
-          </div>
-        </div>
+      return (
+        <aside className="blog-aside">
+          {kicker ? <p className="blog-aside__kicker">{kicker}</p> : null}
+          {Array.isArray(value?.content) ? (
+            <PortableText value={value.content} components={calloutComponents} />
+          ) : (
+            <p className="font-open-sans leading-relaxed">{value?.content}</p>
+          )}
+        </aside>
       )
     },
   },
@@ -620,6 +506,7 @@ export default function BlogPostPage() {
   const { isDark, mounted, toggleTheme } = usePortfolioTheme()
   const [post, setPost] = useState<SlugPagePost | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isPreview, setIsPreview] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
   const slug = params.slug as string
 
@@ -627,7 +514,10 @@ export default function BlogPostPage() {
     const fetchPost = async () => {
       setIsLoading(true)
       try {
-        const sanityPost = await getPostBySlug(slug)
+        const res = await fetch(`/api/blog/note/${encodeURIComponent(slug)}`, { cache: 'no-store' })
+        const data = await res.json()
+        const sanityPost = data?.post ?? null
+        setIsPreview(Boolean(data?.preview))
         console.log('Fetched post from Sanity:', sanityPost?.title)
         setPost(sanityPost)
 
@@ -679,7 +569,13 @@ export default function BlogPostPage() {
   const readingTime = Math.max(1, Math.ceil(wordCount / 200))
 
   return (
-    <div className={`blog-world${isDark ? ' dark' : ''}`}>
+    <div className={`blog-world blog-world--note${isDark ? ' dark' : ''}`}>
+      {isPreview ? (
+        <p className="blog-preview-flag">
+          Draft preview — this is not the public page.{' '}
+          <a href="/api/draft-mode/disable">Exit preview</a>
+        </p>
+      ) : null}
       <BlogNav isDark={isDark} toggleTheme={toggleTheme} />
       <ScrollProgress />
       <ShareModal
@@ -723,7 +619,7 @@ export default function BlogPostPage() {
           </div>
         )}
 
-        <article className="blog-read px-5 sm:px-0 pt-4 sm:pt-8">
+        <article className="blog-read pt-4 sm:pt-8">
           <p className="text-[11px] font-mono tracking-[0.22em] uppercase text-[var(--blog-muted)] mb-5">
             {new Date(post.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
             <span className="mx-3">·</span>

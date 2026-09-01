@@ -1,5 +1,5 @@
 import { PortableTextBlock } from '@portabletext/types'
-import { client } from './sanity'
+import { client, previewClient } from './sanity'
 
 const cache = new Map<string, { data: unknown; timestamp: number }>()
 const CACHE_TTL = 60 * 1000
@@ -122,21 +122,42 @@ export async function getPublishedPosts(): Promise<BlogPost[]> {
   }
 }
 
-export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
-  const cacheKey = `post_${slug}`
+export async function getPostBySlug(
+  slug: string,
+  options?: { preview?: boolean }
+): Promise<BlogPost | null> {
+  const preview = Boolean(options?.preview)
+  const cacheKey = preview ? `post_preview_${slug}` : `post_${slug}`
   const cached = cache.get(cacheKey) as { data: BlogPost | null; timestamp: number } | undefined
 
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+  if (!preview && cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.data
   }
 
-  const query = `*[_type == "post" && slug.current == $slug && (!defined(published) || published == true)][0] {
+  const reader = preview ? previewClient : client
+  const publishedFilter = preview ? '' : ' && (!defined(published) || published == true)'
+
+  const query = `*[_type == "post" && slug.current == $slug${publishedFilter}][0] {
     ${LIST_PROJECTION},
     body[] {
       ...,
       _type == "image" => {
         ...,
         "asset": asset->{ url, metadata }
+      },
+      _type == "photos" => {
+        ...,
+        images[] {
+          ...,
+          "asset": asset->{ url, metadata }
+        }
+      },
+      _type == "imageRow" => {
+        ...,
+        images[] {
+          ...,
+          "asset": asset->{ url, metadata }
+        }
       },
       _type == "callout" => {
         ...,
@@ -152,9 +173,11 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
   }`
 
   try {
-    const post = await client.fetch<SanityPost | null>(query, { slug })
+    const post = await reader.fetch<SanityPost | null>(query, { slug })
     const transformed = post ? transformPost(post) : null
-    cache.set(cacheKey, { data: transformed, timestamp: Date.now() })
+    if (!preview) {
+      cache.set(cacheKey, { data: transformed, timestamp: Date.now() })
+    }
     return transformed
   } catch (error) {
     console.error('Error fetching post from Sanity:', error)

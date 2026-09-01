@@ -12,7 +12,7 @@ export function BlogNav({
   toggleTheme: () => void
 }) {
   return (
-    <nav className="sticky top-0 z-40 flex items-center justify-between px-5 sm:px-8 py-5 bg-[var(--blog-paper)]/80 backdrop-blur-md">
+    <nav className="sticky top-0 z-40 flex items-center justify-between px-5 sm:px-8 py-5 bg-[var(--blog-field)]/80 backdrop-blur-md">
       <Link href="/blog" className="flex items-center gap-3 hover:opacity-70 transition-opacity">
         <span className="relative h-8 w-8 overflow-hidden">
           <Image src="/favicon.ico" alt="" fill sizes="32px" className="object-contain" />
