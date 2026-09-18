@@ -14,7 +14,7 @@ _Not a demo. Not a portfolio toy. Stuff I actually use._
 [![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
 [![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/)
 
-[**Live →**](https://kingslive.vercel.app) &nbsp;·&nbsp; [**@KingSharif1**](https://github.com/KingSharif1)
+[**Live →**](https://kingsharif.com) &nbsp;·&nbsp; [**@KingSharif1**](https://github.com/KingSharif1)
 
 </div>
 
