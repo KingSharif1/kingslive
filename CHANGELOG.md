@@ -1,5 +1,12 @@
 # CHANGELOG.md
 
+## 2026-09-20 — Tasks KL-10 / KL-01 / KL-02: package name, mobile nav, SSR projects
+What: Package name is `kingslive`. Homepage header has a Sheet hamburger below `md`. Published projects load on the server and ship in the first HTML instead of a client `useEffect` fetch.
+Files: `package.json`, `package-lock.json`, `components/Header.tsx`, `app/page.tsx`, `components/HomePage.tsx`, `lib/fetchPublishedProjects.ts`, `app/ctroom/services/portfolioProjectsService.ts`
+Why: `my-v0-project` was leftover v0 scaffolding; mobile had no nav; projects waited on hydrate + a sequential client query.
+Decisions: Reuse shadcn `Sheet` (already in the repo, unused). Public fetch uses the anon key without `cookies()`, so `/` can ISR (`revalidate = 60`) instead of going dynamic. Blog teasers still load client-side (out of scope). KL-08 domain spelling not touched.
+Next: KL-03+ from the ARK queue; optional SSR for homepage blog teasers.
+
 ## 2026-09-01 — Task BLOG-8: Table is `noteTable`, not reserved `table`
 What: Studio was rejecting Pin/Signal blocks (`_type: table`) and then hiding Photos/Table/FAQ from the insert bar when those objects were registered as shared schema types. They are inline `blockContent` members again; the table is `noteTable`.
 Files: `sanity/schemaTypes/blockContentType.ts`, `app/blog/[slug]/page.tsx`, `docs/BLOG.md`

@@ -1,5 +1,12 @@
 # DECISIONS.md
 
+## 2026-09-20 — Homepage projects load on the server; mobile nav is the existing Sheet
+- **Context:** `/` was a client page that fetched published projects after hydrate. Header nav was `hidden md:flex` with no small-screen menu.
+- **Options:** Keep client fetch + loading skeletons / `cookies()` server client (dynamic) / anon Supabase fetch + ISR. New drawer vs shadcn Sheet already in `components/ui`.
+- **Choice:** Server `app/page.tsx` + `fetchPublishedProjects()` with the anon key (no cookies) and `revalidate = 60`. Interactive chrome stays in `HomePage`. Mobile menu reuses `Sheet`.
+- **Tradeoff:** Blog teasers on `/` still client-fetch. Sheet adds Dialog JS on the homepage (the primitive was already a dependency).
+- **Revisit if:** You want blog teasers SSR too, or a lighter native `<dialog>` to shave JS.
+
 ## 2026-09-01 — Never name a Portable Text object `table`
 - **Context:** Inserting our Pin/Signal table on localhost showed “type table is not allowed by the schema”.
 - **Options:** Enable Sanity’s native table plugin / keep `_type: table` as a registered type / rename to `noteTable`.
