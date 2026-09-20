@@ -30,13 +30,14 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     year: '2026',
     status: 'Deployed',
     description:
-      'AI resume tailoring and application tracking. Match a resume to a job post, preview a tailored PDF, and keep every application in one desk — so the paperwork actually gets finished.',
+      'Problem: rewriting resumes per posting and losing track of applications. Built: Claude-powered tailoring, ATS scoring, and a tracker so paperwork actually finishes. Result: live product used in real tailor → track → apply workflows.',
     image: '/hireiq-cover.jpg',
     tech: ['Next.js', 'TypeScript', 'Supabase', 'Claude', 'Tailwind'],
     liveUrl: 'https://hireiq.kingsharif.com',
     repoUrl: 'https://github.com/KingSharif1/HireIQ',
     repoPublic: true,
     timelineDate: '2026-06-08',
+    blogSlug: 'how-hireiq-tailor-works',
     featured: true,
     sortOrder: 0,
   },
@@ -46,7 +47,7 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     year: '2026',
     status: 'Deployed',
     description:
-      'SaaS for non-emergency medical transport — operators and riders share scheduling, trip ops, and billing in one place instead of spreadsheets and phone tag.',
+      'Problem: NEMT operators drown in spreadsheets and phone tag. Built: multi-tenant scheduling, trip ops, and billing for operators and riders. Result: production SaaS direction shaped by live billing learnings.',
     image: '/ridenemt-cover.jpg',
     tech: ['TypeScript', 'Next.js', 'Supabase'],
     liveUrl: 'https://app.ridenemt.com',
@@ -57,20 +58,54 @@ export const FEATURED_PROJECTS: PortfolioProject[] = [
     sortOrder: 1,
   },
   {
+    id: 'dfwnemt',
+    title: 'NEMT Billing',
+    year: '2026',
+    status: 'Deployed',
+    description:
+      'Problem: broker trip exports do not map cleanly to driver pay. Built: tiered rate engine, auto service detection, PDF/spreadsheet pay breakdowns, Stripe subscriptions. Result: 5 paying companies; ~50–100 calculations/month each on ~80–500 trips.',
+    image: '/dfwnemt-cover.jpg',
+    tech: ['TypeScript', 'Next.js', 'Strapi', 'Stripe'],
+    liveUrl: 'https://nemtbiling.com',
+    repoUrl: 'https://github.com/KingSharif1/DfwNemt',
+    repoPublic: false,
+    timelineDate: '2026-01-15',
+    blogSlug: 'shipping-nemt-with-paying-customers',
+    featured: true,
+    sortOrder: 2,
+  },
+  {
     id: 'roomba-dashboard',
     title: 'Roomba',
     year: '2026',
     status: 'Deployed',
     description:
-      'Live ops dashboard for a Roomba: dock status, run history, map and camera views, and home-automation controls from one screen.',
+      'Problem: robot telemetry is useless without an operator UI. Built: dock status, run history, map/camera views, and controls over a ROS 2 / Pi stack. Result: live dashboard — hardware-adjacent full-stack signal.',
     image: '/roomba-cover.jpg',
     tech: ['TypeScript', 'Next.js', 'APIs'],
     liveUrl: 'https://roomba.kingsharif.com',
     repoUrl: 'https://github.com/KingSharif1/roomba-dashboard',
     repoPublic: false,
     timelineDate: '2026-02-01',
+    blogSlug: 'roomba-ops-dashboard',
     featured: true,
-    sortOrder: 2,
+    sortOrder: 3,
+  },
+  {
+    id: 'nami',
+    title: 'Nami',
+    year: '2025',
+    status: 'Deployed',
+    description:
+      'Problem: generic budgeting UIs miss real cashflow mechanics. Built: Plaid production sync, RLS, safe-to-spend, and an AI coach over real transactions. Result: live fintech UI with backend credibility.',
+    image: '/nami-cover.jpg',
+    tech: ['TypeScript', 'Next.js', 'Supabase', 'Plaid'],
+    liveUrl: 'https://nami.kingsharif.com',
+    repoUrl: 'https://github.com/KingSharif1/nami',
+    repoPublic: false,
+    timelineDate: '2025-12-01',
+    featured: true,
+    sortOrder: 4,
   },
 ]
 
@@ -88,38 +123,6 @@ export const ARCHIVE_PROJECTS: PortfolioProject[] = [
     repoUrl: 'https://github.com/KingSharif1/kingslive',
     repoPublic: true,
     timelineDate: '2026-08-01',
-    featured: false,
-    sortOrder: 3,
-  },
-  {
-    id: 'dfwnemt',
-    title: 'NEMT Billing',
-    year: '2026',
-    status: 'Deployed',
-    description:
-      'A web app I built with Next.js to streamline billing for non-emergency medical transportation — trip-to-payment calculator, invoices, and live use with paying customers.',
-    image: '/dfwnemt-cover.jpg',
-    tech: ['TypeScript', 'Next.js'],
-    liveUrl: 'https://nemtbiling.com',
-    repoUrl: 'https://github.com/KingSharif1/DfwNemt',
-    repoPublic: false,
-    timelineDate: '2026-01-15',
-    featured: false,
-    sortOrder: 4,
-  },
-  {
-    id: 'nami',
-    title: 'Nami',
-    year: '2025',
-    status: 'Deployed',
-    description:
-      'Personal finance product UI — a calm dark terminal for cashflow, accounts, and the next move with money, without looking like a bank brochure.',
-    image: '/nami-cover.jpg',
-    tech: ['TypeScript', 'Next.js'],
-    liveUrl: 'https://nami.kingsharif.com',
-    repoUrl: 'https://github.com/KingSharif1/nami',
-    repoPublic: false,
-    timelineDate: '2025-12-01',
     featured: false,
     sortOrder: 5,
   },
@@ -228,9 +231,9 @@ export function getFeaturedHighlights(projects: PortfolioProject[]): PortfolioPr
   const featured = projects
     .filter((p) => p.featured)
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-  if (featured.length >= 3) return featured.slice(0, 3)
+  if (featured.length >= 5) return featured.slice(0, 5)
   if (featured.length > 0) return featured
-  return sortProjectsByTimeline(projects).slice(0, 3)
+  return sortProjectsByTimeline(projects).slice(0, 5)
 }
 
 export function getInProgressByTimeline(projects: PortfolioProject[]): PortfolioProject[] {
