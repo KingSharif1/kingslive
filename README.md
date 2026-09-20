@@ -1,10 +1,10 @@
 <div align="center">
 
-# 👑 KingsLive
+# kingsharif.com
 
-### My personal site — portfolio up front, experiments in the back.
+### Personal site — portfolio, blog, private HQ
 
-_Not a demo. Not a portfolio toy. Stuff I actually use._
+_Repo name: `kingslive` · Live brand: **King Sharif**_
 
 <br/>
 
@@ -20,87 +20,88 @@ _Not a demo. Not a portfolio toy. Stuff I actually use._
 
 ---
 
-## 👋 What this is
+## What this is
 
-I'm King Sharif — creative developer, UX engineer, and entrepreneur out of Fort Worth, TX.
+I'm **King Sharif** — full-stack developer in Fort Worth, TX.
 
-This is my corner of the internet. The public side is a clean, dark portfolio with a Sanity-powered blog. Behind that, there's some private tooling I built for myself — auth-gated, not really meant for public walkthroughs.
+Public side: dark editorial portfolio + Sanity blog (developer journey).  
+Private side: CTROOM HQ (auth-gated) — vision board, tasks, notes, chat.
 
-Philosophy stays the same: **build things that are personal, smart, and actually solve your problems.**
-
----
-
-## 🌐 What's public
-
-| | |
-|---|---|
-| **Portfolio** | Minimal dark design, particle background, the work |
-| **Blog** | Posts powered by Sanity CMS |
-| **Contact** | Reach me from the site |
-
-Everything else in the repo is mostly personal infrastructure. If you stumble on routes that need a login, that's intentional.
+**Build things that are personal, smart, and actually solve problems.**
 
 ---
 
-## 🧱 Stack
+## Public surfaces
 
-| Layer | What I'm using |
-|---|---|
-| **Framework** | Next.js 15 (App Router) · React 18 |
-| **Language** | TypeScript 5 |
-| **Styling** | Tailwind CSS 3.4 · shadcn/ui · Framer Motion |
-| **Auth & DB** | Supabase |
-| **CMS** | Sanity v4 |
-| **Deploy** | Vercel |
+| Surface | Route |
+|---------|-------|
+| Portfolio | `/` |
+| Blog | `/blog` |
+| Contact | site form |
+
+Login-gated routes are intentional (CTROOM).
+
+Open polish work: [issue #12](https://github.com/KingSharif1/kingslive/issues/12) · [PR #13](https://github.com/KingSharif1/kingslive/pull/13)
 
 ---
 
-## 🛠️ Run it locally
+## Stack
+
+| Layer | |
+|-------|--|
+| Framework | Next.js 15 (App Router) · React 18 |
+| Language | TypeScript 5 |
+| Styling | Tailwind · shadcn/ui · Framer Motion |
+| Auth & DB | Supabase |
+| CMS | Sanity v4 |
+| Deploy | Vercel |
+
+---
+
+## Local
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in your keys
+cp .env.example .env.local   # fill keys
 npm run dev
 ```
 
-You'll need Supabase + Sanity configured at minimum. The rest depends on what you're trying to run.
+Needs Supabase + Sanity at minimum.
 
 ---
 
-## 🗺️ Layout (high level)
+## Layout
 
 ```
 app/
 ├── page.tsx          # Portfolio
-├── blog/             # Blog routes (Sanity)
+├── blog/             # Sanity blog
 ├── studio/           # Sanity Studio
-├── ctroom/           # Private HQ (auth-gated)
+├── ctroom/           # Private HQ (auth)
 components/           # Portfolio UI
-lib/                  # Shared utilities + Sanity queries
-docs/                 # ADRs + feature notes
+lib/                  # Shared + Sanity
+docs/                 # ADRs + notes
 ```
 
-## 📚 Docs (start here for agents)
+## Agent docs
 
 | Doc | Purpose |
-|-----|---------|
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | System map + data flows |
-| [STATUS.md](./STATUS.md) | What's working / blocked |
-| [TASKS.md](./TASKS.md) | Shared task queue |
-| [DECISIONS.md](./DECISIONS.md) | Why we chose X |
-| [CHANGELOG.md](./CHANGELOG.md) | What changed recently |
-| [docs/BLOG.md](./docs/BLOG.md) | Sanity blog ops |
+|-----|--------|
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | System map |
+| [STATUS.md](./STATUS.md) | Working / blocked |
+| [TASKS.md](./TASKS.md) | Task queue |
+| [DECISIONS.md](./DECISIONS.md) | Why |
+| [CHANGELOG.md](./CHANGELOG.md) | Recent |
+| [docs/BLOG.md](./docs/BLOG.md) | Blog ops |
 
 ---
 
-## 📌 Status
+## Status
 
-Active personal project. Not open for contributions — repo is public for transparency and portfolio purposes.
+Active personal project. Public for portfolio transparency — not open for contributions.
 
 <div align="center">
 
-**Built by King Sharif** — [github.com/KingSharif1](https://github.com/KingSharif1)
-
-_Build things that are personal, smart, and actually solve your problems._
+**Built by King Sharif** — [kingsharif.com](https://kingsharif.com)
 
 </div>
