@@ -6,7 +6,7 @@ export type BlogPhoto = { src: string; alt: string; caption?: string }
 export function toBlogPhotos(images: unknown): BlogPhoto[] {
   const list = Array.isArray(images) ? images : images ? [images] : []
   return list
-    .map((img) => {
+    .map((img): BlogPhoto | null => {
       const item = img as { alt?: string; caption?: string; asset?: { url?: string; _ref?: string } }
       const src = sanityImageSrc(item)
       if (!src) return null

@@ -17,6 +17,8 @@ import { supabase } from "@/lib/supabase"
 import { BlogPhotos, toBlogPhotos } from "@/components/blog/BlogPhotos"
 import { BlogTable } from "@/components/blog/BlogTable"
 import { BlogFaq } from "@/components/blog/BlogFaq"
+import BlogDrift from "@/components/blog/BlogDrift"
+import BlogCursor from "@/components/blog/BlogCursor"
 import Comments from "./Comments"
 
 // PortableText components for proper rendering
@@ -58,7 +60,7 @@ const portableTextComponents: PortableTextComponents = {
           href={value?.href}
           target={target}
           rel={target === '_blank' ? 'noopener noreferrer' : undefined}
-          className="text-[var(--blog-bloom)] underline decoration-from-font underline-offset-4"
+          className="blog-link text-[var(--blog-bloom)] underline decoration-from-font underline-offset-4"
         >
           {children}
         </a>
@@ -145,6 +147,51 @@ const portableTextComponents: PortableTextComponents = {
 // Extended BlogPost type for slug page (includes content)
 interface SlugPagePost extends BlogPost {
   markdownContent?: string
+}
+
+// Walk portable-text body blocks and collect every external link (deduped by URL)
+// for the "Sources & further reading" footnotes section.
+function collectExternalLinks(blocks: unknown): { href: string; text: string }[] {
+  const out = new Map<string, string>()
+
+  const textForMark = (block: { children?: Array<{ marks?: string[]; text?: string }> }, key: string): string => {
+    const child = (block.children || []).find(
+      (c) => Array.isArray(c.marks) && c.marks.includes(key)
+    )
+    return (child?.text || '').trim().slice(0, 90)
+  }
+
+  const visitBlock = (block: unknown): void => {
+    if (!block || typeof block !== 'object') return
+    const b = block as Record<string, unknown>
+    if (b._type === 'block' && Array.isArray(b.markDefs)) {
+      for (const def of b.markDefs as Array<{ _type?: string; _key?: string; href?: string }>) {
+        if (
+          def?._type === 'link' &&
+          typeof def.href === 'string' &&
+          /^https?:\/\//.test(def.href) &&
+          !out.has(def.href)
+        ) {
+          out.set(def.href, textForMark(b as { children?: Array<{ marks?: string[]; text?: string }> }, def._key || '') || def.href)
+        }
+      }
+    }
+    // Recurse into nested portable-text (e.g. callout content)
+    for (const v of Object.values(b)) {
+      if (Array.isArray(v)) v.forEach(visitBlock)
+    }
+  }
+
+  if (Array.isArray(blocks)) blocks.forEach(visitBlock)
+  return [...out.entries()].map(([href, text]) => ({ href, text }))
+}
+
+function hostnameOf(href: string): string {
+  try {
+    return new URL(href).hostname.replace(/^www\./, '')
+  } catch {
+    return ''
+  }
 }
 
 // Sample blog posts - fallback when Sanity has no content
@@ -555,7 +602,7 @@ export default function BlogPostPage() {
         <div className="px-5 sm:px-10 lg:px-16 py-24">
           <h1 className="font-fraunces text-4xl mb-6">This volume isn’t on the shelf.</h1>
           <Link href="/blog" className="text-[11px] font-mono tracking-[0.22em] uppercase">
-            ← Notes
+            ← Cerebration
           </Link>
         </div>
       </main>
@@ -563,6 +610,7 @@ export default function BlogPostPage() {
   }
 
   const relatedProject = post.relatedProjectId ? getProjectById(post.relatedProjectId) : undefined
+  const footnotes = post.content ? collectExternalLinks(post.content) : []
   const wordCount = post.content
     ? countPortableTextWords(post.content)
     : (post.markdownContent || '').split(/\s+/).filter(Boolean).length
@@ -578,6 +626,8 @@ export default function BlogPostPage() {
       ) : null}
       <BlogNav isDark={isDark} toggleTheme={toggleTheme} />
       <ScrollProgress />
+      <BlogDrift ink={isDark ? '#f0e6d8' : '#1a1612'} />
+      <BlogCursor />
       <ShareModal
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
@@ -587,7 +637,7 @@ export default function BlogPostPage() {
       <main className="pb-28">
         <aside className="hidden lg:flex fixed left-4 top-1/2 -translate-y-1/2 z-30 flex-col gap-6 text-[var(--blog-muted)]">
           <Link href="/blog" className="text-[10px] font-mono tracking-[0.22em] uppercase hover:text-[var(--blog-ink)]" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
-            Notes
+            Cerebration
           </Link>
           <button type="button" onClick={handleShare} className="hover:text-[var(--blog-ink)]" title="Share">
             <Share2 className="w-4 h-4" />
@@ -619,24 +669,27 @@ export default function BlogPostPage() {
           </div>
         )}
 
-        <article className="blog-read pt-4 sm:pt-8">
-          <p className="text-[11px] font-mono tracking-[0.22em] uppercase text-[var(--blog-muted)] mb-5">
-            {new Date(post.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-            <span className="mx-3">·</span>
-            {readingTime} min
-            {post.author ? <span className="mx-3">·</span> : null}
-            {post.author}
-          </p>
-
-          <h1 className="font-fraunces text-4xl sm:text-5xl lg:text-6xl leading-[1.05] tracking-tight mb-6">
-            {post.title}
-          </h1>
-
-          {post.excerpt && (
-            <p className="text-lg sm:text-xl leading-relaxed text-[var(--blog-muted)] mb-8">
-              {post.excerpt}
+        <article className="blog-read blog-oldbook pt-4 sm:pt-8">
+          <header className="blog-titlepage">
+            <p className="blog-titlepage__brand">Cerebration</p>
+            <p className="blog-titlepage__ornament" aria-hidden="true">
+              ❦
             </p>
-          )}
+            <h1 className="blog-titlepage__title">{post.title}</h1>
+            {post.excerpt && (
+              <p className="blog-titlepage__excerpt">{post.excerpt}</p>
+            )}
+            <p className="blog-titlepage__ornament" aria-hidden="true">
+              ❦
+            </p>
+            <p className="blog-titlepage__byline">
+              {post.author || 'King Sharif'}
+              {' · '}
+              {new Date(post.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              {' · '}
+              {readingTime} min read
+            </p>
+          </header>
 
           {post.tags && post.tags.length > 0 && (
             <div className="flex flex-wrap gap-x-5 gap-y-2 mb-10 text-[11px] font-mono tracking-[0.18em] uppercase text-[var(--blog-muted)]">
@@ -667,9 +720,29 @@ export default function BlogPostPage() {
             )}
           </div>
 
+          {footnotes.length > 0 && (
+            <section className="blog-footnotes" aria-label="Sources and further reading">
+              <p className="blog-footnotes__kicker">Sources &amp; further reading</p>
+              <ol className="blog-footnotes__list">
+                {footnotes.map((f) => (
+                  <li key={f.href}>
+                    <a href={f.href} target="_blank" rel="noopener noreferrer">
+                      {f.text}
+                    </a>
+                    <span className="blog-footnotes__host">{hostnameOf(f.href)}</span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          <div className="blog-fin" aria-hidden="true">
+            <span>❦</span>&nbsp;&nbsp;Fin&nbsp;&nbsp;<span>❦</span>
+          </div>
+
           <div className="mt-16 pt-8 border-t border-[var(--blog-ink)]/10 flex items-center justify-between gap-4">
             <Link href="/blog" className="text-[11px] font-mono tracking-[0.22em] uppercase">
-              ← Shelf
+              ← Library
             </Link>
             <LikeButton postId={post.id} initialLikes={post.views || 0} size="large" />
           </div>

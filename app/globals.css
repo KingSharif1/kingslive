@@ -242,6 +242,9 @@ html.dark body::before,
   --blog-line: 1.75rem;
   --blog-gutter: 2.65rem;
   --blog-sheet: 42rem;
+  --shelf-hi: #9a7a52;
+  --shelf-mid: #6f5233;
+  --shelf-lo: #4a3520;
   --font-note: Georgia, 'Palatino Linotype', Palatino, serif;
   --foreground: var(--blog-ink);
   --muted-foreground: var(--blog-muted);
@@ -267,6 +270,9 @@ html.dark .blog-world,
   --blog-bloom: #ffb7b2;
   --blog-rule: #5a6e86;
   --blog-spine: #c9b0a2;
+  --shelf-hi: #5a452c;
+  --shelf-mid: #3d2f1e;
+  --shelf-lo: #2a2013;
 }
 
 .blog-world .font-open-sans {
@@ -688,6 +694,244 @@ html.dark .blog-world,
 .blog-image-row__rowcap {
   text-align: left;
   margin-top: 0.7rem;
+}
+
+/* ============ Class-notes restyle: header, taped photos, link polish, footnotes ============ */
+
+/* --- Notebook header: Name / Date / Title, like the top of class notes --- */
+.blog-notehead {
+  border: 1px solid color-mix(in srgb, var(--blog-ink) 22%, transparent);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--blog-paper) 82%, transparent);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--blog-ink) 8%, transparent);
+  padding: 0.9rem 1.25rem 1rem;
+  margin-bottom: calc(var(--blog-line) * 2);
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+.blog-notehead__row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  padding: 0.32rem 0;
+}
+
+.blog-notehead__label {
+  flex: none;
+  width: 3.4rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--blog-muted);
+}
+
+.blog-notehead__dots {
+  flex: 1 1 auto;
+  border-bottom: 1px dotted color-mix(in srgb, var(--blog-ink) 32%, transparent);
+  transform: translateY(-5px);
+  min-width: 1.5rem;
+}
+
+.blog-notehead__value {
+  flex: none;
+  max-width: 72%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  color: var(--blog-ink);
+  font-weight: 600;
+}
+
+/* --- Taped photos: soft polaroid frame + washi tape --- */
+.blog-read .prose figure.blog-photo {
+  position: relative;
+  background: #fbf8f1;
+  border: 0;
+  border-radius: 2px;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.14),
+    0 12px 28px -16px rgb(0 0 0 / 0.45);
+  padding: 0.7rem 0.7rem 0.55rem;
+  margin-top: calc(var(--blog-line) * 1.5);
+  margin-bottom: calc(var(--blog-line) * 1.5);
+  transform: rotate(-0.6deg);
+}
+
+.blog-read .prose figure.blog-photo::before,
+.blog-read .prose figure.blog-photo::after {
+  content: "";
+  position: absolute;
+  top: -0.8rem;
+  width: 5.25rem;
+  height: 1.55rem;
+  background-color: color-mix(in srgb, var(--blog-bloom) 30%, #f3ead2);
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgb(255 255 255 / 0.14) 0 6px,
+    transparent 6px 12px
+  );
+  opacity: 0.88;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+  pointer-events: none;
+}
+
+.blog-read .prose figure.blog-photo::before {
+  left: 7%;
+  transform: rotate(-5deg);
+}
+
+.blog-read .prose figure.blog-photo::after {
+  right: 7%;
+  transform: rotate(4deg);
+}
+
+.blog-read .prose figure.blog-photo .blog-photo__img {
+  border-radius: 1px;
+}
+
+.blog-read .prose figure.blog-photo .blog-caption {
+  margin-top: 0.55rem;
+  padding: 0 0.15rem;
+  color: #6b6156;
+}
+
+/* --- Multi-photo sets: same treatment, alternating tilt, smaller tape --- */
+.blog-read .blog-image-row__grid {
+  gap: 1.1rem;
+}
+
+.blog-read .blog-image-row__cell {
+  position: relative;
+  background: #fbf8f1;
+  border-radius: 2px;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.14),
+    0 10px 22px -14px rgb(0 0 0 / 0.45);
+  padding: 0.5rem 0.5rem 0.4rem;
+}
+
+.blog-read .blog-image-row__cell:nth-child(odd) {
+  transform: rotate(-1.1deg);
+}
+
+.blog-read .blog-image-row__cell:nth-child(even) {
+  transform: rotate(0.9deg);
+}
+
+.blog-read .blog-image-row__cell::before {
+  content: "";
+  position: absolute;
+  top: -0.65rem;
+  left: 50%;
+  width: 3.6rem;
+  height: 1.25rem;
+  transform: translateX(-50%) rotate(-3deg);
+  background-color: color-mix(in srgb, var(--blog-bloom) 30%, #f3ead2);
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgb(255 255 255 / 0.14) 0 6px,
+    transparent 6px 12px
+  );
+  opacity: 0.88;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+  pointer-events: none;
+}
+
+.blog-read .blog-image-row__cell:nth-child(even)::before {
+  transform: translateX(-50%) rotate(4deg);
+}
+
+.blog-read .prose .blog-image-row__cell .blog-image-row__img {
+  border-radius: 1px;
+  aspect-ratio: 4 / 5;
+}
+
+.blog-read .prose .blog-image-row__cell .blog-caption {
+  margin-top: 0.45rem;
+  padding: 0 0.1rem;
+  color: #6b6156;
+  font-size: 0.85rem;
+}
+
+/* --- Link polish: soft highlight on hover, offset underline --- */
+.blog-read .prose a.blog-link {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  border-radius: 3px;
+  padding: 0 1px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.blog-read .prose a.blog-link:hover {
+  background: color-mix(in srgb, var(--blog-bloom) 18%, transparent);
+  text-decoration-thickness: 2px;
+}
+
+/* --- Footnotes: auto-collected sources & further reading --- */
+.blog-footnotes {
+  margin-top: calc(var(--blog-line) * 2.5);
+  padding-top: var(--blog-line);
+  border-top: 1px solid color-mix(in srgb, var(--blog-ink) 16%, transparent);
+}
+
+.blog-footnotes__kicker {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--blog-muted);
+  margin: 0 0 0.8rem;
+}
+
+.blog-footnotes__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: footnote;
+}
+
+.blog-footnotes__list li {
+  counter-increment: footnote;
+  display: flex;
+  gap: 0.8rem;
+  align-items: baseline;
+  padding: 0.32rem 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.blog-footnotes__list li::before {
+  content: counter(footnote);
+  flex: none;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.7rem;
+  color: var(--blog-muted);
+  border: 1px solid color-mix(in srgb, var(--blog-ink) 20%, transparent);
+  border-radius: 999px;
+  width: 1.35rem;
+  height: 1.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(2px);
+}
+
+.blog-footnotes__list a {
+  color: var(--blog-bloom);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  overflow-wrap: anywhere;
+}
+
+.blog-footnotes__host {
+  flex: none;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--blog-muted);
 }
 
 .dark {
@@ -1269,3 +1513,603 @@ html.dark .blog-world,
 .hq-scroll::-webkit-scrollbar { width: 4px; }
 .hq-scroll::-webkit-scrollbar-track { background: transparent; }
 .hq-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 9999px; }
+/* ============ Blog ambience: drift canvas, custom cursor, index room ============ */
+
+/* --- Ambient drift canvas: fixed, behind content, above the field --- */
+.blog-drift {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* --- Custom ink cursor (fine pointers only; enabled via .blog-cursor-on on <html>) --- */
+.blog-cursor__dot,
+.blog-cursor__ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.blog-cursor__dot {
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 9999px;
+  background: var(--blog-ink);
+  transition: opacity 0.18s ease, background-color 0.18s ease;
+}
+
+.blog-cursor__dot[data-hot="1"] {
+  background: var(--blog-bloom);
+}
+
+.blog-cursor__ring {
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border-radius: 9999px;
+  border: 1.5px solid color-mix(in srgb, var(--blog-ink) 55%, transparent);
+  transition:
+    opacity 0.18s ease,
+    width 0.22s ease,
+    height 0.22s ease,
+    margin 0.22s ease,
+    border-color 0.18s ease;
+}
+
+.blog-cursor__ring[data-hot="1"] {
+  width: 46px;
+  height: 46px;
+  margin: -23px 0 0 -23px;
+  border-color: var(--blog-bloom);
+}
+
+.blog-cursor__ring[data-press="1"] {
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+}
+
+html.blog-cursor-on body,
+html.blog-cursor-on body a,
+html.blog-cursor-on body button,
+html.blog-cursor-on body [role="button"],
+html.blog-cursor-on body summary,
+html.blog-cursor-on body label {
+  cursor: none;
+}
+
+html.blog-cursor-on body input,
+html.blog-cursor-on body textarea,
+html.blog-cursor-on body select {
+  cursor: auto;
+}
+
+/* --- Index room: spiral binding down the left edge --- */
+.blog-index {
+  position: relative;
+}
+
+.blog-index::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 26px;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(
+      circle,
+      var(--blog-field) 3.5px,
+      color-mix(in srgb, var(--blog-ink) 30%, transparent) 4.5px,
+      transparent 5.5px
+    ),
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--blog-ink) 8%, transparent),
+      transparent
+    );
+  background-size: 26px 46px, 100% 100%;
+  background-position: 0 14px, 0 0;
+  background-repeat: repeat-y, no-repeat;
+}
+
+/* --- Index: subject tab, like a divider tab in a binder --- */
+.blog-tagtab {
+  display: inline-block;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--blog-ink);
+  background: color-mix(in srgb, var(--blog-bloom) 14%, var(--blog-paper));
+  border: 1px solid color-mix(in srgb, var(--blog-ink) 22%, transparent);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  padding: 0.34rem 0.8rem 0.3rem;
+  transform: rotate(-1.5deg);
+  box-shadow: 0 -2px 5px -3px rgb(0 0 0 / 0.25);
+}
+
+/* --- Index: featured latest post, pinned to the top of the shelf --- */
+.blog-featured {
+  position: relative;
+  display: grid;
+  gap: 1.75rem;
+  margin-bottom: 3.5rem;
+  padding: 1.4rem;
+  border: 1px solid color-mix(in srgb, var(--blog-ink) 20%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--blog-paper) 78%, transparent);
+  box-shadow: 0 24px 48px -32px rgb(0 0 0 / 0.45);
+}
+
+@media (min-width: 768px) {
+  .blog-featured {
+    grid-template-columns: 1.05fr 1fr;
+    align-items: center;
+    gap: 2.5rem;
+    padding: 2rem;
+  }
+}
+
+.blog-featured__stamp {
+  position: absolute;
+  top: -0.9rem;
+  right: 1.5rem;
+  transform: rotate(3deg);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--blog-bloom);
+  border: 2px solid var(--blog-bloom);
+  border-radius: 3px;
+  padding: 0.32rem 0.7rem 0.28rem 0.85rem;
+  background: var(--blog-field);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.12);
+  pointer-events: none;
+}
+
+.blog-featured__art {
+  display: block;
+  position: relative;
+  background: #fbf8f1;
+  padding: 0.65rem 0.65rem 0.55rem;
+  border-radius: 2px;
+  transform: rotate(-1deg);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.14),
+    0 16px 32px -18px rgb(0 0 0 / 0.5);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.blog-featured:hover .blog-featured__art {
+  transform: rotate(0deg);
+}
+
+.blog-featured__art::before,
+.blog-featured__art::after {
+  content: "";
+  position: absolute;
+  top: -0.75rem;
+  width: 5rem;
+  height: 1.5rem;
+  background-color: color-mix(in srgb, var(--blog-bloom) 30%, #f3ead2);
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgb(255 255 255 / 0.14) 0 6px,
+    transparent 6px 12px
+  );
+  opacity: 0.88;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.blog-featured__art::before {
+  left: 8%;
+  transform: rotate(-5deg);
+}
+
+.blog-featured__art::after {
+  right: 8%;
+  transform: rotate(4deg);
+}
+
+.blog-featured__art-inner {
+  display: block;
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--blog-ink) 6%, transparent);
+}
+
+/* --- Index: taped thumbnail on each volume row --- */
+.blog-volume__art--taped {
+  overflow: visible;
+  aspect-ratio: auto;
+  background: #fbf8f1;
+  padding: 0.55rem 0.55rem 0.45rem;
+  border-radius: 2px;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.14),
+    0 12px 26px -16px rgb(0 0 0 / 0.45);
+  transform: rotate(0.9deg);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.blog-volume__art--taped::before {
+  content: "";
+  position: absolute;
+  top: -0.7rem;
+  left: 50%;
+  width: 4.4rem;
+  height: 1.4rem;
+  transform: translateX(-50%) rotate(-4deg);
+  background-color: color-mix(in srgb, var(--blog-bloom) 30%, #f3ead2);
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgb(255 255 255 / 0.14) 0 6px,
+    transparent 6px 12px
+  );
+  opacity: 0.88;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.blog-volume__art--taped .blog-volume__art-inner {
+  display: block;
+  position: relative;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  border-radius: 1px;
+}
+
+.blog-volume:hover .blog-volume__art--taped {
+  transform: rotate(0deg);
+}
+
+/* --- Index: colophon at the bottom of the shelf --- */
+.blog-index__colophon {
+  margin-top: 3.5rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--blog-ink) 12%, transparent);
+  text-align: center;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--blog-muted);
+}
+
+/* ============================================================
+   The Library — /blog index: books on wooden shelves
+   ============================================================ */
+.shelf {
+  margin: 3.5rem 0 0;
+}
+
+.shelf-head {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.4rem;
+}
+
+/* brass year plate screwed to the shelf */
+.shelf-plate {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: #3a2c12;
+  background: linear-gradient(to bottom, #e2c46f, #b8963f);
+  border: 1px solid #8a6f2e;
+  border-radius: 4px;
+  padding: 0.5rem 1.1rem 0.45rem 1.4rem;
+  transform: rotate(-1deg);
+  box-shadow:
+    0 2px 6px rgb(0 0 0 / 0.3),
+    inset 0 1px 0 rgb(255 255 255 / 0.5);
+}
+
+.shelf-books {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 0 1rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--blog-ink) 25%, transparent) transparent;
+}
+
+/* one volume on the shelf */
+.book {
+  position: relative;
+  flex: 0 0 auto;
+  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+
+.book:hover,
+.book:focus-within {
+  transform: translateY(-10px);
+  z-index: 20;
+}
+
+.book-spine {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 12px 0 10px;
+  border-radius: 3px 6px 6px 3px;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--book-cloth) 88%, white), var(--book-cloth) 40%, color-mix(in srgb, var(--book-cloth) 82%, black));
+  box-shadow:
+    inset 3px 0 5px rgb(0 0 0 / 0.35),
+    inset -1px 0 2px rgb(255 255 255 / 0.12),
+    2px 4px 8px rgb(0 0 0 / 0.25);
+  outline-offset: 3px;
+  overflow: hidden;
+}
+
+/* raised binding bands + edge shading on the spine */
+.book-spine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to right, rgb(0 0 0 / 0.35), transparent 14%, transparent 86%, rgb(0 0 0 / 0.35)),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0 30px,
+      rgb(0 0 0 / 0.22) 30px 34px,
+      rgb(255 255 255 / 0.07) 34px 36px
+    );
+}
+
+.book-spine__tag,
+.book-spine__year {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.52rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgb(243 234 212 / 0.72);
+  white-space: nowrap;
+}
+
+.book-spine__title {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--font-display), 'Young Serif', Georgia, serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  color: #f3ead4;
+  max-height: 64%;
+  overflow: hidden;
+  text-align: center;
+}
+
+/* catalog card that pops up above the book */
+.book-card {
+  position: absolute;
+  bottom: calc(100% + 16px);
+  left: 50%;
+  width: 270px;
+  max-width: 72vw;
+  transform: translateX(-50%) translateY(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  background: var(--blog-paper);
+  border: 1px solid color-mix(in srgb, var(--blog-ink) 14%, transparent);
+  border-radius: 4px;
+  box-shadow: 0 24px 48px -16px rgb(0 0 0 / 0.5);
+  padding: 0.9rem 1rem 1rem;
+  z-index: 30;
+  text-align: left;
+}
+
+.book-card::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 8px solid transparent;
+  border-top-color: var(--blog-paper);
+}
+
+.book:hover .book-card,
+.book:focus-within .book-card {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+.book-card__thumb {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 8;
+  overflow: hidden;
+  border-radius: 2px;
+  margin-bottom: 0.7rem;
+}
+
+.book-card__title {
+  font-family: var(--font-display), 'Young Serif', Georgia, serif;
+  font-size: 1.1rem;
+  line-height: 1.25;
+  margin: 0.4rem 0 0.25rem;
+}
+
+.book-card__title a {
+  color: var(--blog-ink);
+  text-decoration: none;
+}
+
+.book-card__title a:hover {
+  color: var(--blog-bloom);
+}
+
+.book-card__date {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--blog-muted);
+  margin-bottom: 0.5rem;
+}
+
+.book-card__excerpt {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--blog-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.book-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* the wooden shelf board the books stand on */
+.shelf-board {
+  height: 18px;
+  border-radius: 2px;
+  background: linear-gradient(to bottom, var(--shelf-hi), var(--shelf-mid) 55%, var(--shelf-lo));
+  box-shadow:
+    0 16px 26px -14px rgb(0 0 0 / 0.6),
+    inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+
+/* ============================================================
+   The Old Book — /blog/[slug]: title page, drop cap, ornaments
+   ============================================================ */
+.blog-titlepage {
+  text-align: center;
+  padding: 1.5rem 0 2.75rem;
+  margin-bottom: 2.5rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--blog-ink) 12%, transparent);
+}
+
+.blog-titlepage__brand {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--blog-muted);
+}
+
+.blog-titlepage__ornament {
+  color: var(--blog-bloom);
+  font-size: 1.15rem;
+  margin: 1.3rem 0;
+  line-height: 1;
+}
+
+.blog-titlepage__title {
+  font-family: var(--font-display), 'Young Serif', Georgia, serif;
+  font-size: clamp(2.3rem, 6vw, 3.9rem);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  margin: 0 0 1.3rem;
+  text-wrap: balance;
+}
+
+.blog-titlepage__excerpt {
+  font-style: italic;
+  font-size: 1.12rem;
+  line-height: 1.7;
+  color: var(--blog-muted);
+  max-width: 34rem;
+  margin: 0 auto 1.4rem;
+}
+
+.blog-titlepage__byline {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--blog-muted);
+}
+
+/* aged-paper vignette over the ruled sheet */
+.blog-oldbook {
+  background-image:
+    radial-gradient(ellipse 120% 90% at 50% 28%, transparent 58%, rgb(101 67 33 / 0.13)),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(var(--blog-line) - 1px),
+      color-mix(in srgb, var(--blog-rule) 38%, transparent) calc(var(--blog-line) - 1px),
+      color-mix(in srgb, var(--blog-rule) 38%, transparent) var(--blog-line)
+    );
+}
+
+html.dark .blog-oldbook,
+.blog-world.dark .blog-oldbook {
+  background-image:
+    radial-gradient(ellipse 120% 90% at 50% 28%, transparent 55%, rgb(0 0 0 / 0.4)),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(var(--blog-line) - 1px),
+      color-mix(in srgb, var(--blog-rule) 38%, transparent) calc(var(--blog-line) - 1px),
+      color-mix(in srgb, var(--blog-rule) 38%, transparent) var(--blog-line)
+    );
+}
+
+/* drop cap on the opening paragraph */
+.blog-oldbook .prose > p:first-of-type::first-letter {
+  font-family: var(--font-display), 'Young Serif', Georgia, serif;
+  font-weight: 600;
+  font-size: 3.3em;
+  line-height: 0.82;
+  float: left;
+  padding: 0.06em 0.14em 0 0;
+  color: var(--blog-ink);
+}
+
+/* ornament divider above the sources */
+.blog-oldbook .blog-footnotes::before {
+  content: "❦  ❦  ❦";
+  display: block;
+  text-align: center;
+  color: var(--blog-bloom);
+  font-size: 0.95rem;
+  letter-spacing: 0.5em;
+  margin-bottom: 1.75rem;
+}
+
+/* "Fin." colophon at the end of the volume */
+.blog-fin {
+  margin: 3.5rem 0 0;
+  text-align: center;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--blog-muted);
+}
+
+.blog-fin span {
+  color: var(--blog-bloom);
+  letter-spacing: 0;
+}

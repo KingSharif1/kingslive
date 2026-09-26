@@ -18,7 +18,7 @@ export function BlogNav({
           <Image src="/favicon.ico" alt="" fill sizes="32px" className="object-contain" />
         </span>
         <span className="text-[11px] font-mono tracking-[0.28em] uppercase text-[var(--blog-ink)]">
-          King · Notes
+          Cerebration
         </span>
       </Link>
       <div className="flex items-center gap-6">
