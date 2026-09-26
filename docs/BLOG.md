@@ -5,7 +5,7 @@
 1. Write in **Sanity Studio** at `/studio` (or Sanity-hosted studio for project `n31jvc6a`).
 2. Public site reads via `lib/sanity-queries.ts` → CDN client in `lib/sanity.ts`.
 3. Homepage “Latest from the Blog” and `/blog` share the same query helpers.
-4. **Visuals are not shared.** `/` is glass + numbered rows. `/blog` is a notes room (`blog-world`: paper, bleed type, shelf volumes) — a journal of what King builds, does, and talks about. `King · Notes` → `/blog`. `Home` → `/`. Posts use `BlogNav`, not the portfolio `Header`.
+4. **Visuals are not shared.** `/` is glass + numbered rows. `/blog` is **Cerebration** (`blog-world`): the index is "The Library" — posts as cloth-bound book spines on wooden shelves grouped by year (brass year plates), hover/focus reveals a catalog card (cover, excerpt, Open + like); each post page is "the old book" — centered title page (brand, ❦ ornaments, title, excerpt, byline), drop cap, aged-paper vignette, ❦ divider above footnotes, "Fin." colophon. `Cerebration` → `/blog`. `Home` → `/`. Posts use `BlogNav`, not the portfolio `Header`.
 
 ## Required env
 
@@ -52,6 +52,15 @@ Do **not** use **Image** or **Image row (legacy)** for new work — they stay so
 **FAQ already written as an H2 + paragraphs:** delete those blocks, insert **FAQ**, paste each question and answer into its own row. The public page will not auto-convert a heading named “FAQ”.
 
 **Captions:** always under the image, serif, no box. If a photo looks boxed, it was inside a Callout — that is now a left rule, not a blue card.
+
+## Design — Cerebration (2026-09-26)
+
+The blog is branded **Cerebration**. Two rooms, same `blog-world` tokens:
+
+- **`/blog` — The Library** (`app/blog/page.tsx`): posts as cloth-bound book spines on wooden shelves grouped by year (brass plates). Spine height/width/color are deterministic from the post id (`hashStr`). Hover/focus lifts the book and shows a catalog card (cover thumb, tag, title, date, excerpt, Open + like). Latest post featured as an open book with a "Latest" stamp. Search + subject filters unchanged.
+- **`/blog/[slug]` — The Old Book** (`app/blog/[slug]/page.tsx`): centered title page (brand, ❦ ornaments, title, excerpt, author · date · reading time), drop cap on the opening paragraph (`::first-letter`), aged-paper vignette layered over the ruled sheet, ❦ divider above the footnotes, "Fin." colophon. Comments, likes, share, sidebar, scroll progress untouched.
+- **Ambient layers** (`components/blog/`): `BlogDrift` — one lightweight canvas of drifting ink doodles + an occasional paper plane (pauses when hidden, static under reduced motion); `BlogCursor` — ink dot + trailing ring, fine pointers only, fades over inputs.
+- Photos keep the taped polaroid treatment (`BlogPhotos.tsx`); external links auto-collect into "Sources & further reading."
 
 ## Project ↔ post linking
 
