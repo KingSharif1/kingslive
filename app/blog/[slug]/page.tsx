@@ -19,27 +19,28 @@ import { BlogTable } from "@/components/blog/BlogTable"
 import { BlogFaq } from "@/components/blog/BlogFaq"
 import BlogDrift from "@/components/blog/BlogDrift"
 import BlogCursor from "@/components/blog/BlogCursor"
+import BlogFooter from "@/components/blog/BlogFooter"
 import Comments from "./Comments"
 
 // PortableText components for proper rendering
 const portableTextComponents: PortableTextComponents = {
   block: {
-    h1: ({ children }) => <h1 className="text-4xl font-bold font-fraunces mt-12 mb-6 text-[var(--foreground)]">{children}</h1>,
-    h2: ({ children }) => <h2 className="text-3xl font-bold font-fraunces mt-10 mb-5 text-[var(--foreground)]">{children}</h2>,
-    h3: ({ children }) => <h3 className="text-2xl font-semibold font-fraunces mt-8 mb-4 text-[var(--foreground)]">{children}</h3>,
-    h4: ({ children }) => <h4 className="text-xl font-semibold font-fraunces mt-6 mb-3 text-[var(--foreground)]">{children}</h4>,
+    h1: ({ children }) => <h1 className="text-4xl font-bold font-fraunces mt-9 mb-4 text-[var(--foreground)]">{children}</h1>,
+    h2: ({ children }) => <h2 className="text-3xl font-bold font-fraunces mt-8 mb-4 text-[var(--foreground)]">{children}</h2>,
+    h3: ({ children }) => <h3 className="text-2xl font-semibold font-fraunces mt-7 mb-3 text-[var(--foreground)]">{children}</h3>,
+    h4: ({ children }) => <h4 className="text-xl font-semibold font-fraunces mt-6 mb-2 text-[var(--foreground)]">{children}</h4>,
     h5: ({ children }) => <h5 className="text-lg font-semibold font-fraunces mt-5 mb-2 text-[var(--foreground)]">{children}</h5>,
     h6: ({ children }) => <h6 className="text-base font-semibold font-fraunces mt-4 mb-2 text-[var(--foreground)]">{children}</h6>,
-    normal: ({ children }) => <p className="text-base leading-relaxed mb-6 text-[var(--foreground)] font-open-sans">{children}</p>,
+    normal: ({ children }) => <p className="text-base leading-relaxed mb-5 text-[var(--foreground)] font-open-sans">{children}</p>,
     blockquote: ({ children }) => (
-      <blockquote className="border-l-2 border-[var(--blog-bloom)] pl-6 py-2 my-6 italic text-xl text-[var(--blog-ink)]">
+      <blockquote className="border-l-2 border-[var(--blog-bloom)] pl-6 py-2 my-5 italic text-xl text-[var(--blog-ink)]">
         {children}
       </blockquote>
     ),
   },
   list: {
-    bullet: ({ children }) => <ul className="list-disc list-outside ml-6 mb-6 space-y-2">{children}</ul>,
-    number: ({ children }) => <ol className="list-decimal list-outside ml-6 mb-6 space-y-2">{children}</ol>,
+    bullet: ({ children }) => <ul className="list-disc list-outside ml-6 mb-5 space-y-2">{children}</ul>,
+    number: ({ children }) => <ol className="list-decimal list-outside ml-6 mb-5 space-y-2">{children}</ol>,
   },
   listItem: {
     bullet: ({ children }) => <li className="text-[var(--foreground)] leading-relaxed font-open-sans">{children}</li>,
@@ -83,7 +84,7 @@ const portableTextComponents: PortableTextComponents = {
     ),
     faq: ({ value }) => <BlogFaq heading={value?.heading} items={value?.items} />,
     code: ({ value }) => (
-      <div className="my-6 rounded-lg overflow-hidden border border-[var(--border)]">
+      <div className="my-5 rounded-lg overflow-hidden border border-[var(--border)]">
         {/* Header with language/filename */}
         <div className="flex items-center justify-between px-4 py-2 bg-[var(--secondary)] border-b border-[var(--border)]">
           <div className="flex items-center gap-2">
@@ -617,7 +618,7 @@ export default function BlogPostPage() {
   const readingTime = Math.max(1, Math.ceil(wordCount / 200))
 
   return (
-    <div className={`blog-world blog-world--note${isDark ? ' dark' : ''}`}>
+    <div className={`blog-world blog-world--note${isDark ? ' dark' : ''}`} id="top">
       {isPreview ? (
         <p className="blog-preview-flag">
           Draft preview — this is not the public page.{' '}
@@ -634,7 +635,7 @@ export default function BlogPostPage() {
         title={post.title}
         url={typeof window !== 'undefined' ? window.location.href : ''}
       />
-      <main className="pb-28">
+      <main className="pb-20">
         <aside className="hidden lg:flex fixed left-4 top-1/2 -translate-y-1/2 z-30 flex-col gap-6 text-[var(--blog-muted)]">
           <Link href="/blog" className="text-[10px] font-mono tracking-[0.22em] uppercase hover:text-[var(--blog-ink)]" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
             Cerebration
@@ -656,7 +657,7 @@ export default function BlogPostPage() {
         </aside>
 
         {post.cover_image && (
-          <div className="blog-cover-bleed relative mb-10">
+          <div className="blog-cover-bleed relative mb-6">
             <Image
               src={post.cover_image}
               alt=""
@@ -676,8 +677,25 @@ export default function BlogPostPage() {
               ❦
             </p>
             <h1 className="blog-titlepage__title">{post.title}</h1>
+            <svg
+              className="blog-titlepage__marker"
+              viewBox="0 0 320 14"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M6 9 C 80 4, 170 12, 314 7"
+                fill="none"
+                stroke="var(--blog-bloom)"
+                strokeWidth="5"
+                strokeLinecap="round"
+                opacity="0.55"
+              />
+            </svg>
             {post.excerpt && (
-              <p className="blog-titlepage__excerpt">{post.excerpt}</p>
+              <p className="blog-titlepage__excerpt">
+                <span>{post.excerpt}</span>
+              </p>
             )}
             <p className="blog-titlepage__ornament" aria-hidden="true">
               ❦
@@ -691,67 +709,71 @@ export default function BlogPostPage() {
             </p>
           </header>
 
-          {post.tags && post.tags.length > 0 && (
-            <div className="flex flex-wrap gap-x-5 gap-y-2 mb-10 text-[11px] font-mono tracking-[0.18em] uppercase text-[var(--blog-muted)]">
-              {post.tags.map((tag) => (
-                <Link key={tag} href={`/blog?tag=${tag}`} className="hover:text-[var(--blog-ink)]">
-                  {tag}
-                </Link>
-              ))}
-            </div>
-          )}
-
-          {relatedProject && (
-            <Link
-              href={relatedProject.liveUrl || '/#projects'}
-              className="inline-block mb-10 text-[11px] font-mono tracking-[0.18em] uppercase text-[var(--blog-bloom)]"
-            >
-              Project · {relatedProject.title}
-            </Link>
-          )}
-
-          <div className="prose prose-lg max-w-none dark:prose-invert prose-headings:font-fraunces prose-p:text-[var(--blog-ink)]">
-            {post.content ? (
-              <PortableText value={post.content} components={portableTextComponents} />
-            ) : post.markdownContent ? (
-              <ReactMarkdown>{post.markdownContent}</ReactMarkdown>
-            ) : (
-              <p>No content available.</p>
-            )}
-          </div>
-
-          {footnotes.length > 0 && (
-            <section className="blog-footnotes" aria-label="Sources and further reading">
-              <p className="blog-footnotes__kicker">Sources &amp; further reading</p>
-              <ol className="blog-footnotes__list">
-                {footnotes.map((f) => (
-                  <li key={f.href}>
-                    <a href={f.href} target="_blank" rel="noopener noreferrer">
-                      {f.text}
-                    </a>
-                    <span className="blog-footnotes__host">{hostnameOf(f.href)}</span>
-                  </li>
+          {/* Ruled lines start here — the title sits on the blank top of the page */}
+          <div className="blog-ruled">
+            {post.tags && post.tags.length > 0 && (
+              <div className="blog-tags flex flex-wrap gap-x-5 gap-y-2 text-[11px] font-mono tracking-[0.18em] uppercase text-[var(--blog-muted)]">
+                {post.tags.map((tag) => (
+                  <Link key={tag} href={`/blog?tag=${tag}`} className="hover:text-[var(--blog-ink)]">
+                    {tag}
+                  </Link>
                 ))}
-              </ol>
-            </section>
-          )}
+              </div>
+            )}
 
-          <div className="blog-fin" aria-hidden="true">
-            <span>❦</span>&nbsp;&nbsp;Fin&nbsp;&nbsp;<span>❦</span>
+            {relatedProject && (
+              <Link
+                href={relatedProject.liveUrl || '/#projects'}
+                className="blog-project-link text-[11px] font-mono tracking-[0.18em] uppercase text-[var(--blog-bloom)]"
+              >
+                Project · {relatedProject.title}
+              </Link>
+            )}
+
+            <div className="prose prose-lg max-w-none dark:prose-invert prose-headings:font-fraunces prose-p:text-[var(--blog-ink)]">
+              {post.content ? (
+                <PortableText value={post.content} components={portableTextComponents} />
+              ) : post.markdownContent ? (
+                <ReactMarkdown>{post.markdownContent}</ReactMarkdown>
+              ) : (
+                <p>No content available.</p>
+              )}
+            </div>
+
+            {footnotes.length > 0 && (
+              <section className="blog-footnotes" aria-label="Sources and further reading">
+                <p className="blog-footnotes__kicker">Sources &amp; further reading</p>
+                <ol className="blog-footnotes__list">
+                  {footnotes.map((f) => (
+                    <li key={f.href}>
+                      <a href={f.href} target="_blank" rel="noopener noreferrer">
+                        {f.text}
+                      </a>
+                      <span className="blog-footnotes__host">{hostnameOf(f.href)}</span>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            )}
+
+            <div className="blog-fin" aria-hidden="true">
+              <span>❦</span>&nbsp;&nbsp;Fin&nbsp;&nbsp;<span>❦</span>
+            </div>
+
+            <div className="mt-[calc(var(--blog-line)*2)] pt-[var(--blog-line)] border-t border-[var(--blog-ink)]/10 flex items-center justify-between gap-4">
+              <Link href="/blog" className="text-[11px] font-mono tracking-[0.22em] uppercase">
+                ← Library
+              </Link>
+              <LikeButton postId={post.id} initialLikes={post.views || 0} size="large" />
+            </div>
+
+            <Suspense fallback={<div className="mt-16 h-24" />}>
+              <Comments postId={post.id} autoApproveHours={24} />
+            </Suspense>
           </div>
-
-          <div className="mt-16 pt-8 border-t border-[var(--blog-ink)]/10 flex items-center justify-between gap-4">
-            <Link href="/blog" className="text-[11px] font-mono tracking-[0.22em] uppercase">
-              ← Library
-            </Link>
-            <LikeButton postId={post.id} initialLikes={post.views || 0} size="large" />
-          </div>
-
-          <Suspense fallback={<div className="mt-16 h-24" />}>
-            <Comments postId={post.id} autoApproveHours={24} />
-          </Suspense>
         </article>
       </main>
+      <BlogFooter />
     </div>
   )
 }

@@ -239,8 +239,8 @@ html.dark body::before,
   --blog-bloom: #c45c4a;
   --blog-rule: #7a9ab8;
   --blog-spine: #4a3228;
-  --blog-line: 1.75rem;
-  --blog-gutter: 2.65rem;
+  --blog-line: 1.6rem;
+  --blog-gutter: 1.1rem;
   --blog-sheet: 42rem;
   --shelf-hi: #9a7a52;
   --shelf-mid: #6f5233;
@@ -279,18 +279,22 @@ html.dark .blog-world,
   font-family: var(--font-note), Georgia, serif;
 }
 
-/* Double red margin: full page height, lined up with the notes sheet */
+/* Single faint margin rule, tucked in the gutter — never over the words */
 .blog-world--note::before {
   content: '';
   position: absolute;
   top: 0;
   bottom: 0;
   left: max(var(--blog-gutter), calc(50% - (var(--blog-sheet) / 2) + var(--blog-gutter)));
-  width: 5px;
-  border-left: 1px solid color-mix(in srgb, var(--blog-bloom) 78%, transparent);
-  border-right: 1px solid color-mix(in srgb, var(--blog-bloom) 92%, transparent);
+  border-left: 1px solid color-mix(in srgb, var(--blog-bloom) 32%, transparent);
   pointer-events: none;
   z-index: 2;
+}
+
+@media (min-width: 640px) {
+  .blog-world {
+    --blog-gutter: 2rem;
+  }
 }
 
 .blog-preview-flag {
@@ -392,28 +396,31 @@ html.dark .blog-world,
   background-size: 100% 2px;
 }
 
+/* the sheet itself is blank paper — ruled lines start below the title */
 .blog-read {
-  --blog-line: 1.75rem;
+  --blog-line: 1.6rem;
   position: relative;
   z-index: 1;
   max-width: var(--blog-sheet);
   min-height: 100vh;
   margin-left: auto;
   margin-right: auto;
-  padding-left: var(--blog-gutter);
+  padding-left: calc(var(--blog-gutter) + 1.4rem);
   padding-right: 1.25rem;
   padding-bottom: calc(var(--blog-line) * 3);
   background-color: var(--blog-paper);
+  line-height: var(--blog-line);
+}
+
+/* ruled notebook lines, applied only after the title page */
+.blog-ruled {
   background-image: repeating-linear-gradient(
     to bottom,
     transparent 0,
     transparent calc(var(--blog-line) - 1px),
-    color-mix(in srgb, var(--blog-rule) 34%, transparent) calc(var(--blog-line) - 1px),
-    color-mix(in srgb, var(--blog-rule) 34%, transparent) var(--blog-line)
+    color-mix(in srgb, var(--blog-rule) 38%, transparent) calc(var(--blog-line) - 1px),
+    color-mix(in srgb, var(--blog-rule) 38%, transparent) var(--blog-line)
   );
-  background-size: 100% var(--blog-line);
-  background-attachment: local;
-  line-height: var(--blog-line);
 }
 
 @media (min-width: 640px) {
@@ -427,31 +434,71 @@ html.dark .blog-world,
   line-height: var(--blog-line);
 }
 
-.blog-read p,
-.blog-read li,
-.blog-read .prose p,
-.blog-read .prose li {
+/* ---------- baseline grid ----------
+   Everything inside .blog-ruled snaps to whole multiples of --blog-line,
+   so each line of text sits *between* the ruled lines instead of the
+   rules striking through the words. */
+.blog-read .blog-ruled > :first-child {
+  margin-top: 0;
+}
+
+.blog-read .blog-ruled p,
+.blog-read .blog-ruled li {
   line-height: var(--blog-line);
+  margin-top: 0;
   margin-bottom: var(--blog-line);
 }
 
-.blog-read h1,
-.blog-read h2,
-.blog-read h3,
-.blog-read h4,
-.blog-read h5,
-.blog-read h6,
-.blog-read .prose h1,
-.blog-read .prose h2,
-.blog-read .prose h3 {
-  line-height: calc(var(--blog-line) * 2);
+.blog-read .blog-ruled h2,
+.blog-read .blog-ruled h3,
+.blog-read .blog-ruled h4 {
+  line-height: var(--blog-line);
   margin-top: calc(var(--blog-line) * 2);
   margin-bottom: var(--blog-line);
 }
 
-.blog-read h1:first-child,
-.blog-read .prose h1:first-child {
+.blog-read .blog-ruled ul,
+.blog-read .blog-ruled ol {
   margin-top: 0;
+  margin-bottom: var(--blog-line);
+  padding-left: 1.4rem;
+}
+
+.blog-read .blog-ruled li {
+  margin-bottom: 0;
+}
+
+.blog-read .blog-ruled blockquote {
+  margin-top: var(--blog-line);
+  margin-bottom: var(--blog-line);
+  padding-top: calc(var(--blog-line) / 2);
+  padding-bottom: calc(var(--blog-line) / 2);
+}
+
+.blog-read .blog-ruled blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+.blog-read .blog-ruled pre {
+  margin-top: var(--blog-line);
+  margin-bottom: var(--blog-line);
+  padding: var(--blog-line) 1.25rem;
+}
+
+.blog-read .blog-ruled pre code {
+  line-height: var(--blog-line);
+}
+
+/* tags + project chip: first rows of the ruled area, grid-snapped */
+.blog-tags {
+  line-height: var(--blog-line);
+  margin-bottom: var(--blog-line);
+}
+
+.blog-project-link {
+  display: inline-block;
+  line-height: var(--blog-line);
+  margin-bottom: var(--blog-line);
 }
 
 .blog-read figure,
@@ -871,7 +918,7 @@ html.dark .blog-world,
 
 /* --- Footnotes: auto-collected sources & further reading --- */
 .blog-footnotes {
-  margin-top: calc(var(--blog-line) * 2.5);
+  margin-top: calc(var(--blog-line) * 2);
   padding-top: var(--blog-line);
   border-top: 1px solid color-mix(in srgb, var(--blog-ink) 16%, transparent);
 }
@@ -897,9 +944,10 @@ html.dark .blog-world,
   display: flex;
   gap: 0.8rem;
   align-items: baseline;
-  padding: 0.32rem 0;
+  padding: 0;
+  margin-bottom: 0;
   font-size: 0.92rem;
-  line-height: 1.55;
+  line-height: var(--blog-line);
 }
 
 .blog-footnotes__list li::before {
@@ -1794,8 +1842,16 @@ html.blog-cursor-on body select {
 /* ============================================================
    The Library — /blog index: books on wooden shelves
    ============================================================ */
+/* Shelves are a desktop delight — mobile gets the catalog list instead */
 .shelf {
-  margin: 3.5rem 0 0;
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .shelf {
+    display: block;
+    margin: 3.5rem 0 0;
+  }
 }
 
 .shelf-head {
@@ -2000,12 +2056,357 @@ html.blog-cursor-on body select {
 }
 
 /* ============================================================
+   Mobile-first catalog — full titles, no popups, thumb + meta
+   (the shelf takes over at md+)
+   ============================================================ */
+.catalog-year {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--blog-muted);
+  margin: 2.25rem 0 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.catalog-year::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--blog-ink) 12%, transparent);
+}
+
+.catalog-row {
+  display: grid;
+  grid-template-columns: 3.1rem minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: start;
+  padding: 1.05rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--blog-ink) 10%, transparent);
+  color: inherit;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.catalog-row__swatch {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  aspect-ratio: 5 / 7;
+  border-radius: 2px 5px 5px 2px;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--book-cloth) 88%, white), var(--book-cloth) 45%, color-mix(in srgb, var(--book-cloth) 80%, black));
+  box-shadow:
+    inset 2px 0 3px rgb(0 0 0 / 0.35),
+    1px 3px 6px rgb(0 0 0 / 0.25);
+  padding-bottom: 0.35rem;
+}
+
+.catalog-row__swatch span {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  color: rgb(243 234 212 / 0.8);
+}
+
+.catalog-row__tag {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--blog-bloom);
+}
+
+.catalog-row__title {
+  display: block;
+  font-family: var(--font-display), 'Young Serif', Georgia, serif;
+  font-size: 1.28rem;
+  line-height: 1.28;
+  letter-spacing: -0.01em;
+  margin: 0.35rem 0 0.3rem;
+  text-wrap: pretty;
+}
+
+.catalog-row__meta {
+  display: block;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--blog-muted);
+  margin-bottom: 0.45rem;
+}
+
+.catalog-row__excerpt {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--blog-muted);
+}
+
+.catalog-row__go {
+  color: var(--blog-muted);
+  font-size: 1.15rem;
+  line-height: 1;
+  margin-top: 0.35rem;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.catalog-row:active .catalog-row__go {
+  transform: translateX(4px);
+  color: var(--blog-bloom);
+}
+
+@media (min-width: 768px) {
+  .catalog {
+    display: none;
+  }
+}
+
+/* ============================================================
+   Book inspector — the catalog card, portaled to the viewport
+   so it can never clip (desktop shelf only)
+   ============================================================ */
+.book-inspector {
+  position: fixed;
+  z-index: 90;
+  width: 290px;
+  max-width: calc(100vw - 2rem);
+  background: var(--blog-paper);
+  border: 1px solid color-mix(in srgb, var(--blog-ink) 14%, transparent);
+  border-radius: 6px;
+  box-shadow: 0 24px 48px -16px rgb(0 0 0 / 0.5);
+  padding: 0.9rem 1rem 1rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+  animation: book-inspector-in 0.18s ease;
+}
+
+@keyframes book-inspector-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.book-inspector[data-open="true"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.book-inspector::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 8px solid transparent;
+}
+
+.book-inspector[data-below="false"]::after {
+  top: 100%;
+  border-top-color: var(--blog-paper);
+}
+
+.book-inspector[data-below="true"]::after {
+  bottom: 100%;
+  border-bottom-color: var(--blog-paper);
+}
+
+/* ============================================================
+   Blog footer — kicker, links, giant outlined wordmark, base row.
+   - Fades out of the page (transparent -> tone), no hard edge.
+   - Light/dark adaptive via --foot-* vars.
+   - Wordmark animates in letter-by-letter on scroll (pure CSS
+     scroll-driven animation; visible fallback if unsupported).
+   - Zero assets, zero JS. Static under prefers-reduced-motion.
+   ============================================================ */
+.blog-footer {
+  --foot-shade: #e4d6bc;
+  --foot-ink: #2a241d;
+  --foot-muted: #6b6156;
+  --foot-faint: #8a7d6c;
+  --foot-stroke: rgb(42 36 29 / 0.34);
+  --foot-word-fill: rgb(42 36 29 / 0.07);
+  position: relative;
+  margin-top: 3.5rem;
+  padding: 2.5rem 1.25rem 1.5rem;
+  background: linear-gradient(to bottom, transparent 0%, var(--foot-shade) 62%);
+  color: var(--foot-ink);
+  overflow: hidden;
+}
+
+.blog-world.dark .blog-footer,
+html.dark .blog-footer {
+  --foot-shade: #131009;
+  --foot-ink: #f3ead4;
+  --foot-muted: #b8ab98;
+  --foot-faint: #8a7d6c;
+  --foot-stroke: rgb(243 234 212 / 0.32);
+  --foot-word-fill: rgb(243 234 212 / 0.07);
+}
+
+/* ---- ember canvas layer (option A, theme-adaptive) ---- */
+.blog-footer__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+.blog-footer--embers .blog-footer__inner,
+.blog-footer--embers .blog-footer__word,
+.blog-footer--embers .blog-footer__base {
+  position: relative;
+  z-index: 1;
+}
+
+/* wordmark: letters animate in as you scroll to the footer */
+.blog-footer__word span {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.4em) rotate(3deg);
+  animation: foot-letter-in 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-timeline: view();
+}
+
+.blog-footer__word span:nth-child(1) { animation-range: entry 5% entry 30%; }
+.blog-footer__word span:nth-child(2) { animation-range: entry 7.5% entry 32.5%; }
+.blog-footer__word span:nth-child(3) { animation-range: entry 10% entry 35%; }
+.blog-footer__word span:nth-child(4) { animation-range: entry 12.5% entry 37.5%; }
+.blog-footer__word span:nth-child(5) { animation-range: entry 15% entry 40%; }
+.blog-footer__word span:nth-child(6) { animation-range: entry 17.5% entry 42.5%; }
+.blog-footer__word span:nth-child(7) { animation-range: entry 20% entry 45%; }
+.blog-footer__word span:nth-child(8) { animation-range: entry 22.5% entry 47.5%; }
+.blog-footer__word span:nth-child(9) { animation-range: entry 25% entry 50%; }
+.blog-footer__word span:nth-child(10) { animation-range: entry 27.5% entry 52.5%; }
+.blog-footer__word span:nth-child(11) { animation-range: entry 30% entry 55%; }
+
+@keyframes foot-letter-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.4em) rotate(3deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* no scroll-driven animation support -> wordmark just shows */
+@supports not (animation-timeline: view()) {
+  .blog-footer__word span {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blog-footer__word span {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.blog-footer__inner {
+  max-width: 72rem;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.blog-footer__kicker {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--foot-muted);
+  margin: 0;
+}
+
+.blog-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.6rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.blog-footer__links a {
+  color: var(--foot-muted);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.blog-footer__links a:hover {
+  color: var(--foot-ink);
+}
+
+.blog-footer__word {
+  font-family: var(--font-display), 'Young Serif', Georgia, serif;
+  font-weight: 700;
+  font-size: clamp(3.4rem, 17.5vw, 12rem);
+  line-height: 0.85;
+  letter-spacing: -0.04em;
+  text-align: center;
+  white-space: nowrap;
+  color: transparent;
+  -webkit-text-stroke: 1px var(--foot-stroke);
+  margin: 1.8rem 0 1.4rem;
+  user-select: none;
+  transition: color 0.6s ease;
+}
+
+.blog-footer__word:hover {
+  color: var(--foot-word-fill);
+}
+
+.blog-footer__base {
+  max-width: 72rem;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--foot-faint);
+}
+
+.blog-footer__base a {
+  color: var(--foot-faint);
+  text-decoration: none;
+}
+
+.blog-footer__base a:hover {
+  color: var(--foot-ink);
+}
+
+/* ============================================================
    The Old Book — /blog/[slug]: title page, drop cap, ornaments
    ============================================================ */
 .blog-titlepage {
   text-align: center;
-  padding: 1.5rem 0 2.75rem;
-  margin-bottom: 2.5rem;
+  padding: 1rem 0 1.6rem;
+  margin-bottom: 1.6rem;
   border-bottom: 1px solid color-mix(in srgb, var(--blog-ink) 12%, transparent);
 }
 
@@ -2020,7 +2421,7 @@ html.blog-cursor-on body select {
 .blog-titlepage__ornament {
   color: var(--blog-bloom);
   font-size: 1.15rem;
-  margin: 1.3rem 0;
+  margin: 0.9rem 0;
   line-height: 1;
 }
 
@@ -2029,8 +2430,36 @@ html.blog-cursor-on body select {
   font-size: clamp(2.3rem, 6vw, 3.9rem);
   line-height: 1.08;
   letter-spacing: -0.01em;
-  margin: 0 0 1.3rem;
+  margin: 0 0 0.9rem;
   text-wrap: balance;
+}
+
+/* hand-drawn marker stroke under the title — draws itself in on load */
+.blog-titlepage__marker {
+  display: block;
+  width: min(21rem, 78%);
+  height: 0.65rem;
+  margin: -0.55rem auto 0;
+  overflow: visible;
+}
+
+.blog-titlepage__marker path {
+  stroke-dasharray: 340;
+  stroke-dashoffset: 340;
+  animation: marker-draw 0.9s 0.35s ease-out forwards;
+}
+
+@keyframes marker-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blog-titlepage__marker path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
 }
 
 .blog-titlepage__excerpt {
@@ -2039,7 +2468,15 @@ html.blog-cursor-on body select {
   line-height: 1.7;
   color: var(--blog-muted);
   max-width: 34rem;
-  margin: 0 auto 1.4rem;
+  margin: 0.9rem auto 1rem;
+}
+
+/* marker highlight behind the excerpt words */
+.blog-titlepage__excerpt span {
+  background: color-mix(in srgb, var(--blog-bloom) 20%, transparent);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 0.08em 0.2em;
 }
 
 .blog-titlepage__byline {
@@ -2050,30 +2487,16 @@ html.blog-cursor-on body select {
   color: var(--blog-muted);
 }
 
-/* aged-paper vignette over the ruled sheet */
+/* aged-paper vignette over the sheet (ruled lines live on .blog-ruled now) */
 .blog-oldbook {
   background-image:
-    radial-gradient(ellipse 120% 90% at 50% 28%, transparent 58%, rgb(101 67 33 / 0.13)),
-    repeating-linear-gradient(
-      to bottom,
-      transparent 0,
-      transparent calc(var(--blog-line) - 1px),
-      color-mix(in srgb, var(--blog-rule) 38%, transparent) calc(var(--blog-line) - 1px),
-      color-mix(in srgb, var(--blog-rule) 38%, transparent) var(--blog-line)
-    );
+    radial-gradient(ellipse 120% 90% at 50% 28%, transparent 58%, rgb(101 67 33 / 0.13));
 }
 
 html.dark .blog-oldbook,
 .blog-world.dark .blog-oldbook {
   background-image:
-    radial-gradient(ellipse 120% 90% at 50% 28%, transparent 55%, rgb(0 0 0 / 0.4)),
-    repeating-linear-gradient(
-      to bottom,
-      transparent 0,
-      transparent calc(var(--blog-line) - 1px),
-      color-mix(in srgb, var(--blog-rule) 38%, transparent) calc(var(--blog-line) - 1px),
-      color-mix(in srgb, var(--blog-rule) 38%, transparent) var(--blog-line)
-    );
+    radial-gradient(ellipse 120% 90% at 50% 28%, transparent 55%, rgb(0 0 0 / 0.4));
 }
 
 /* drop cap on the opening paragraph */
@@ -2095,12 +2518,12 @@ html.dark .blog-oldbook,
   color: var(--blog-bloom);
   font-size: 0.95rem;
   letter-spacing: 0.5em;
-  margin-bottom: 1.75rem;
+  margin-bottom: 1.1rem;
 }
 
 /* "Fin." colophon at the end of the volume */
 .blog-fin {
-  margin: 3.5rem 0 0;
+  margin: calc(var(--blog-line) * 2) 0 0;
   text-align: center;
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 0.68rem;
