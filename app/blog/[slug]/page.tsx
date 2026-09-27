@@ -84,9 +84,9 @@ const portableTextComponents: PortableTextComponents = {
     ),
     faq: ({ value }) => <BlogFaq heading={value?.heading} items={value?.items} />,
     code: ({ value }) => (
-      <div className="my-5 rounded-lg overflow-hidden border border-[var(--border)]">
+      <div className="blog-codeblock rounded-lg overflow-hidden border border-[var(--border)]">
         {/* Header with language/filename */}
-        <div className="flex items-center justify-between px-4 py-2 bg-[var(--secondary)] border-b border-[var(--border)]">
+        <div className="blog-codeblock__bar bg-[var(--secondary)] border-b border-[var(--border)]">
           <div className="flex items-center gap-2">
             <div className="flex gap-1.5">
               <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
@@ -584,46 +584,121 @@ export default function BlogPostPage() {
     fetchPost()
   }, [slug])
 
-  // Baseline-grid repair: a photo's height comes from its aspect ratio, which
-  // is never a whole multiple of --blog-line, so every line below a photo
-  // slides off the ruled lines. Nudge each photo's bottom margin so the next
-  // block lands exactly back on the grid.
+  // Baseline grid: handwriting sits ON the ruled lines.
+  // 1) A photo's height comes from its aspect ratio (never a whole multiple of
+  //    --blog-line), so each photo's bottom margin is nudged until the next
+  //    block lands exactly on the grid.
+  // 2) Every text line's baseline is measured (real font ascent via canvas) and
+  //    the line is nudged down onto the nearest rule below it, like ink on paper.
   useEffect(() => {
     if (!post) return
-    const ruled = document.querySelector('.blog-ruled')
+    const ruled = document.querySelector('.blog-ruled') as HTMLElement | null
     if (!ruled) return
     let raf = 0
-    const snap = () => {
-      cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(() => {
-        const probe = ruled.querySelector('p')
-        const line = probe ? parseFloat(getComputedStyle(probe).lineHeight) : 0
-        if (!line) return
-        const ruledTop = ruled.getBoundingClientRect().top
-        ruled.querySelectorAll('figure.blog-photo, figure.blog-image-row').forEach((node) => {
-          const fig = node as HTMLElement
-          const prev = parseFloat(fig.dataset.gridSnap || '0')
-          const base = (parseFloat(getComputedStyle(fig).marginBottom) || 0) - prev
-          const bottom = fig.getBoundingClientRect().bottom - ruledTop + base
-          const target = Math.ceil(bottom / line - 1e-4) * line
-          const delta = Math.max(0, target - bottom)
-          fig.dataset.gridSnap = String(delta)
-          fig.style.marginBottom = `${base + delta}px`
-        })
+    const ascentCache = new Map<string, number>()
+    let measureCtx: CanvasRenderingContext2D | null = null
+    const ascentFor = (weight: string, sizePx: number, family: string): number => {
+      const key = `${weight}|${sizePx}|${family}`
+      let a = ascentCache.get(key)
+      if (a == null) {
+        if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d')
+        a = sizePx * 0.8
+        if (measureCtx) {
+          measureCtx.font = `${weight} ${sizePx}px ${family}`
+          a = measureCtx.measureText('Hg').actualBoundingBoxAscent || a
+        }
+        ascentCache.set(key, a)
+      }
+      return a
+    }
+
+    const TEXT_SEL = [
+      'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li',
+      'figcaption', '.blog-caption', 'th', 'td',
+      '.blog-faq__q', '.blog-faq__a', '.blog-tags', '.blog-project-link',
+      '.blog-fin', 'pre code', '.blog-footnotes__kicker', '.blog-aside__kicker',
+    ].join(',')
+
+    const snapPhotos = () => {
+      const probe = ruled.querySelector('p')
+      const line = probe ? parseFloat(getComputedStyle(probe).lineHeight) : 0
+      if (!line) return
+      const ruledTop = ruled.getBoundingClientRect().top
+      const figs: HTMLElement[] = Array.from(
+        ruled.querySelectorAll('figure.blog-photo, figure.blog-image-row')
+      ) as HTMLElement[]
+      // bare markdown images (not inside a figure): snap their wrapping paragraph
+      for (const img of Array.from(ruled.querySelectorAll('img'))) {
+        if (img.closest('figure')) continue
+        const p = img.closest('p') as HTMLElement | null
+        if (p && !figs.includes(p)) figs.push(p)
+      }
+      figs.forEach((fig) => {
+        const prev = parseFloat(fig.dataset.gridSnap || '0')
+        const base = (parseFloat(getComputedStyle(fig).marginBottom) || 0) - prev
+        const bottom = fig.getBoundingClientRect().bottom - ruledTop + base
+        const target = Math.ceil(bottom / line - 1e-4) * line
+        const delta = Math.max(0, target - bottom)
+        fig.dataset.gridSnap = String(delta)
+        fig.style.marginBottom = `${base + delta}px`
       })
     }
-    snap()
-    const imgs = Array.from(ruled.querySelectorAll('figure img'))
+
+    const shiftBaselines = () => {
+      const probe = ruled.querySelector('p')
+      const line = probe ? parseFloat(getComputedStyle(probe).lineHeight) : 0
+      if (!line) return
+      const ruledTop = ruled.getBoundingClientRect().top
+      const all = Array.from(new Set(Array.from(ruled.querySelectorAll(TEXT_SEL)))) as HTMLElement[]
+      // only shift the innermost text containers (never a parent + child twice)
+      const targets = all.filter((el) => !all.some((o) => o !== el && el.contains(o)))
+      // reset + measure first, then apply (so measurements don't see each other)
+      const jobs: { el: HTMLElement; shift: number; padTop: number; mb: number }[] = []
+      for (const el of targets) {
+        // reset only the previous baseline shift; a photo-snap margin on this
+        // element (bare markdown images) must survive into the measurement below
+        el.style.paddingTop = ''
+        const cs = getComputedStyle(el)
+        const fontSize = parseFloat(cs.fontSize)
+        let lh = parseFloat(cs.lineHeight)
+        if (!isFinite(lh)) lh = fontSize * 1.2
+        const padTop = parseFloat(cs.paddingTop) || 0
+        const mb = parseFloat(cs.marginBottom) || 0
+        const ascent = ascentFor(cs.fontWeight, fontSize, cs.fontFamily)
+        const elTop = el.getBoundingClientRect().top - ruledTop
+        const baseline = elTop + padTop + (lh - fontSize) / 2 + ascent
+        // rules sit at multiples of `line`; aim for the rule's center
+        const shift = (((line - 0.5 - (baseline % line)) % line) + line) % line
+        if (shift > 0.25 && shift < line - 0.25) {
+          jobs.push({ el, shift, padTop, mb })
+        }
+      }
+      for (const { el, shift, padTop, mb } of jobs) {
+        // push the text down; shrink the bottom margin so the footprint is unchanged
+        el.style.paddingTop = `${padTop + shift}px`
+        el.style.marginBottom = `${mb - shift}px`
+      }
+    }
+
+    const run = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        snapPhotos()
+        shiftBaselines()
+      })
+    }
+    run()
+    const imgs = Array.from(ruled.querySelectorAll('img'))
     imgs.forEach((img) => {
-      if (!(img as HTMLImageElement).complete) img.addEventListener('load', snap, { once: true })
+      if (!(img as HTMLImageElement).complete) img.addEventListener('load', run, { once: true })
     })
-    window.addEventListener('resize', snap)
-    window.addEventListener('load', snap, { once: true })
-    if (document.fonts) document.fonts.ready.then(snap).catch(() => {})
+    window.addEventListener('resize', run)
+    window.addEventListener('load', run, { once: true })
+    if (document.fonts) document.fonts.ready.then(run).catch(() => {})
     return () => {
       cancelAnimationFrame(raf)
-      window.removeEventListener('resize', snap)
-      window.removeEventListener('load', snap)
+      window.removeEventListener('resize', run)
+      window.removeEventListener('load', run)
     }
   }, [post])
 
