@@ -460,7 +460,9 @@ html.dark .blog-world,
 .blog-read .blog-ruled h4,
 .blog-read .blog-ruled h5,
 .blog-read .blog-ruled h6 {
-  line-height: var(--blog-line);
+  /* two grid lines: a 34px h2 needs more than one --blog-line per line,
+     otherwise wrapped headings collide */
+  line-height: calc(var(--blog-line) * 2);
   margin-top: calc(var(--blog-line) * 2);
   margin-bottom: var(--blog-line);
 }
