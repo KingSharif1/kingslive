@@ -584,6 +584,49 @@ export default function BlogPostPage() {
     fetchPost()
   }, [slug])
 
+  // Baseline-grid repair: a photo's height comes from its aspect ratio, which
+  // is never a whole multiple of --blog-line, so every line below a photo
+  // slides off the ruled lines. Nudge each photo's bottom margin so the next
+  // block lands exactly back on the grid.
+  useEffect(() => {
+    if (!post) return
+    const ruled = document.querySelector('.blog-ruled')
+    if (!ruled) return
+    let raf = 0
+    const snap = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const probe = ruled.querySelector('p')
+        const line = probe ? parseFloat(getComputedStyle(probe).lineHeight) : 0
+        if (!line) return
+        const ruledTop = ruled.getBoundingClientRect().top
+        ruled.querySelectorAll('figure.blog-photo, figure.blog-image-row').forEach((node) => {
+          const fig = node as HTMLElement
+          const prev = parseFloat(fig.dataset.gridSnap || '0')
+          const base = (parseFloat(getComputedStyle(fig).marginBottom) || 0) - prev
+          const bottom = fig.getBoundingClientRect().bottom - ruledTop + base
+          const target = Math.ceil(bottom / line - 1e-4) * line
+          const delta = Math.max(0, target - bottom)
+          fig.dataset.gridSnap = String(delta)
+          fig.style.marginBottom = `${base + delta}px`
+        })
+      })
+    }
+    snap()
+    const imgs = Array.from(ruled.querySelectorAll('figure img'))
+    imgs.forEach((img) => {
+      if (!(img as HTMLImageElement).complete) img.addEventListener('load', snap, { once: true })
+    })
+    window.addEventListener('resize', snap)
+    window.addEventListener('load', snap, { once: true })
+    if (document.fonts) document.fonts.ready.then(snap).catch(() => {})
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('resize', snap)
+      window.removeEventListener('load', snap)
+    }
+  }, [post])
+
   const handleShare = () => {
     setShowShareModal(true)
   }
