@@ -31,7 +31,7 @@ const portableTextComponents: PortableTextComponents = {
     h4: ({ children }) => <h4 className="text-xl font-semibold font-fraunces mt-6 mb-2 text-[var(--foreground)]">{children}</h4>,
     h5: ({ children }) => <h5 className="text-lg font-semibold font-fraunces mt-5 mb-2 text-[var(--foreground)]">{children}</h5>,
     h6: ({ children }) => <h6 className="text-base font-semibold font-fraunces mt-4 mb-2 text-[var(--foreground)]">{children}</h6>,
-    normal: ({ children }) => <p className="text-base leading-relaxed mb-5 text-[var(--foreground)] font-open-sans">{children}</p>,
+    normal: ({ children }) => <p className="text-base leading-relaxed mb-5 text-[var(--foreground)]">{children}</p>,
     blockquote: ({ children }) => (
       <blockquote className="border-l-2 border-[var(--blog-bloom)] pl-6 py-2 my-5 italic text-xl text-[var(--blog-ink)]">
         {children}
@@ -43,8 +43,8 @@ const portableTextComponents: PortableTextComponents = {
     number: ({ children }) => <ol className="list-decimal list-outside ml-6 mb-5 space-y-2">{children}</ol>,
   },
   listItem: {
-    bullet: ({ children }) => <li className="text-[var(--foreground)] leading-relaxed font-open-sans">{children}</li>,
-    number: ({ children }) => <li className="text-[var(--foreground)] leading-relaxed font-open-sans">{children}</li>,
+    bullet: ({ children }) => <li className="text-[var(--foreground)] leading-relaxed">{children}</li>,
+    number: ({ children }) => <li className="text-[var(--foreground)] leading-relaxed">{children}</li>,
   },
   marks: {
     strong: ({ children }) => <strong className="font-bold text-[var(--foreground)]">{children}</strong>,
@@ -114,7 +114,7 @@ const portableTextComponents: PortableTextComponents = {
     callout: ({ value }) => {
       const calloutComponents: PortableTextComponents = {
         block: {
-          normal: ({ children }) => <p className="font-open-sans leading-relaxed mb-2 last:mb-0">{children}</p>,
+          normal: ({ children }) => <p className="leading-relaxed mb-2 last:mb-0">{children}</p>,
         },
         marks: {
           strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
@@ -137,7 +137,7 @@ const portableTextComponents: PortableTextComponents = {
           {Array.isArray(value?.content) ? (
             <PortableText value={value.content} components={calloutComponents} />
           ) : (
-            <p className="font-open-sans leading-relaxed">{value?.content}</p>
+            <p className="leading-relaxed">{value?.content}</p>
           )}
         </aside>
       )
@@ -592,6 +592,9 @@ export default function BlogPostPage() {
   //    the line is nudged down onto the nearest rule below it, like ink on paper.
   // Scoped to the article only: the library/like bar and the comments also live
   // inside .blog-ruled and must never be touched.
+  // Idempotency: every run recomputes from the ORIGINAL padding/margin stored
+  // on first touch (dataset), so repeated runs (image loads, resizes, FAQ
+  // toggles) never stack shifts on top of each other.
   useEffect(() => {
     if (!post) return
     const ruled = document.querySelector('.blog-ruled') as HTMLElement | null
@@ -639,6 +642,16 @@ export default function BlogPostPage() {
       return Array.from(new Set(found))
     }
 
+    // original (pre-shift) padding-top / margin-bottom, captured once per element
+    const originals = (el: HTMLElement): [number, number] => {
+      if (el.dataset.basePt === undefined) {
+        const cs = getComputedStyle(el)
+        el.dataset.basePt = String(parseFloat(cs.paddingTop) || 0)
+        el.dataset.baseMb = String(parseFloat(cs.marginBottom) || 0)
+      }
+      return [parseFloat(el.dataset.basePt || '0'), parseFloat(el.dataset.baseMb || '0')]
+    }
+
     const snapPhotos = () => {
       const probe = prose.querySelector('p')
       const line = probe ? parseFloat(getComputedStyle(probe).lineHeight) : 0
@@ -648,10 +661,11 @@ export default function BlogPostPage() {
         prose.querySelectorAll('figure.blog-photo, figure.blog-image-row')
       ) as HTMLElement[]
       // bare markdown images (not inside a figure): snap their wrapping paragraph
+      const bare: HTMLElement[] = []
       for (const img of Array.from(prose.querySelectorAll('img'))) {
         if (img.closest('figure')) continue
         const p = img.closest('p') as HTMLElement | null
-        if (p && !figs.includes(p)) figs.push(p)
+        if (p && !figs.includes(p)) bare.push(p)
       }
       figs.forEach((fig) => {
         const prev = parseFloat(fig.dataset.gridSnap || '0')
@@ -662,6 +676,18 @@ export default function BlogPostPage() {
         fig.dataset.gridSnap = String(delta)
         fig.style.marginBottom = `${base + delta}px`
       })
+      // bare-image paragraphs get the same treatment via the shared originals store
+      bare.forEach((p) => {
+        const [basePt, baseMb] = originals(p)
+        void basePt
+        const prev = parseFloat(p.dataset.gridSnap || '0')
+        const base = baseMb - prev
+        const bottom = p.getBoundingClientRect().bottom - ruledTop + base
+        const target = Math.ceil(bottom / line - 1e-4) * line
+        const delta = Math.max(0, target - bottom)
+        p.dataset.gridSnap = String(delta)
+        p.style.marginBottom = `${base + delta}px`
+      })
     }
 
     const shiftBaselines = () => {
@@ -670,33 +696,35 @@ export default function BlogPostPage() {
       if (!line) return
       const ruledTop = ruled.getBoundingClientRect().top
       const all = eachTarget(TEXT_SEL)
-      // only shift the innermost text containers (never a parent + child twice)
-      const targets = all.filter((el) => !all.some((o) => o !== el && el.contains(o)))
-      // reset + measure first, then apply (so measurements don't see each other)
-      const jobs: { el: HTMLElement; shift: number; padTop: number; mb: number }[] = []
+      // only shift the innermost text containers (never a parent + child twice),
+      // and never a paragraph that only wraps an image (no text baseline there)
+      const targets = all.filter(
+        (el) =>
+          !all.some((o) => o !== el && el.contains(o)) &&
+          !(el.tagName === 'P' && el.querySelector('img'))
+      )
       for (const el of targets) {
-        // reset only the previous baseline shift; a photo-snap margin on this
-        // element (bare markdown images) must survive into the measurement below
-        el.style.paddingTop = ''
+        const [basePt, baseMb] = originals(el)
+        // measure from the natural position: clear only our own inline shift
+        el.style.paddingTop = basePt ? `${basePt}px` : ''
         const cs = getComputedStyle(el)
         const fontSize = parseFloat(cs.fontSize)
         let lh = parseFloat(cs.lineHeight)
         if (!isFinite(lh)) lh = fontSize * 1.2
         const padTop = parseFloat(cs.paddingTop) || 0
-        const mb = parseFloat(cs.marginBottom) || 0
         const ascent = ascentFor(cs.fontWeight, fontSize, cs.fontFamily)
         const elTop = el.getBoundingClientRect().top - ruledTop
         const baseline = elTop + padTop + (lh - fontSize) / 2 + ascent
         // rules sit at multiples of `line`; aim for the rule's center
         const shift = (((line - 0.5 - (baseline % line)) % line) + line) % line
         if (shift > 0.25 && shift < line - 0.25) {
-          jobs.push({ el, shift, padTop, mb })
+          // push the text down; shrink the bottom margin so the footprint is unchanged
+          el.style.paddingTop = `${basePt + shift}px`
+          el.style.marginBottom = `${baseMb - shift}px`
+        } else {
+          el.style.paddingTop = basePt ? `${basePt}px` : ''
+          el.style.marginBottom = baseMb ? `${baseMb}px` : ''
         }
-      }
-      for (const { el, shift, padTop, mb } of jobs) {
-        // push the text down; shrink the bottom margin so the footprint is unchanged
-        el.style.paddingTop = `${padTop + shift}px`
-        el.style.marginBottom = `${mb - shift}px`
       }
     }
 
