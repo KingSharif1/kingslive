@@ -590,10 +590,21 @@ export default function BlogPostPage() {
   //    block lands exactly on the grid.
   // 2) Every text line's baseline is measured (real font ascent via canvas) and
   //    the line is nudged down onto the nearest rule below it, like ink on paper.
+  // Scoped to the article only: the library/like bar and the comments also live
+  // inside .blog-ruled and must never be touched.
   useEffect(() => {
     if (!post) return
     const ruled = document.querySelector('.blog-ruled') as HTMLElement | null
     if (!ruled) return
+    const prose = ruled.querySelector('.prose') as HTMLElement | null
+    if (!prose) return
+    const extra: (HTMLElement | null)[] = [
+      ruled.querySelector('.blog-tags'),
+      ruled.querySelector('.blog-project-link'),
+      ruled.querySelector('.blog-footnotes'),
+      ruled.querySelector('.blog-fin'),
+    ]
+    const scopes = [prose, ...extra.filter((el): el is HTMLElement => el != null)]
     let raf = 0
     const ascentCache = new Map<string, number>()
     let measureCtx: CanvasRenderingContext2D | null = null
@@ -619,16 +630,25 @@ export default function BlogPostPage() {
       '.blog-fin', 'pre code', '.blog-footnotes__kicker', '.blog-aside__kicker',
     ].join(',')
 
+    const eachTarget = (sel: string): HTMLElement[] => {
+      const found: HTMLElement[] = []
+      for (const scope of scopes) {
+        if (scope.matches(sel)) found.push(scope)
+        for (const el of Array.from(scope.querySelectorAll(sel))) found.push(el as HTMLElement)
+      }
+      return Array.from(new Set(found))
+    }
+
     const snapPhotos = () => {
-      const probe = ruled.querySelector('p')
+      const probe = prose.querySelector('p')
       const line = probe ? parseFloat(getComputedStyle(probe).lineHeight) : 0
       if (!line) return
       const ruledTop = ruled.getBoundingClientRect().top
       const figs: HTMLElement[] = Array.from(
-        ruled.querySelectorAll('figure.blog-photo, figure.blog-image-row')
+        prose.querySelectorAll('figure.blog-photo, figure.blog-image-row')
       ) as HTMLElement[]
       // bare markdown images (not inside a figure): snap their wrapping paragraph
-      for (const img of Array.from(ruled.querySelectorAll('img'))) {
+      for (const img of Array.from(prose.querySelectorAll('img'))) {
         if (img.closest('figure')) continue
         const p = img.closest('p') as HTMLElement | null
         if (p && !figs.includes(p)) figs.push(p)
@@ -645,11 +665,11 @@ export default function BlogPostPage() {
     }
 
     const shiftBaselines = () => {
-      const probe = ruled.querySelector('p')
+      const probe = prose.querySelector('p')
       const line = probe ? parseFloat(getComputedStyle(probe).lineHeight) : 0
       if (!line) return
       const ruledTop = ruled.getBoundingClientRect().top
-      const all = Array.from(new Set(Array.from(ruled.querySelectorAll(TEXT_SEL)))) as HTMLElement[]
+      const all = eachTarget(TEXT_SEL)
       // only shift the innermost text containers (never a parent + child twice)
       const targets = all.filter((el) => !all.some((o) => o !== el && el.contains(o)))
       // reset + measure first, then apply (so measurements don't see each other)
@@ -688,10 +708,13 @@ export default function BlogPostPage() {
       })
     }
     run()
-    const imgs = Array.from(ruled.querySelectorAll('img'))
+    const imgs = Array.from(prose.querySelectorAll('img'))
     imgs.forEach((img) => {
       if (!(img as HTMLImageElement).complete) img.addEventListener('load', run, { once: true })
     })
+    // opening/closing an FAQ changes layout: re-snap afterwards
+    const details = Array.from(prose.querySelectorAll('details'))
+    details.forEach((d) => d.addEventListener('toggle', run))
     window.addEventListener('resize', run)
     window.addEventListener('load', run, { once: true })
     if (document.fonts) document.fonts.ready.then(run).catch(() => {})
@@ -699,6 +722,7 @@ export default function BlogPostPage() {
       cancelAnimationFrame(raf)
       window.removeEventListener('resize', run)
       window.removeEventListener('load', run)
+      details.forEach((d) => d.removeEventListener('toggle', run))
     }
   }, [post])
 
