@@ -10,7 +10,7 @@ interface Comment {
   id: string
   post_id: string
   author_name: string
-  author_email: string
+  author_email?: string | null // guests no longer submit email; legacy rows may still carry one
   content: string
   approved: boolean
   created_at: string
@@ -32,7 +32,6 @@ export default function Comments({ postId, autoApproveHours = 24 }: CommentsProp
 
   // Form state
   const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
   const [content, setContent] = useState('')
 
   // Fetch comments
@@ -87,17 +86,9 @@ export default function Comments({ postId, autoApproveHours = 24 }: CommentsProp
     setSubmitStatus('idle')
     setErrorMessage('')
 
-    // Validate
-    if (!name.trim() || !email.trim() || !content.trim()) {
-      setErrorMessage('Please fill in all fields')
-      setIsSubmitting(false)
-      return
-    }
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      setErrorMessage('Please enter a valid email address')
+    // Validate — guests leave a name and a comment, nothing else
+    if (!name.trim() || !content.trim()) {
+      setErrorMessage('Please add your name and a comment')
       setIsSubmitting(false)
       return
     }
@@ -125,7 +116,6 @@ export default function Comments({ postId, autoApproveHours = 24 }: CommentsProp
         .insert({
           post_id: postId,
           author_name: sanitizeContent(name.trim()),
-          author_email: email.trim().toLowerCase(),
           content: sanitizeContent(content.trim()),
           approved: moderation.shouldAutoApprove, // Auto-approve clean comments
           archived: false
@@ -135,7 +125,6 @@ export default function Comments({ postId, autoApproveHours = 24 }: CommentsProp
 
       setSubmitStatus('success')
       setName('')
-      setEmail('')
       setContent('')
       setShowForm(false)
 
@@ -214,7 +203,7 @@ export default function Comments({ postId, autoApproveHours = 24 }: CommentsProp
             onSubmit={handleSubmit}
             className="mb-8 p-6 rounded-2xl bg-[var(--secondary)] border border-[var(--border)]"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-[var(--muted-foreground)] mb-2">
                   Name *
@@ -226,19 +215,6 @@ export default function Comments({ postId, autoApproveHours = 24 }: CommentsProp
                   placeholder="Your name"
                   className="w-full px-4 py-3 rounded-xl bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
                   maxLength={50}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[var(--muted-foreground)] mb-2">
-                  Email * <span className="text-xs opacity-60">(not published)</span>
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  className="w-full px-4 py-3 rounded-xl bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-                  maxLength={100}
                 />
               </div>
             </div>

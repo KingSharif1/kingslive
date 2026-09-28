@@ -9,6 +9,7 @@ import { BlogLikeButton } from '@/components/BlogLikeButton'
 import BlogDrift from '@/components/blog/BlogDrift'
 import BlogCursor from '@/components/blog/BlogCursor'
 import BlogFooter from '@/components/blog/BlogFooter'
+import BackToTop from '@/components/blog/BackToTop'
 import { usePortfolioTheme } from '@/components/usePortfolioTheme'
 import { cn } from '@/lib/utils'
 import { getProjectById } from '@/lib/portfolio-projects'
@@ -22,8 +23,6 @@ function formatWhen(createdAt: string) {
     long: d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
   }
 }
-
-const BOOK_CLOTHS = ['#6d2f2c', '#3f5544', '#2f3e56', '#8a6a2f', '#5d4a36', '#503a52', '#2f5d5a']
 
 function hashStr(s: string): number {
   let h = 0
@@ -89,14 +88,14 @@ function Book({
   onRequestClose: (immediate?: boolean) => void
 }) {
   const h = hashStr(post.id)
-  const height = 188 + (h % 62)
-  const width = 46 + (h % 16)
-  const cloth = BOOK_CLOTHS[h % BOOK_CLOTHS.length]
+  const height = 168 + (h % 44)
+  const width = 116 + (h % 28)
+  const tilt = ((((h >> 3) % 7) - 3) * 1.1).toFixed(1)
   const when = formatWhen(post.created_at)
   return (
     <div
       className="book"
-      style={{ height, '--book-cloth': cloth } as CSSProperties}
+      style={{ height, '--letter-tilt': `${tilt}deg` } as CSSProperties}
       onMouseEnter={(e) => onOpen(post, e.currentTarget)}
       onMouseLeave={() => onRequestClose()}
       onFocus={(e) => onOpen(post, e.currentTarget)}
@@ -107,13 +106,14 @@ function Book({
     >
       <Link
         href={`/blog/${post.slug}`}
-        className="book-spine"
+        className="letter"
         style={{ width }}
-        aria-label={`${post.title} — open this volume`}
+        aria-label={`${post.title} — open this letter`}
       >
-        <span className="book-spine__tag">{post.tags[0] || 'Notes'}</span>
-        <span className="book-spine__title">{post.title}</span>
-        <span className="book-spine__year">{when.year}</span>
+        <span className="letter__tag">{post.tags[0] || 'Notes'}</span>
+        <span className="letter__title">{post.title}</span>
+        <span className="letter__meta">{when.year}</span>
+        <span className="letter__seal" aria-hidden="true" />
       </Link>
     </div>
   )
@@ -121,16 +121,10 @@ function Book({
 
 // Mobile-first catalog row: full title, thumb, excerpt — no popups.
 function CatalogRow({ post }: { post: BlogPost }) {
-  const h = hashStr(post.id)
-  const cloth = BOOK_CLOTHS[h % BOOK_CLOTHS.length]
   const when = formatWhen(post.created_at)
   return (
     <Link href={`/blog/${post.slug}`} className="catalog-row">
-      <span
-        className="catalog-row__swatch"
-        style={{ '--book-cloth': cloth } as CSSProperties}
-        aria-hidden="true"
-      >
+      <span className="catalog-row__swatch" aria-hidden="true">
         <span>{when.year}</span>
       </span>
       <span className="min-w-0">
@@ -153,11 +147,22 @@ interface InspectState {
   below: boolean
 }
 
+// Broad shelves: each groups related subject tags so the filter stays a short,
+// scannable row instead of one pill per tag. A post appears on every shelf that
+// contains at least one of its tags.
+const SHELVES: { name: string; tags: string[] }[] = [
+  { name: 'Robots', tags: ['Roomba', 'Robotics', 'Raspberry Pi', 'ROS 2', 'Arduino', 'SLAM'] },
+  { name: 'AI', tags: ['AI', 'Tech'] },
+  { name: 'Code', tags: ['Development', 'Next.js'] },
+  { name: 'Builds', tags: ['Build Log', 'DIY', 'Portfolio'] },
+  { name: 'Life', tags: ['Dev Life'] },
+]
+
 export default function BlogPage() {
   const { isDark, toggleTheme } = usePortfolioTheme()
   const [posts, setPosts] = useState<BlogPost[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTag, setActiveTag] = useState<string | null>(null)
+  const [activeShelf, setActiveShelf] = useState<string | null>(null)
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [mounted, setMounted] = useState(false)
@@ -170,7 +175,17 @@ export default function BlogPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    setActiveTag(params.get('tag'))
+    // Accept a shelf name directly; map legacy ?tag= values to their shelf.
+    const tagParam = params.get('tag')
+    if (tagParam) {
+      if (SHELVES.some((s) => s.name === tagParam)) setActiveShelf(tagParam)
+      else {
+        const shelf = SHELVES.find((s) =>
+          s.tags.some((t) => t.toLowerCase() === tagParam.toLowerCase())
+        )
+        setActiveShelf(shelf ? shelf.name : null)
+      }
+    }
     setActiveProjectId(params.get('project'))
     fetch('/api/blog/notes')
       .then((r) => r.json())
@@ -219,7 +234,7 @@ export default function BlogPage() {
   // Browsing changes the list — dismiss any open inspector.
   useEffect(() => {
     setInspect(null)
-  }, [searchQuery, activeTag, activeProjectId])
+  }, [searchQuery, activeShelf, activeProjectId])
 
   useEffect(() => {
     return () => {
@@ -227,15 +242,28 @@ export default function BlogPage() {
     }
   }, [])
 
-  const allTags = useMemo(
-    () => Array.from(new Set(posts.flatMap((post) => post.tags))),
-    [posts]
-  )
+  const shelfCounts = useMemo(() => {
+    const tagSet = (shelf: { tags: string[] }) =>
+      new Set(shelf.tags.map((t) => t.toLowerCase()))
+    return SHELVES.map((shelf) => {
+      const tags = tagSet(shelf)
+      const count = posts.filter((post) =>
+        post.tags.some((t) => tags.has(t.toLowerCase()))
+      ).length
+      return { name: shelf.name, count }
+    })
+  }, [posts])
+
+  const activeShelfTags = useMemo(() => {
+    const shelf = SHELVES.find((s) => s.name === activeShelf)
+    return shelf ? new Set(shelf.tags.map((t) => t.toLowerCase())) : null
+  }, [activeShelf])
 
   const filteredPosts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
     return posts.filter((post) => {
-      if (activeTag && !post.tags.includes(activeTag)) return false
+      if (activeShelfTags && !post.tags.some((t) => activeShelfTags.has(t.toLowerCase())))
+        return false
       if (activeProjectId && post.relatedProjectId !== activeProjectId) return false
       if (q) {
         const hay = `${post.title} ${post.excerpt} ${post.tags.join(' ')}`.toLowerCase()
@@ -243,11 +271,11 @@ export default function BlogPage() {
       }
       return true
     })
-  }, [posts, activeTag, activeProjectId, searchQuery])
+  }, [posts, activeShelfTags, activeProjectId, searchQuery])
 
   const activeProject = activeProjectId ? getProjectById(activeProjectId) : undefined
 
-  const isBrowsing = activeTag !== null || activeProjectId !== null || searchQuery.trim() !== ''
+  const isBrowsing = activeShelf !== null || activeProjectId !== null || searchQuery.trim() !== ''
   const featured = !loading && !isBrowsing && filteredPosts.length > 0 ? filteredPosts[0] : null
   const rest = featured ? filteredPosts.slice(1) : filteredPosts
 
@@ -268,10 +296,17 @@ export default function BlogPage() {
       <BlogCursor />
 
       <header className="relative px-5 sm:px-10 lg:px-16 pt-8 pb-10 overflow-hidden">
-        <p className="blog-bleed" aria-hidden>
-          cerebration
-        </p>
-        <div className="relative -mt-4 sm:-mt-8 max-w-2xl">
+        <svg
+          className="blog-bleed"
+          viewBox="0 0 1000 150"
+          preserveAspectRatio="xMidYMid meet"
+          aria-hidden="true"
+        >
+          <text x="500" y="118" textAnchor="middle" textLength="990" lengthAdjust="spacing">
+            CEREBRATION
+          </text>
+        </svg>
+        <div className="relative -mt-2 sm:-mt-4 max-w-2xl">
           <p className="text-[11px] font-mono tracking-[0.32em] uppercase text-[var(--blog-muted)] mb-4">
             Cerebration · The Library · {new Date().getFullYear()}
           </p>
@@ -279,61 +314,59 @@ export default function BlogPage() {
             The Library
           </h1>
           <p className="mt-4 text-[15px] sm:text-base leading-relaxed text-[var(--blog-muted)] max-w-lg">
-            Every volume I&apos;ve written — building, breaking, and learning,
-            bound and shelved. Pull one down and open it up.
+            A builder&apos;s notebook: projects, breakdowns, and lessons,
+            shelved as I go. Pull one down.
           </p>
-          <label className="mt-8 block max-w-sm">
-            <span className="sr-only">Search the library</span>
-            <input
-              type="search"
-              placeholder="Search the stacks…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-transparent border-0 border-b border-[var(--blog-ink)]/25 py-2 text-sm outline-none placeholder:text-[var(--blog-muted)] focus:border-[var(--blog-bloom)]"
-            />
-          </label>
         </div>
       </header>
 
-      <div className="px-5 sm:px-10 lg:px-16 pb-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] font-mono tracking-[0.18em] uppercase">
-        <span className="text-[var(--blog-muted)]/70 mr-1 hidden sm:inline">Subjects</span>
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTag(null)
-            setActiveProjectId(null)
-          }}
-          className={
-            activeTag === null && !activeProjectId
-              ? 'text-[var(--blog-ink)]'
-              : 'text-[var(--blog-muted)] hover:text-[var(--blog-ink)]'
-          }
-        >
-          All
-        </button>
-        {allTags.map((tag) => (
-          <button
-            key={tag}
-            type="button"
-            onClick={() => setActiveTag(tag)}
-            className={
-              activeTag === tag
-                ? 'text-[var(--blog-ink)]'
-                : 'text-[var(--blog-muted)] hover:text-[var(--blog-ink)]'
-            }
-          >
-            {tag}
-          </button>
-        ))}
-        {activeProject && (
+      {/* search + subject filters: one toolbar, pill subjects with counts */}
+      <div className="px-5 sm:px-10 lg:px-16 pb-8">
+        <label className="block max-w-sm mb-4">
+          <span className="sr-only">Search the library</span>
+          <input
+            type="search"
+            placeholder="Search the stacks…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-transparent border-0 border-b border-[var(--blog-ink)]/25 py-2 text-sm outline-none placeholder:text-[var(--blog-muted)] focus:border-[var(--blog-bloom)]"
+          />
+        </label>
+        <div className="blog-filter" role="group" aria-label="Filter by shelf">
+          <span className="blog-filter__label">Shelves</span>
           <button
             type="button"
-            onClick={() => setActiveProjectId(null)}
-            className="text-[var(--blog-bloom)]"
+            onClick={() => {
+              setActiveShelf(null)
+              setActiveProjectId(null)
+            }}
+            data-active={activeShelf === null && !activeProjectId}
+            className="blog-filter__pill"
           >
-            {activeProject.title} ×
+            All <span className="blog-filter__count">{posts.length}</span>
           </button>
-        )}
+          {shelfCounts.map(({ name, count }) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => setActiveShelf(name)}
+              data-active={activeShelf === name}
+              className="blog-filter__pill"
+            >
+              {name} <span className="blog-filter__count">{count}</span>
+            </button>
+          ))}
+          {activeProject && (
+            <button
+              type="button"
+              onClick={() => setActiveProjectId(null)}
+              data-active={true}
+              className="blog-filter__pill"
+            >
+              {activeProject.title} <span className="blog-filter__count">×</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <main className="px-5 sm:px-10 lg:px-16 pb-8">
@@ -422,7 +455,7 @@ export default function BlogPage() {
                   src={inspect.post.cover_image}
                   alt=""
                   fill
-                  quality={70}
+                  quality={75}
                   sizes="290px"
                   className="object-cover object-center"
                 />
@@ -446,6 +479,7 @@ export default function BlogPage() {
           </div>,
           document.body
         )}
+      <BackToTop />
     </div>
   )
 }

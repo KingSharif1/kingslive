@@ -16,6 +16,7 @@ export interface SanityPost {
   categories?: { title: string }[]
   publishedAt?: string
   _createdAt?: string
+  _updatedAt?: string
   published?: boolean | null
   excerpt?: string
   body?: PortableTextBlock[]
@@ -31,6 +32,7 @@ export interface BlogPost {
   tags: string[]
   created_at: string
   published: boolean
+  updated_at?: string
   excerpt: string
   content?: PortableTextBlock[]
   views: number
@@ -74,6 +76,8 @@ export function transformPost(post: SanityPost): BlogPost {
     cover_image: post.mainImage?.asset?.url,
     tags: post.categories?.map((c) => c.title).filter(Boolean) || [],
     created_at: post.publishedAt || post._createdAt || new Date().toISOString(),
+    // Last document update from Sanity (not full revision history)
+    updated_at: post._updatedAt || post._createdAt,
     // Legacy docs may omit `published` — treat undefined/null as published
     published: post.published !== false,
     excerpt,
@@ -92,6 +96,7 @@ const LIST_PROJECTION = `
   "categories": categories[]->{ title },
   publishedAt,
   _createdAt,
+  _updatedAt,
   published,
   excerpt,
   relatedProjectId,
@@ -119,6 +124,22 @@ export async function getPublishedPosts(): Promise<BlogPost[]> {
   } catch (error) {
     console.error('Error fetching posts from Sanity:', error)
     return cached?.data || []
+  }
+}
+
+// Ctroom view: every post including drafts, ordered by last update.
+// _updatedAt is the document's last write — it is not full revision history.
+export async function getAllPostsForAdmin(): Promise<BlogPost[]> {
+  const query = `*[_type == "post"] | order(_updatedAt desc) {
+    ${LIST_PROJECTION}
+  }`
+
+  try {
+    const posts = await client.fetch<SanityPost[]>(query)
+    return posts.map(transformPost).filter((p) => Boolean(p.slug))
+  } catch (error) {
+    console.error('Error fetching all posts from Sanity:', error)
+    return []
   }
 }
 

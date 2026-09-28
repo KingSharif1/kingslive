@@ -7,7 +7,7 @@ import {
     RefreshCw, ExternalLink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getPublishedPosts, BlogPost } from '@/lib/sanity-queries';
+import { getAllPostsForAdmin, BlogPost } from '@/lib/sanity-queries';
 import { supabase } from '@/lib/supabase';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -26,7 +26,7 @@ interface Comment {
     id: string;
     post_id: string;
     author_name: string;
-    author_email: string;
+    author_email?: string | null;
     content: string;
     approved: boolean;
     created_at: string;
@@ -102,8 +102,8 @@ export const BlogView = () => {
         if (!silent) setIsLoading(true);
         else setIsRefreshing(true);
         try {
-            // Fetch posts from Sanity
-            const sanityPosts = await getPublishedPosts();
+            // Fetch posts from Sanity — drafts included, newest update first
+            const sanityPosts = await getAllPostsForAdmin();
 
             // Fetch analytics from Supabase in one query
             const { data: analyticsData } = await supabase
@@ -374,6 +374,12 @@ export const BlogView = () => {
                                                 </div>
                                                 <div className="flex items-center gap-3 mt-1">
                                                     <span className="font-mono text-[10px]" style={{ color: 'rgba(255,255,255,0.25)' }}>{formatDate(post.created_at)}</span>
+                                                    {post.updated_at && (
+                                                        <>
+                                                            <span style={{ color: 'rgba(255,255,255,0.15)' }}>·</span>
+                                                            <span className="font-mono text-[10px]" style={{ color: 'rgba(255,255,255,0.2)' }}>updated {formatDate(post.updated_at)}</span>
+                                                        </>
+                                                    )}
                                                     {post.tags.length > 0 && (
                                                         <>
                                                             <span style={{ color: 'rgba(255,255,255,0.15)' }}>·</span>

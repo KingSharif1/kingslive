@@ -1,5 +1,5 @@
 import './globals.css'
-import { Unbounded, Sora, Young_Serif, Inter, JetBrains_Mono } from 'next/font/google'
+import { Unbounded, Sora, Young_Serif, Inter, JetBrains_Mono, Alegreya, Caveat } from 'next/font/google'
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
 
@@ -42,6 +42,30 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 })
 
+// Blog body serif (Cerebration "old book" text) — normal + italic faces,
+// both registered under the 'Alegreya' family name.
+const alegreya = Alegreya({
+  subsets: ['latin'],
+  variable: '--font-alegreya',
+  display: 'swap',
+})
+
+const alegreyaItalic = Alegreya({
+  subsets: ['latin'],
+  style: 'italic',
+  variable: '--font-alegreya-italic',
+  display: 'swap',
+})
+
+// Blog handwriting (Cerebration notebook body text) — Caveat, the closest
+// match to the author's hand lettering.
+const caveat = Caveat({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-caveat',
+  display: 'swap',
+})
+
 export const metadata = {
   title: 'King Sharif',
   description: 'Portfolio of King Sharif - Full Stack Developer',
@@ -72,7 +96,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://cdn.sanity.io" />
         <link rel="dns-prefetch" href="https://cdn.sanity.io" />
       </head>
-      <body className={`${unbounded.variable} ${sora.variable} ${youngSerif.variable} ${inter.variable} ${jetbrainsMono.variable} font-sans`}>
+      <body className={`${unbounded.variable} ${sora.variable} ${youngSerif.variable} ${inter.variable} ${jetbrainsMono.variable} ${alegreya.variable} ${alegreyaItalic.variable} ${caveat.variable} font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
           <Toaster

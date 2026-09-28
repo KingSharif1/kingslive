@@ -245,7 +245,7 @@ html.dark body::before,
   --shelf-hi: #9a7a52;
   --shelf-mid: #6f5233;
   --shelf-lo: #4a3520;
-  --font-note: Georgia, 'Palatino Linotype', Palatino, serif;
+  --font-note: var(--font-caveat), 'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
   --foreground: var(--blog-ink);
   --muted-foreground: var(--blog-muted);
   --background: var(--blog-field);
@@ -279,13 +279,15 @@ html.dark .blog-world,
   font-family: var(--font-note), Georgia, serif;
 }
 
-/* Single faint margin rule, tucked in the gutter — never over the words */
-.blog-world--note::before {
+/* Single faint margin rule, tucked in the gutter — never over the words.
+   It lives on .blog-read so it only ever spans the paper itself, never the
+   full page. */
+.blog-read::before {
   content: '';
   position: absolute;
   top: 0;
   bottom: 0;
-  left: max(var(--blog-gutter), calc(50% - (var(--blog-sheet) / 2) + var(--blog-gutter)));
+  left: var(--blog-gutter);
   border-left: 1px solid color-mix(in srgb, var(--blog-bloom) 32%, transparent);
   pointer-events: none;
   z-index: 2;
@@ -322,17 +324,23 @@ html.dark .blog-world,
 }
 
 .blog-bleed {
+  display: block;
+  /* break out of the header padding: the word spans the full viewport width */
+  width: 100vw;
+  max-width: none;
+  height: auto;
+  margin-left: calc(50% - 50vw);
   font-family: var(--font-display), 'Young Serif', Georgia, serif;
-  font-size: clamp(5rem, 22vw, 16rem);
-  line-height: 0.75;
-  letter-spacing: -0.07em;
-  margin-left: -6vw;
-  width: 120vw;
+  font-weight: 700;
   color: var(--blog-ink);
   opacity: 0.1;
   pointer-events: none;
   user-select: none;
-  white-space: nowrap;
+}
+
+.blog-bleed text {
+  font-size: 128px;
+  fill: currentColor;
 }
 
 .blog-volume {
@@ -396,12 +404,13 @@ html.dark .blog-world,
   background-size: 100% 2px;
 }
 
-/* the sheet itself is blank paper — ruled lines start below the title */
+/* the sheet itself is blank paper — ruled lines start below the title.
+   The sheet fills 73–90% of the viewport (88%, capped for ultrawide). */
 .blog-read {
-  --blog-line: 1.6rem;
+  --blog-line: 2rem;
   position: relative;
   z-index: 1;
-  max-width: var(--blog-sheet);
+  width: min(88%, 100rem);
   min-height: 100vh;
   margin-left: auto;
   margin-right: auto;
@@ -412,14 +421,18 @@ html.dark .blog-world,
   line-height: var(--blog-line);
 }
 
-/* ruled notebook lines, applied only after the title page */
+/* ruled notebook lines, applied only after the title page.
+   NOTE: do not use color-mix() for the line color here — Firefox misrenders
+   color-mix() inside repeating gradients (it inverts the bands: thick gray
+   stripes instead of thin rules). The relative-color form below paints the
+   identical 38%-alpha line and renders correctly everywhere. */
 .blog-ruled {
   background-image: repeating-linear-gradient(
     to bottom,
     transparent 0,
     transparent calc(var(--blog-line) - 1px),
-    color-mix(in srgb, var(--blog-rule) 38%, transparent) calc(var(--blog-line) - 1px),
-    color-mix(in srgb, var(--blog-rule) 38%, transparent) var(--blog-line)
+    rgb(from var(--blog-rule) r g b / 38%) calc(var(--blog-line) - 1px),
+    rgb(from var(--blog-rule) r g b / 38%) var(--blog-line)
   );
 }
 
@@ -431,6 +444,9 @@ html.dark .blog-world,
 
 .blog-read .prose {
   font-family: var(--font-note), Georgia, serif;
+  /* Caveat reads small — 1.5rem lands like a comfortable marker hand */
+  font-size: 1.5rem;
+  font-weight: 500;
   line-height: var(--blog-line);
 }
 
@@ -465,6 +481,24 @@ html.dark .blog-world,
   line-height: calc(var(--blog-line) * 2);
   margin-top: calc(var(--blog-line) * 2);
   margin-bottom: var(--blog-line);
+}
+
+/* Section headings: a solid paper backing hides the grid rules behind the
+   heading block, and a rule-colored underline redraws one line under each
+   line of text — every heading line sits on a line, none cross the glyphs.
+   (A per-line paper mask was tried first, but it depended on exact font
+   ascent/descent metrics and broke for h1; this is metric-independent.) */
+.blog-read .blog-ruled h1,
+.blog-read .blog-ruled h2,
+.blog-read .blog-ruled h3 {
+  background-color: var(--blog-paper);
+  /* section headings are handwriting too — the whole page reads as one hand */
+  font-family: var(--font-note), Georgia, serif;
+  font-weight: 700;
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in srgb, var(--blog-rule) 38%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
 }
 
 .blog-read .blog-ruled ul,
@@ -562,16 +596,22 @@ html.dark .blog-world,
   display: block;
   width: 100%;
   height: auto;
+  /* keep each photo's own ratio — most source shots are portrait (3:4), so a
+     hard 16:10 crop was cutting them in half. The polaroid frame + tape gives
+     the consistency; max-height keeps tall portraits bookish, never towering. */
+  max-height: 40rem;
+  margin-inline: auto;
 }
 
 .blog-caption {
   display: block;
-  margin: 0;
+  margin: 0.35rem 0 0;
   padding: 0;
   border: 0;
   background: none;
   font-family: var(--font-note), Georgia, serif;
-  font-size: 0.98rem;
+  font-size: 1.3rem;
+  font-weight: 500;
   font-style: italic;
   font-weight: 400;
   line-height: var(--blog-line);
@@ -840,6 +880,10 @@ html.dark .blog-world,
   padding: 0.7rem 0.7rem 0.55rem;
   margin-top: calc(var(--blog-line) * 1.5);
   margin-bottom: calc(var(--blog-line) * 1.5);
+  /* consistent footprint: same max width, centered, every photo */
+  max-width: 54rem;
+  margin-left: auto;
+  margin-right: auto;
   transform: rotate(-0.6deg);
 }
 
@@ -929,14 +973,21 @@ html.dark .blog-world,
 
 .blog-read .prose .blog-image-row__cell .blog-image-row__img {
   border-radius: 1px;
+  /* gentle 4:5 frame — most source shots are 3:4 portrait, so this barely
+     trims; the old 16:10 override was cutting them in half */
   aspect-ratio: 4 / 5;
+  object-fit: cover;
+  object-position: center;
+  width: 100%;
+  height: auto;
 }
 
 .blog-read .prose .blog-image-row__cell .blog-caption {
   margin-top: 0.45rem;
   padding: 0 0.1rem;
   color: #6b6156;
-  font-size: 0.85rem;
+  font-size: 1.15rem;
+  font-weight: 500;
 }
 
 /* --- Link polish: soft highlight on hover, offset underline --- */
@@ -1865,6 +1916,65 @@ html.blog-cursor-on body select {
   transform: rotate(0deg);
 }
 
+/* --- Index: subject filter pills --- */
+.blog-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.25rem 0 0.5rem;
+}
+
+.blog-filter__label {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--blog-muted) 75%, transparent);
+  margin-right: 0.35rem;
+}
+
+.blog-filter__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--blog-ink) 22%, transparent);
+  background: color-mix(in srgb, var(--blog-paper) 55%, transparent);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--blog-muted);
+  cursor: pointer;
+  transition: transform 0.18s ease, background-color 0.18s ease, color 0.18s ease,
+    border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.blog-filter__pill:hover {
+  transform: translateY(-1px);
+  color: var(--blog-ink);
+  border-color: color-mix(in srgb, var(--blog-ink) 45%, transparent);
+  box-shadow: 0 3px 10px -6px rgb(0 0 0 / 0.35);
+}
+
+.blog-filter__pill[data-active="true"] {
+  background: var(--blog-ink);
+  border-color: var(--blog-ink);
+  color: var(--blog-paper);
+}
+
+.blog-filter__count {
+  font-size: 0.62rem;
+  opacity: 0.65;
+  letter-spacing: 0.05em;
+}
+
+.blog-filter__pill[data-active="true"] .blog-filter__count {
+  opacity: 0.8;
+}
+
 /* --- Index: colophon at the bottom of the shelf --- */
 .blog-index__colophon {
   margin-top: 3.5rem;
@@ -1939,60 +2049,68 @@ html.blog-cursor-on body select {
   z-index: 20;
 }
 
-.book-spine {
+/* one letter on the shelf — aged parchment, slight tilt, wax seal.
+   The paper texture is a generated asset (public/textures/parchment-letter.jpg). */
+.letter {
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
+  gap: 0.35rem;
   height: 100%;
-  padding: 12px 0 10px;
-  border-radius: 3px 6px 6px 3px;
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--book-cloth) 88%, white), var(--book-cloth) 40%, color-mix(in srgb, var(--book-cloth) 82%, black));
+  padding: 0.85rem 0.8rem 0.7rem;
+  background-image: url(/textures/parchment-letter.jpg);
+  background-size: cover;
+  background-position: center;
+  transform: rotate(var(--letter-tilt, 0deg));
   box-shadow:
-    inset 3px 0 5px rgb(0 0 0 / 0.35),
-    inset -1px 0 2px rgb(255 255 255 / 0.12),
-    2px 4px 8px rgb(0 0 0 / 0.25);
+    2px 6px 12px rgb(0 0 0 / 0.35),
+    inset 0 0 24px rgb(120 72 20 / 0.18);
   outline-offset: 3px;
   overflow: hidden;
+  text-decoration: none;
 }
 
-/* raised binding bands + edge shading on the spine */
-.book-spine::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(to right, rgb(0 0 0 / 0.35), transparent 14%, transparent 86%, rgb(0 0 0 / 0.35)),
-    repeating-linear-gradient(
-      to bottom,
-      transparent 0 30px,
-      rgb(0 0 0 / 0.22) 30px 34px,
-      rgb(255 255 255 / 0.07) 34px 36px
-    );
-}
-
-.book-spine__tag,
-.book-spine__year {
+.letter__tag {
   font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 0.52rem;
-  letter-spacing: 0.14em;
+  font-size: 0.55rem;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgb(243 234 212 / 0.72);
+  color: #8a5a2b;
   white-space: nowrap;
 }
 
-.book-spine__title {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  font-family: var(--font-display), 'Young Serif', Georgia, serif;
-  font-size: 0.95rem;
-  letter-spacing: 0.02em;
-  color: #f3ead4;
-  max-height: 64%;
+.letter__title {
+  font-family: var(--font-note), 'Caveat', cursive;
+  font-size: 1.3rem;
+  font-weight: 600;
+  line-height: 1.12;
+  color: #3a2a18;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-align: center;
+}
+
+.letter__meta {
+  margin-top: auto;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.14em;
+  color: #8a5a2b;
+}
+
+/* wax seal in the corner */
+.letter__seal {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.55rem;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 48% 52% 51% 49% / 52% 49% 51% 48%;
+  background: radial-gradient(circle at 35% 30%, #c05046, #8a2a22 55%, #5f1a14);
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 0.45),
+    inset 0 1px 2px rgb(255 255 255 / 0.3);
 }
 
 /* catalog card that pops up above the book */
@@ -2134,10 +2252,12 @@ html.blog-cursor-on body select {
   align-items: flex-end;
   justify-content: center;
   aspect-ratio: 5 / 7;
-  border-radius: 2px 5px 5px 2px;
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--book-cloth) 88%, white), var(--book-cloth) 45%, color-mix(in srgb, var(--book-cloth) 80%, black));
+  border-radius: 2px;
+  background-image: url(/textures/parchment-letter.jpg);
+  background-size: cover;
+  background-position: center;
   box-shadow:
-    inset 2px 0 3px rgb(0 0 0 / 0.35),
+    inset 0 0 10px rgb(120 72 20 / 0.25),
     1px 3px 6px rgb(0 0 0 / 0.25);
   padding-bottom: 0.35rem;
 }
@@ -2146,7 +2266,7 @@ html.blog-cursor-on body select {
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 0.55rem;
   letter-spacing: 0.1em;
-  color: rgb(243 234 212 / 0.8);
+  color: rgb(107 74 38 / 0.85);
 }
 
 .catalog-row__tag {
@@ -2259,103 +2379,270 @@ html.blog-cursor-on body select {
 }
 
 /* ============================================================
-   Blog footer — kicker, links, giant outlined wordmark, base row.
-   - Fades out of the page (transparent -> tone), no hard edge.
+   Blog footer — mountain scene. Two SVG ridge layers drift slowly
+   (seamless -50% loop, pure CSS); a moon/sun glows; stars twinkle
+   in dark mode; soft clouds + wind streaks drift in light mode.
+   CEREBRATION is a news ticker scrolling left → right.
+   No canvas, no pointer interaction.
+   - Fades out of the page (transparent -> sky tone), no hard edge.
    - Light/dark adaptive via --foot-* vars.
-   - Wordmark animates in letter-by-letter on scroll (pure CSS
-     scroll-driven animation; visible fallback if unsupported).
-   - Zero assets, zero JS. Static under prefers-reduced-motion.
+   - Static under prefers-reduced-motion. Zero assets.
    ============================================================ */
 .blog-footer {
-  --foot-shade: #e4d6bc;
+  --foot-shade: #e7d9bd;
   --foot-ink: #2a241d;
   --foot-muted: #6b6156;
   --foot-faint: #8a7d6c;
   --foot-stroke: rgb(42 36 29 / 0.34);
   --foot-word-fill: rgb(42 36 29 / 0.07);
+  --foot-ridge-back: #c9b183;
+  --foot-ridge-front: #a0865a;
+  --foot-moon-core: #fdf6e0;
+  --foot-moon-mid: #f0dfb2;
+  --foot-moon-glow: rgb(240 223 178 / 0.35);
   position: relative;
   margin-top: 3.5rem;
   padding: 2.5rem 1.25rem 1.5rem;
-  background: linear-gradient(to bottom, transparent 0%, var(--foot-shade) 62%);
+  min-height: 34rem;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(to bottom, transparent 0%, var(--foot-shade) 58%);
   color: var(--foot-ink);
   overflow: hidden;
 }
 
 .blog-world.dark .blog-footer,
 html.dark .blog-footer {
-  --foot-shade: #131009;
+  --foot-shade: #14100a;
   --foot-ink: #f3ead4;
   --foot-muted: #b8ab98;
   --foot-faint: #8a7d6c;
   --foot-stroke: rgb(243 234 212 / 0.32);
   --foot-word-fill: rgb(243 234 212 / 0.07);
+  --foot-ridge-back: #2c2517;
+  --foot-ridge-front: #1b160d;
+  --foot-moon-core: #f7f2df;
+  --foot-moon-mid: #cfc6a8;
+  --foot-moon-glow: rgb(215 208 182 / 0.16);
 }
 
-/* ---- ember canvas layer (option A, theme-adaptive) ---- */
-.blog-footer__canvas {
+/* ---- stars: dark mode only ---- */
+.blog-footer__stars {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 1.2s ease;
   pointer-events: none;
 }
 
-.blog-footer--embers .blog-footer__inner,
-.blog-footer--embers .blog-footer__word,
-.blog-footer--embers .blog-footer__base {
-  position: relative;
+.blog-world.dark .blog-footer__stars,
+html.dark .blog-footer__stars {
+  opacity: 1;
+}
+
+.blog-footer__stars span {
+  position: absolute;
+  border-radius: 999px;
+  background: #f5eeda;
+  animation: foot-star-twinkle 4s ease-in-out infinite;
+}
+
+@keyframes foot-star-twinkle {
+  0%, 100% { opacity: 0.15; transform: scale(0.8); }
+  50% { opacity: 0.9; transform: scale(1); }
+}
+
+/* ---- moon / sun ---- */
+.blog-footer__moon {
+  position: absolute;
+  top: 11%;
+  right: 9%;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
   z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(circle at 36% 34%, var(--foot-moon-core), var(--foot-moon-mid) 62%, transparent 72%);
+  box-shadow: 0 0 70px 22px var(--foot-moon-glow);
 }
 
-/* wordmark: letters animate in as you scroll to the footer */
-.blog-footer__word span {
-  display: inline-block;
+/* ---- mountain layers: each ridge svg is 200% wide holding two identical
+        tiles; drifting -50% loops seamlessly ---- */
+.blog-footer__mountains {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 56%;
+  max-height: 26rem;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.blog-footer__ridge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 200%;
+  height: 100%;
+}
+
+.blog-footer__ridge--back {
+  height: 92%;
+  fill: var(--foot-ridge-back);
+  opacity: 0.75;
+  animation: foot-ridge-drift 120s linear infinite;
+}
+
+.blog-footer__ridge--front {
+  height: 64%;
+  fill: var(--foot-ridge-front);
+  animation: foot-ridge-drift 75s linear infinite;
+}
+
+@keyframes foot-ridge-drift {
+  to { transform: translateX(-50%); }
+}
+
+/* ---- content sits above the scene ---- */
+.blog-footer__inner,
+.blog-footer__base {
+  position: relative;
+  z-index: 2;
+}
+
+/* ---- news ticker wordmark: CEREBRATION ✦ … scrolling left → right ---- */
+.blog-footer__ticker {
+  position: relative;
+  z-index: 2;
+  /* break out of the footer padding: the ticker spans the full viewport */
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-top: auto;
+  overflow: hidden;
+  border-top: 1px solid var(--foot-stroke);
+  border-bottom: 1px solid var(--foot-stroke);
+  padding: 0.9rem 0;
+  /* soft band behind the type so it reads over the mountains */
+  background: color-mix(in srgb, var(--foot-shade) 55%, transparent);
+}
+
+.blog-footer__ticker-track {
+  display: inline-flex;
+  white-space: nowrap;
+  will-change: transform;
+  /* two identical halves; -50% → 0 drifts the type left → right, seamless */
+  animation: foot-ticker-scroll 36s linear infinite;
+}
+
+.blog-footer__ticker:hover .blog-footer__ticker-track {
+  animation-play-state: paused;
+}
+
+@keyframes foot-ticker-scroll {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+
+.blog-footer__ticker-half {
+  display: inline-flex;
+  white-space: nowrap;
+}
+
+.blog-footer__ticker-item {
+  font-family: var(--font-display), 'Young Serif', Georgia, serif;
+  font-weight: 700;
+  font-size: clamp(2.6rem, 7vw, 4.5rem);
+  letter-spacing: 0.08em;
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--foot-stroke);
+  text-stroke: 1.5px var(--foot-stroke);
+  padding: 0 1.6rem;
+  user-select: none;
+}
+
+.blog-footer__ticker-sep {
+  color: var(--foot-muted);
+  -webkit-text-stroke: 0;
+  text-stroke: 0;
+  padding-left: 3.2rem;
+  font-size: 0.55em;
+  vertical-align: 0.35em;
+}
+
+/* ---- light-mode wind: soft clouds + streaks over the sky ---- */
+.blog-footer__wind {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 1.2s ease;
+}
+
+/* night sky keeps its stars instead */
+.blog-world.dark .blog-footer__wind,
+html.dark .blog-footer__wind {
   opacity: 0;
-  transform: translateY(0.4em) rotate(3deg);
-  animation: foot-letter-in 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  animation-timeline: view();
 }
 
-.blog-footer__word span:nth-child(1) { animation-range: entry 5% entry 30%; }
-.blog-footer__word span:nth-child(2) { animation-range: entry 7.5% entry 32.5%; }
-.blog-footer__word span:nth-child(3) { animation-range: entry 10% entry 35%; }
-.blog-footer__word span:nth-child(4) { animation-range: entry 12.5% entry 37.5%; }
-.blog-footer__word span:nth-child(5) { animation-range: entry 15% entry 40%; }
-.blog-footer__word span:nth-child(6) { animation-range: entry 17.5% entry 42.5%; }
-.blog-footer__word span:nth-child(7) { animation-range: entry 20% entry 45%; }
-.blog-footer__word span:nth-child(8) { animation-range: entry 22.5% entry 47.5%; }
-.blog-footer__word span:nth-child(9) { animation-range: entry 25% entry 50%; }
-.blog-footer__word span:nth-child(10) { animation-range: entry 27.5% entry 52.5%; }
-.blog-footer__word span:nth-child(11) { animation-range: entry 30% entry 55%; }
-
-@keyframes foot-letter-in {
-  from {
-    opacity: 0;
-    transform: translateY(0.4em) rotate(3deg);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+.blog-footer__cloud {
+  position: absolute;
+  left: 0;
+  background: #fffdf8;
+  border-radius: 999px;
+  filter: blur(22px);
+  opacity: 0.55;
+  animation: foot-cloud-drift linear infinite;
 }
 
-/* no scroll-driven animation support -> wordmark just shows */
-@supports not (animation-timeline: view()) {
-  .blog-footer__word span {
-    opacity: 1;
-    transform: none;
-    animation: none;
-  }
+.blog-footer__cloud--1 { top: 8%;  width: 34vw; height: 3.2rem; animation-duration: 95s;  animation-delay: -20s; }
+.blog-footer__cloud--2 { top: 20%; width: 22vw; height: 2.4rem; animation-duration: 70s;  animation-delay: -48s; opacity: 0.42; }
+.blog-footer__cloud--3 { top: 4%;  width: 26vw; height: 2.8rem; animation-duration: 120s; animation-delay: -75s; opacity: 0.36; }
+.blog-footer__cloud--4 { top: 30%; width: 16vw; height: 1.9rem; animation-duration: 58s;  animation-delay: -12s; opacity: 0.5; }
+
+@keyframes foot-cloud-drift {
+  from { transform: translateX(-38vw); }
+  to { transform: translateX(118vw); }
+}
+
+.blog-footer__streak {
+  position: absolute;
+  left: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.75), transparent);
+  filter: blur(1px);
+  opacity: 0.5;
+  animation: foot-streak-drift linear infinite;
+}
+
+.blog-footer__streak--1 { top: 14%; width: 14vw; animation-duration: 11s; animation-delay: -3s; }
+.blog-footer__streak--2 { top: 26%; width: 9vw;  animation-duration: 8s;  animation-delay: -6s; opacity: 0.38; }
+.blog-footer__streak--3 { top: 38%; width: 18vw; animation-duration: 14s; animation-delay: -9s; opacity: 0.3; }
+
+@keyframes foot-streak-drift {
+  from { transform: translateX(-20vw); }
+  to { transform: translateX(120vw); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .blog-footer__word span {
+  .blog-footer__ridge {
     animation: none;
-    opacity: 1;
-    transform: none;
+  }
+  .blog-footer__stars span {
+    animation: none;
+    opacity: 0.6;
+  }
+  .blog-footer__ticker-track,
+  .blog-footer__cloud,
+  .blog-footer__streak {
+    animation: none;
   }
 }
+
 
 .blog-footer__inner {
   max-width: 72rem;
@@ -2396,22 +2683,8 @@ html.dark .blog-footer {
   color: var(--foot-ink);
 }
 
-.blog-footer__word {
-  font-family: var(--font-display), 'Young Serif', Georgia, serif;
-  font-weight: 700;
-  font-size: clamp(3.4rem, 17.5vw, 12rem);
-  line-height: 0.85;
-  letter-spacing: -0.04em;
-  text-align: center;
-  white-space: nowrap;
-  color: transparent;
-  -webkit-text-stroke: 1px var(--foot-stroke);
-  margin: 1.8rem 0 1.4rem;
-  user-select: none;
-  transition: color 0.6s ease;
-}
-
-.blog-footer__word:hover {
+/* fill the outlined ticker type faintly on hover */
+.blog-footer__ticker:hover .blog-footer__ticker-item {
   color: var(--foot-word-fill);
 }
 
@@ -2427,7 +2700,11 @@ html.dark .blog-footer {
   font-size: 0.64rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--foot-faint);
+  color: var(--foot-muted);
+  /* lift the small type off the mountain ridges behind it */
+  text-shadow:
+    0 1px 10px var(--foot-shade),
+    0 0 3px var(--foot-shade);
 }
 
 .blog-footer__base a {
@@ -2437,6 +2714,176 @@ html.dark .blog-footer {
 
 .blog-footer__base a:hover {
   color: var(--foot-ink);
+}
+
+/* --- Back-to-top: appears after ~10% of the page is scrolled --- */
+.blog-totop {
+  position: fixed;
+  right: 1.1rem;
+  bottom: 5.5rem;
+  z-index: 60;
+  width: 2.9rem;
+  height: 2.9rem;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--blog-ink);
+  color: var(--blog-paper);
+  border: 1px solid color-mix(in srgb, var(--blog-paper) 25%, transparent);
+  box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.5);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(12px) scale(0.9);
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.blog-totop[data-visible="true"] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.blog-totop:hover {
+  transform: translateY(-2px);
+}
+
+@media (min-width: 1024px) {
+  .blog-totop {
+    bottom: 2rem;
+    right: 2rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blog-totop {
+    transition: opacity 0.01s;
+  }
+}
+
+/* --- Post page: desktop sidebar rail --- */
+.blog-rail {
+  position: fixed;
+  left: 1.1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 30;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1rem;
+  color: var(--blog-muted);
+}
+
+.blog-rail__brand {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--blog-muted);
+  transition: color 0.2s ease;
+}
+
+.blog-rail__brand:hover {
+  color: var(--blog-ink);
+}
+
+.blog-rail__rule {
+  width: 1.5rem;
+  border-top: 1px solid color-mix(in srgb, var(--blog-ink) 18%, transparent);
+}
+
+.blog-rail__nav,
+.blog-rail__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.blog-rail__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--blog-muted);
+  transition: color 0.2s ease, transform 0.2s ease;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+.blog-rail__item:hover {
+  color: var(--blog-ink);
+  transform: translateY(-1px);
+}
+
+.blog-rail__item span {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* the like button inside the rail keeps its own padding — neutralize it */
+.blog-rail__item .flex-col {
+  gap: 0;
+  padding: 0;
+}
+
+/* --- Post page: mobile bottom action bar --- */
+.blog-bottombar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  padding: 0.55rem 0.5rem calc(0.55rem + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--blog-paper) 88%, transparent);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid color-mix(in srgb, var(--blog-ink) 14%, transparent);
+}
+
+.blog-bottombar__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 3.5rem;
+  color: var(--blog-muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.blog-bottombar__item:hover,
+.blog-bottombar__item:active {
+  color: var(--blog-ink);
+}
+
+.blog-bottombar__item span {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.blog-bottombar__item .flex-col {
+  gap: 0;
+  padding: 0;
+}
+
+/* hand-drawn divider inside the title page */
+.blog-titlepage .blog-handline {
+  margin: 0.9rem auto;
 }
 
 /* ============================================================
@@ -2465,10 +2912,11 @@ html.dark .blog-footer {
 }
 
 .blog-titlepage__title {
-  font-family: var(--font-display), 'Young Serif', Georgia, serif;
-  font-size: clamp(2.3rem, 6vw, 3.9rem);
-  line-height: 1.08;
-  letter-spacing: -0.01em;
+  font-family: var(--font-note), Georgia, serif;
+  font-weight: 700;
+  font-size: clamp(2.6rem, 7vw, 4.4rem);
+  line-height: 1.05;
+  letter-spacing: 0;
   margin: 0 0 0.9rem;
   text-wrap: balance;
 }
@@ -2526,22 +2974,30 @@ html.dark .blog-footer {
   color: var(--blog-muted);
 }
 
-/* aged-paper vignette over the sheet (ruled lines live on .blog-ruled now) */
+/* aged-paper vignette over the sheet (ruled lines live on .blog-ruled now).
+   The parchment texture tiles underneath; the vignette keeps the edges old. */
 .blog-oldbook {
   background-image:
-    radial-gradient(ellipse 120% 90% at 50% 28%, transparent 58%, rgb(101 67 33 / 0.13));
+    radial-gradient(ellipse 120% 90% at 50% 28%, transparent 58%, rgb(101 67 33 / 0.13)),
+    url(/textures/parchment-sheet.jpg);
+  background-size: 100% 100%, 520px;
+  background-repeat: no-repeat, repeat;
 }
 
 html.dark .blog-oldbook,
 .blog-world.dark .blog-oldbook {
   background-image:
-    radial-gradient(ellipse 120% 90% at 50% 28%, transparent 55%, rgb(0 0 0 / 0.4));
+    radial-gradient(ellipse 120% 90% at 50% 28%, transparent 55%, rgb(0 0 0 / 0.4)),
+    linear-gradient(rgb(26 21 16 / 0.93), rgb(26 21 16 / 0.93)),
+    url(/textures/parchment-sheet.jpg);
+  background-size: 100% 100%, auto, 520px;
+  background-repeat: no-repeat, no-repeat, repeat;
 }
 
-/* drop cap on the opening paragraph */
+/* drop cap on the opening paragraph — a big hand-drawn initial */
 .blog-oldbook .prose > p:first-of-type::first-letter {
-  font-family: var(--font-display), 'Young Serif', Georgia, serif;
-  font-weight: 600;
+  font-family: var(--font-note), Georgia, serif;
+  font-weight: 700;
   font-size: 3.3em;
   line-height: 0.82;
   float: left;
@@ -2549,30 +3005,72 @@ html.dark .blog-oldbook,
   color: var(--blog-ink);
 }
 
-/* ornament divider above the sources */
-.blog-oldbook .blog-footnotes::before {
-  content: "❦  ❦  ❦";
+/* hand-drawn marker divider above the sources (replaces the old ❦ row) —
+   a wobbly marker stroke, drawn with a mask so it takes the bloom color */
+.blog-handline {
   display: block;
-  text-align: center;
-  color: var(--blog-bloom);
-  font-size: 0.95rem;
-  letter-spacing: 0.5em;
-  margin-bottom: 1.1rem;
+  width: min(18rem, 70%);
+  height: 12px;
+  margin: 0 auto 1.1rem;
+  background-color: color-mix(in srgb, var(--blog-bloom) 80%, transparent);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='12' viewBox='0 0 300 12' preserveAspectRatio='none'%3E%3Cpath d='M5 8 C 70 3, 170 11, 295 6' fill='none' stroke='white' stroke-width='4.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='12' viewBox='0 0 300 12' preserveAspectRatio='none'%3E%3Cpath d='M5 8 C 70 3, 170 11, 295 6' fill='none' stroke='white' stroke-width='4.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
 }
 
-/* "Fin." colophon at the end of the volume */
+.blog-oldbook .blog-footnotes::before {
+  content: "";
+  display: block;
+  width: min(18rem, 70%);
+  height: 12px;
+  margin: 0 auto 1.1rem;
+  background-color: color-mix(in srgb, var(--blog-bloom) 80%, transparent);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='12' viewBox='0 0 300 12' preserveAspectRatio='none'%3E%3Cpath d='M5 8 C 70 3, 170 11, 295 6' fill='none' stroke='white' stroke-width='4.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='12' viewBox='0 0 300 12' preserveAspectRatio='none'%3E%3Cpath d='M5 8 C 70 3, 170 11, 295 6' fill='none' stroke='white' stroke-width='4.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+
+/* "Fin." colophon — the word in handwriting inside a sketchy
+   hand-drawn frame (the old ❦ ornaments are gone) */
 .blog-fin {
   margin: calc(var(--blog-line) * 2) 0 0;
   text-align: center;
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 0.68rem;
   line-height: var(--blog-line);
-  letter-spacing: 0.34em;
-  text-transform: uppercase;
-  color: var(--blog-muted);
 }
 
-.blog-fin span {
-  color: var(--blog-bloom);
-  letter-spacing: 0;
+.blog-fin__frame {
+  position: relative;
+  display: inline-block;
+  font-family: var(--font-note), Georgia, serif;
+  font-weight: 700;
+  font-size: 1.9rem;
+  color: var(--blog-ink);
+  padding: 0.3rem 1.6rem 0.55rem;
+  transform: rotate(-2deg);
+}
+
+.blog-fin__frame::before,
+.blog-fin__frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid color-mix(in srgb, var(--blog-bloom) 70%, transparent);
+  border-radius: 52% 48% 55% 45% / 58% 62% 55% 60%;
+  pointer-events: none;
+}
+
+.blog-fin__frame::after {
+  inset: 3px -3px -3px 3px;
+  border-radius: 48% 52% 45% 55% / 62% 55% 60% 58%;
+  opacity: 0.5;
 }

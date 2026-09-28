@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { Heart, Share2, Copy, Check, X, Twitter, Facebook, Linkedin, MessageSquare } from "lucide-react"
+import { Heart, Share2, Copy, Check, X, Twitter, Facebook, Linkedin, MessageSquare, Home, BookOpen } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import ScrollProgress from "@/app/components/ScrollProgress"
 import { BlogNav } from "@/components/BlogNav"
@@ -19,7 +19,7 @@ import { BlogTable } from "@/components/blog/BlogTable"
 import { BlogFaq } from "@/components/blog/BlogFaq"
 import BlogDrift from "@/components/blog/BlogDrift"
 import BlogCursor from "@/components/blog/BlogCursor"
-import BlogFooter from "@/components/blog/BlogFooter"
+import BackToTop from "@/components/blog/BackToTop"
 import Comments from "./Comments"
 
 // PortableText components for proper rendering
@@ -626,9 +626,12 @@ export default function BlogPostPage() {
       return a
     }
 
+    // NOTE: figcaptions / .blog-caption are intentionally NOT shifted — a caption
+    // must sit snug under its photo (margin-top in CSS), not get nudged down
+    // to the next rule, which reads as "placed all the way under the img".
     const TEXT_SEL = [
       'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li',
-      'figcaption', '.blog-caption', 'th', 'td',
+      'th', 'td',
       '.blog-faq__q', '.blog-faq__a', '.blog-tags', '.blog-project-link',
       '.blog-fin', 'pre code', '.blog-footnotes__kicker', '.blog-aside__kicker',
     ].join(',')
@@ -806,25 +809,74 @@ export default function BlogPostPage() {
         url={typeof window !== 'undefined' ? window.location.href : ''}
       />
       <main className="pb-20">
-        <aside className="hidden lg:flex fixed left-4 top-1/2 -translate-y-1/2 z-30 flex-col gap-6 text-[var(--blog-muted)]">
-          <Link href="/blog" className="text-[10px] font-mono tracking-[0.22em] uppercase hover:text-[var(--blog-ink)]" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+        {/* Desktop sidebar: brand, nav, and article actions */}
+        <aside className="blog-rail hidden lg:flex" aria-label="Article actions">
+          <Link href="/blog" className="blog-rail__brand" title="Cerebration — the library">
             Cerebration
           </Link>
-          <button type="button" onClick={handleShare} className="hover:text-[var(--blog-ink)]" title="Share">
-            <Share2 className="w-4 h-4" />
-          </button>
+          <span className="blog-rail__rule" aria-hidden="true" />
+          <nav className="blog-rail__nav" aria-label="Blog">
+            <Link href="/blog" className="blog-rail__item" title="Library">
+              <BookOpen className="w-4 h-4" />
+              <span>Library</span>
+            </Link>
+            <Link href="/" className="blog-rail__item" title="Home">
+              <Home className="w-4 h-4" />
+              <span>Home</span>
+            </Link>
+          </nav>
+          <span className="blog-rail__rule" aria-hidden="true" />
+          <div className="blog-rail__actions">
+            <div className="blog-rail__item" title="Like">
+              <LikeButton postId={post.id} initialLikes={post.views || 0} />
+              <span>Like</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                document.getElementById('comments')?.scrollIntoView({ behavior: 'smooth' })
+                window.dispatchEvent(new Event('open-comments'))
+              }}
+              className="blog-rail__item"
+              title="Comments"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>Comment</span>
+            </button>
+            <button type="button" onClick={handleShare} className="blog-rail__item" title="Share">
+              <Share2 className="w-4 h-4" />
+              <span>Share</span>
+            </button>
+          </div>
+        </aside>
+
+        {/* Mobile bottom bar: home, like, comment, share */}
+        <nav className="blog-bottombar lg:hidden" aria-label="Article actions">
+          <Link href="/blog" className="blog-bottombar__item" title="Library">
+            <Home className="w-5 h-5" />
+            <span>Home</span>
+          </Link>
+          <div className="blog-bottombar__item" title="Like">
+            <LikeButton postId={post.id} initialLikes={post.views || 0} />
+            <span>Like</span>
+          </div>
           <button
             type="button"
             onClick={() => {
               document.getElementById('comments')?.scrollIntoView({ behavior: 'smooth' })
               window.dispatchEvent(new Event('open-comments'))
             }}
-            className="hover:text-[var(--blog-ink)]"
-            title="Comments"
+            className="blog-bottombar__item"
+            title="Comment"
           >
-            <MessageSquare className="w-4 h-4" />
+            <MessageSquare className="w-5 h-5" />
+            <span>Comment</span>
           </button>
-        </aside>
+          <button type="button" onClick={handleShare} className="blog-bottombar__item" title="Share">
+            <Share2 className="w-5 h-5" />
+            <span>Share</span>
+          </button>
+        </nav>
 
         {post.cover_image && (
           <div className="blog-cover-bleed relative mb-6">
@@ -835,7 +887,7 @@ export default function BlogPostPage() {
               quality={85}
               priority
               className="object-cover object-center"
-              sizes="(min-width: 672px) 42rem, 100vw"
+              sizes="88vw"
             />
           </div>
         )}
@@ -843,9 +895,7 @@ export default function BlogPostPage() {
         <article className="blog-read blog-oldbook pt-4 sm:pt-8">
           <header className="blog-titlepage">
             <p className="blog-titlepage__brand">Cerebration</p>
-            <p className="blog-titlepage__ornament" aria-hidden="true">
-              ❦
-            </p>
+            <div className="blog-handline blog-titlepage__handline" aria-hidden="true" />
             <h1 className="blog-titlepage__title">{post.title}</h1>
             <svg
               className="blog-titlepage__marker"
@@ -867,9 +917,7 @@ export default function BlogPostPage() {
                 <span>{post.excerpt}</span>
               </p>
             )}
-            <p className="blog-titlepage__ornament" aria-hidden="true">
-              ❦
-            </p>
+            <div className="blog-handline blog-titlepage__handline" aria-hidden="true" />
             <p className="blog-titlepage__byline">
               {post.author || 'King Sharif'}
               {' · '}
@@ -927,14 +975,13 @@ export default function BlogPostPage() {
             )}
 
             <div className="blog-fin" aria-hidden="true">
-              <span>❦</span>&nbsp;&nbsp;Fin&nbsp;&nbsp;<span>❦</span>
+              <span className="blog-fin__frame">Fin</span>
             </div>
 
             <div className="mt-[calc(var(--blog-line)*2)] pt-[var(--blog-line)] border-t border-[var(--blog-ink)]/10 flex items-center justify-between gap-4">
               <Link href="/blog" className="text-[11px] font-mono tracking-[0.22em] uppercase">
                 ← Library
               </Link>
-              <LikeButton postId={post.id} initialLikes={post.views || 0} size="large" />
             </div>
 
             <Suspense fallback={<div className="mt-16 h-24" />}>
@@ -943,7 +990,7 @@ export default function BlogPostPage() {
           </div>
         </article>
       </main>
-      <BlogFooter />
+      <BackToTop />
     </div>
   )
 }
