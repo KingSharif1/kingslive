@@ -180,6 +180,13 @@ export async function getPostBySlug(
           "asset": asset->{ url, metadata }
         }
       },
+      _type == "noteVideo" => {
+        ...,
+        "file": file {
+          ...,
+          "asset": asset->{ url }
+        }
+      },
       _type == "callout" => {
         ...,
         content[] {

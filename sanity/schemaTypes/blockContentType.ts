@@ -1,6 +1,6 @@
 import {createElement} from 'react'
 import {defineType, defineArrayMember} from 'sanity'
-import {ImagesIcon, ImageIcon, CodeBlockIcon, InlineIcon, ThListIcon, HelpCircleIcon} from '@sanity/icons'
+import {ImagesIcon, ImageIcon, CodeBlockIcon, InlineIcon, ThListIcon, HelpCircleIcon, PlayIcon} from '@sanity/icons'
 import type {BlockStyleProps} from 'sanity'
 
 /** Inline wrapper so Sanity's default <p> around quote styles stays valid HTML. */
@@ -40,7 +40,7 @@ export const blockContentType = defineType({
       filter: true,
       showIcons: true,
       groups: [
-        {name: 'note', title: 'Note', of: ['photos', 'noteTable', 'faq', 'callout', 'code']},
+        {name: 'note', title: 'Note', of: ['photos', 'noteTable', 'faq', 'callout', 'code', 'noteVideo']},
         {name: 'legacy', title: 'Legacy', of: ['image', 'imageRow']},
       ],
     },
@@ -136,6 +136,49 @@ export const blockContentType = defineType({
       },
     }),
     // Never name this `table` — Studio PTE reserves that for its built-in table plugin.
+    defineArrayMember({
+      type: 'object',
+      name: 'noteVideo',
+      title: 'Video',
+      icon: PlayIcon,
+      fields: [
+        {
+          name: 'file',
+          title: 'Upload video',
+          type: 'file',
+          description: 'Upload an MP4/WebM. Best for full control: play/pause, fullscreen, voice commands.',
+          options: { accept: 'video/*' },
+        },
+        {
+          name: 'url',
+          title: '…or paste a link',
+          type: 'url',
+          description: 'YouTube, Vimeo, or a direct MP4 link. Leave empty if you uploaded a file.',
+        },
+        {
+          name: 'caption',
+          type: 'string',
+          title: 'Caption (optional)',
+        },
+      ],
+      validation: (Rule) =>
+        Rule.custom((val: unknown) => {
+          const v = val as { file?: unknown; url?: string } | undefined
+          if (v?.file || (typeof v?.url === 'string' && v.url.trim())) return true
+          return 'Upload a video file or paste a link.'
+        }),
+      preview: {
+        select: { caption: 'caption', url: 'url', file: 'file' },
+        prepare({ caption, url, file }: { caption?: string; url?: string; file?: unknown }) {
+          const src = file ? 'Uploaded file' : url || 'No source yet'
+          return {
+            title: caption || 'Video',
+            subtitle: String(src).slice(0, 60),
+            media: PlayIcon,
+          }
+        },
+      },
+    }),
     defineArrayMember({
       type: 'object',
       name: 'noteTable',
