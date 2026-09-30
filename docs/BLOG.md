@@ -5,7 +5,7 @@
 1. Write in **Sanity Studio** at `/studio` (or Sanity-hosted studio for project `n31jvc6a`).
 2. Public site reads via `lib/sanity-queries.ts` → CDN client in `lib/sanity.ts`.
 3. Homepage “Latest from the Blog” and `/blog` share the same query helpers.
-4. **Visuals are not shared.** `/` is glass + numbered rows. `/blog` is **Cerebration** (`blog-world`): mobile-first. On phones the index is a catalog list — full-width rows (cloth swatch, tag, full title, date, excerpt) grouped by year, no popups; on `md+` it becomes "The Library" — posts as cloth-bound book spines on wooden shelves grouped by year (brass year plates), hover/focus opens a viewport-clamped inspector card portaled to `document.body` (cover, excerpt, Open + like) so it can never clip. Each post page is "the old book" — the title page sits on the blank top of the sheet (ruled lines begin below it on `.blog-ruled`), with a hand-drawn marker stroke that draws itself under the title and a highlighter wash behind the excerpt words. Body content snaps to a baseline grid (every block is a whole multiple of `--blog-line`) and every text line's baseline is nudged onto the nearest ruled line — like handwriting on paper. Body copy is Alegreya (normal + italic via next/font, Georgia fallback). Photo captions sit snug under their photos (small fixed margin-top) and are excluded from the baseline nudge. Big headings (h1–h3) get a solid paper backing that hides the ruled lines behind the heading block, plus a rule-colored `text-decoration: underline` (1px, 4px offset) that redraws one thin line under each wrapped line of text — every heading line sits on a line, none cross the glyphs. (A per-line paper mask via `box-decoration-break: clone` was tried first but depended on exact font ascent/descent metrics; the underline approach is metric-independent.) The nudge is measured per element at runtime (real font ascent via canvas, `app/blog/[slug]/page.tsx` baseline effect): padding-top grows while margin-bottom shrinks by the same amount, so each block's footprint stays grid-exact. The effect is idempotent — every run recomputes from the original padding/margin stored on first touch, so image loads, resizes, and FAQ toggles never stack shifts. It is scoped to the article only (`.prose`, tags, footnotes, fin); the like-bar and comments are never touched. Photos (whose heights come from aspect ratios) get their bottom margin snapped so the next block lands back on the grid. Previously un-snapped blocks — h1/h5/h6, tables, FAQs, code blocks, callouts — are now grid multiples too. Single faint margin rule tucked in the gutter (clear of the text), tightened vertical rhythm (`--blog-line: 1.6rem`), drop cap, aged-paper vignette, ❦ divider above footnotes, "Fin." colophon. Both pages end in `BlogFooter` — kicker, Library/Portfolio/X/Instagram/GitHub links, the giant outlined `cerebration` wordmark (animates in letter-by-letter on scroll via pure CSS `animation-timeline: view()`, visible fallback), copyright + back-to-top, over a canvas ember field. The canvas paints its own fade (transparent → tone, no hard edge) and is theme-adaptive: glowing embers on near-black in dark mode, warm sparks on paper in light mode (theme detected via `html.dark` / `.blog-world.dark` with a MutationObserver). Perf: single rAF loop, sprite-based rendering (one pre-rendered glow sprite per hue, one drawImage per ember), delta-time motion, particle count scales with width, DPR capped at 1.5, pauses off-screen via IntersectionObserver, one static frame under `prefers-reduced-motion`. Embers dissolve over the top ~140px so they never pop at the edge. Zero assets. `Cerebration` → `/blog`. `Home` → `/`. Posts use `BlogNav`, not the portfolio `Header`.
+4. **Visuals are not shared.** `/` is glass + numbered rows. `/blog` is **Cerebration** (`blog-world`): mobile-first. On phones the index is a catalog list — full-width rows (cloth swatch, tag, full title, date, excerpt) grouped by year, no popups; on `md+` it becomes "The Library" — posts as cloth-bound book spines on wooden shelves grouped by year (brass year plates), hover/focus opens a viewport-clamped inspector card portaled to `document.body` (cover, excerpt, Open + like) so it can never clip. Each post page is "the old book" — the title page sits on the blank top of the sheet (ruled lines begin below it on `.blog-ruled`), with a hand-drawn marker stroke that draws itself under the title and a highlighter wash behind the excerpt words. Body content snaps to a baseline grid (every block is a whole multiple of `--blog-line`) and every text line's baseline is nudged to float just above the nearest ruled line — like ink resting on notebook paper, the words sit straight above the lines and no rule ever strikes through them. Body copy is Alegreya (normal + italic via next/font, Georgia fallback). Photo captions sit snug under their photos (small fixed margin-top) and are excluded from the baseline nudge. Big headings (h1–h3) get a solid paper backing that hides the ruled lines behind the heading block, plus a rule-colored `text-decoration: underline` (1px, 4px offset) that redraws one thin line under each wrapped line of text — every heading line sits on a line, none cross the glyphs. (A per-line paper mask via `box-decoration-break: clone` was tried first but depended on exact font ascent/descent metrics; the underline approach is metric-independent.) The nudge is measured per element at runtime (real font ascent via canvas, `app/blog/[slug]/page.tsx` baseline effect): padding-top grows while margin-bottom shrinks by the same amount, so each block's footprint stays grid-exact. The effect is idempotent — every run recomputes from the original padding/margin stored on first touch, so image loads, resizes, and FAQ toggles never stack shifts. It is scoped to the article only (`.prose`, tags, footnotes, fin); the like-bar and comments are never touched. Photos (whose heights come from aspect ratios) get their bottom margin snapped so the next block lands back on the grid. Previously un-snapped blocks — h1/h5/h6, tables, FAQs, code blocks, callouts — are now grid multiples too. Single faint margin rule tucked in the gutter (clear of the text), tightened vertical rhythm (`--blog-line: 1.6rem`), drop cap, aged-paper vignette, ❦ divider above footnotes, "Fin." colophon. Both pages end in `BlogFooter` — kicker, Library/Portfolio/X/Instagram/GitHub links, the giant outlined `cerebration` wordmark (animates in letter-by-letter on scroll via pure CSS `animation-timeline: view()`, visible fallback), copyright + back-to-top, over a canvas ember field. The canvas paints its own fade (transparent → tone, no hard edge) and is theme-adaptive: glowing embers on near-black in dark mode, warm sparks on paper in light mode (theme detected via `html.dark` / `.blog-world.dark` with a MutationObserver). Perf: single rAF loop, sprite-based rendering (one pre-rendered glow sprite per hue, one drawImage per ember), delta-time motion, particle count scales with width, DPR capped at 1.5, pauses off-screen via IntersectionObserver, one static frame under `prefers-reduced-motion`. Embers dissolve over the top ~140px so they never pop at the edge. Zero assets. `Cerebration` → `/blog`. `Home` → `/`. Posts use `BlogNav`, not the portfolio `Header`.
 
 ## Required env
 
@@ -46,6 +46,15 @@ In Studio, click **+** in the body:
 | **FAQ** | Question + answer rows. Renders as dropdowns on the site. |
 | **Callout** | A margin note (left rule), not a colored card. |
 | **Code Block** | Snippets with language + optional filename. |
+| **Video** | Upload an MP4/WebM **or** paste a YouTube / Vimeo / direct-MP4 link. Renders in the taped-polaroid frame with a custom player: play/pause, ±10s, scrub bar, mute, fullscreen, and voice control (mic button — say “play”, “pause”, “mute”, “full screen”, “go back”…). YouTube/Vimeo links embed the platform player instead. |
+
+**Video notes (2026-09-30):**
+- Schema type is `noteVideo` (`sanity/schemaTypes/blockContentType.ts`); Studio validates that a file **or** URL is present.
+- Public player is `components/blog/BlogVideo.tsx` (+ `lib/blog-video.ts` helpers — kept outside the client component so `toBlogVideo()` can run during SSR; calling a `'use client'` function from the server throws).
+- Uploaded files resolve via `sanityFileSrc()` → `https://cdn.sanity.io/files/<pid>/<ds>/<hash>.<ext>`; the GROQ body projection in `lib/sanity-queries.ts` expands `noteVideo.file.asset->{url}`.
+- The figure reuses the `.blog-photo` taped-polaroid classes, so it snaps to the baseline grid like photos (selector: `figure.blog-photo, figure.blog-image-row`).
+- `portableTextComponents` now lives in `components/blog/portableTextComponents.tsx` (extracted from `app/blog/[slug]/page.tsx`) so server routes can import the real renderer map — importing a `'use client'` module from a server component only yields an opaque reference.
+- Voice control uses the Web Speech API; the mic button hides itself where unsupported (e.g. Firefox). Not yet tested live with a real microphone.
 
 Do **not** use **Image** or **Image row (legacy)** for new work — they stay so old posts still edit.
 
@@ -119,6 +128,9 @@ User picked **Caveat** as the handwriting font (`next/font/google`, weights 400/
   (`author_email?: string | null`). **Before shipping:** confirm `blog_comments.author_email`
   is nullable (or has a default) in Supabase — if it is `NOT NULL`, comment submission will
   fail. Moderation/auto-approve logic untouched.
+  - 2026-09-29: he reported comment submits failing. Investigation (see batch notes below)
+    confirmed the client flow works and points at this `NOT NULL` constraint as the prime
+    suspect; still unconfirmed against the live schema.
 - Blog index: background + footer wordmark now uppercase `CEREBRATION`; header copy is
   "A builder's notebook: projects, breakdowns, and lessons, shelved as I go. Pull one down.";
   search + subjects merged into one toolbar with pill filters (`count` per subject, sorted by
@@ -215,3 +227,103 @@ User picked **Caveat** as the handwriting font (`next/font/google`, weights 400/
   the inspector's `<Image quality={70}>` isn't in `next.config.js`
   `images.qualities` ([75, 85]). Changed to `quality={75}`. Pre-existing bug,
   found while verifying the letter hover.
+
+- **Note-style Sources box, mobile full-bleed article, share-modal fix, background
+  wordmark ticker, contrast pass (2026-09-29, uncommitted):** batch from his
+  screenshots + notes.
+  - **Sources section** (`.blog-footnotes`): now a hand-drawn note card — 2px
+    ink border with asymmetric radii
+    (`255px 18px 225px 18px / 18px 225px 18px 255px`), subtle paper fill so the
+    ruled lines ghost through. The old `.blog-oldbook.blog-footnotes::before`
+    wobbly marker stroke stays inside the card, above the title — reads as a
+    marker underline, complements the box. Kicker bumped `0.66rem → 0.78rem`
+    and switched from muted gray to `--blog-ink` (was hard to read in his
+    screenshot). Verified light + dark on a real post page.
+  - **Mobile article is full-bleed:** `.blog-read` is `width: 100%` under
+    `640px` (measured 390/390 on a 390px viewport); desktop unchanged at
+    `width: min(88%, 100rem)`.
+  - **Share modal mobile fix** (`app/blog/[slug]/page.tsx`): Framer Motion
+    sets inline `transform`, which was overriding the Tailwind centering
+    translate classes — the dialog drifted half off-screen on mobile (his
+    screenshot: "Share this arti…" cut off at the right edge). Replaced the
+    transform-centering with a fixed full-screen flex wrapper (`p-4`,
+    `pointer-events-none`) around a `w-full max-w-md` panel
+    (`pointer-events-auto`); removed the `mx-4` that overflowed small screens.
+    Verified by clicking the real Share button in the mobile bottom bar —
+    dialog now opens centered and fully inside the viewport.
+  - **Footer wordmark back into the background** (`BlogFooter.tsx` +
+    `globals.css`): the outlined `CEREBRATION` news ticker (was front-and-center
+    at the foot of the footer, with a hairline running through the letters —
+    his screenshot) is now handwritten **Cerebration** (Caveat 600) drifting
+    **left → right** over 48s (`translateX(-50%) → 0` seamless loop, pauses on
+    footer hover, static under prefers-reduced-motion). It sits at `top: 30%`
+    of the footer, `z-index: 2` **behind** the mountain layers (`z-index: 3`),
+    at `clamp(5rem, 17vw, 15rem)` and 0.42 opacity — present but quiet. The
+    words sit **above** a faint ruled line (the track's own bottom border, so
+    the loop stays seamless), like actual handwriting on notebook paper —
+    replacing the old line-through-the-letters look. Three repeats per half
+    (was six) so the giant type has room to breathe.
+  - **Contrast pass** (light + dark): `--blog-muted` `#6b6156 → #52463a`
+    (light) / `#9a8f84 → #a79b8d` (dark); `--foot-faint` `#8a7d6c → #6b6055`
+    (light) / `#8a7d6c → #9a8f84` (dark); `--foot-ink`/`--foot-muted`
+    darkened (light) / lifted (dark) to match. These vars also feed the mobile
+    bottom bar and footer small type — spot-checked readable in both themes.
+  - **Body text above the rules + bigger type (2026-09-29):** he clarified the
+    words should sit *straight above* the notebook lines, not on them. The
+    baseline nudge in `app/blog/[slug]/page.tsx` now targets `rule − lift`
+    (`lift = max(3px, 12.5% of the grid line)`, 4px on the 32px grid) instead
+    of `rule − 0.5px` — same idempotent padding/margin-compensation mechanism,
+    still fenced to `.blog-ruled`. Also fixed a real size bug his "increase
+    article text size" note exposed: the PortableText `normal` renderer forced
+    `text-base` (1rem) directly on every paragraph, which beat the inherited
+    `1.5rem` Caveat from `.blog-read .prose` — paragraphs were rendering at
+    16px instead of the intended 24px. Removed the class; paragraphs now
+    inherit the 1.5rem hand. Verified measured baselines at exactly −4px and
+    24px type, light + dark, plain paragraphs and code-chip lines.
+  - QA: headless Firefox + Playwright against the dev server (390×844 and
+    1440px, light + dark). Note: Firefox headless `--screenshot` fires before
+    client fetch resolves, so QA used a temporary API fixture + Playwright
+    waits; all temp hooks reverted (final diff is the 3 files only).
+  - **Comment-submit failure investigation (2026-09-29, no code changed):** he
+    reported comments not submitting. Verified in headless Firefox against a
+    real post page: the COMMENT bottom-bar button scrolls to `#comments` and
+    fires `open-comments`, the form renders, and validation works — the break
+    is at the submit step. Submit path: `Comments.tsx` `handleSubmit` →
+    `moderateContent()` → direct `supabase.from('blog_comments').insert()`.
+    Findings: (1) `POST /api/moderate` **does not exist** (never did — no git
+    history); `moderateWithOpenAI` 404s and fails open, so OpenAI moderation
+    silently never runs but doesn't block submission. (2) The insert payload
+    is `{post_id, author_name, content, approved, archived}` — **no
+    `author_email`**; if that column is `NOT NULL` without a default in
+    Supabase, every insert fails at the Postgres level (prime suspect — the
+    "before shipping" check above was never confirmed). (3) Secondary
+    suspects: RLS (no INSERT policy for `blog_comments` in repo migrations —
+    less likely, comments worked before the name-only change) and the
+    `comment_count_trigger` AFTER INSERT trigger writing to
+    `blog_post_analytics` (would abort the insert if it errors). The UI shows
+    the generic "Failed to submit comment. Please try again." banner; the real
+    Postgres error is logged via `console.error('Error submitting comment:')`
+    — reproducing on the live site with devtools open names the failing
+    constraint. Offered: move submission to a server-side `/api/comments`
+    route (service key, real error logging); awaiting his Supabase access token
+    to confirm against the live schema.
+  - **Comment fix (2026-09-29):** he supplied a Supabase personal access token
+    and asked for the fix directly. Read-only MCP inspection of the live
+    `kinglive cms` project (the token's only project; his second Supabase
+    project lives under a different account) confirmed the root cause:
+    `blog_comments.author_email` was `NOT NULL` with no default, so every
+    name-only insert died on that constraint. RLS was innocent — a public
+    INSERT policy exists — and `comment_count_trigger` never fired because the
+    insert failed first. **Still needs him:** the token lacks
+    `database_migrations_write`, so the one-line
+    `ALTER TABLE public.blog_comments ALTER COLUMN author_email DROP NOT NULL`
+    must be run in the Supabase SQL editor (or via a write-scoped token) —
+    after that, comments submit again with zero code deploy. Shipped alongside:
+    `supabase/migrations/20260929_blog_comments_author_email_nullable.sql`
+    records the change (note: `supabase/*` is gitignored, so it needs
+    `git add -f` like the other tracked migrations); new
+    `app/api/moderate/route.ts` implements the missing moderation endpoint —
+    calls OpenAI when `OPENAI_API_KEY` is set, otherwise fail-opens with
+    `{ flagged: false }` and no `usingFallback` field, preserving the
+    long-standing instant auto-approve of clean comments. Verified: `tsc`
+    clean, `POST /api/moderate` → 200 `{flagged:false}` on the no-key path.
