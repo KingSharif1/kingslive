@@ -618,7 +618,7 @@ BREVO_API_KEY=
 | Dead code: `aiResponse.message` on client | 🟢 Low | Not fixed |
 | Two toast systems (sonner + radix toast) | 🟢 Low | Not fixed |
 | `@supabase/auth-helpers-nextjs` deprecated | 🟢 Low | Not fixed |
-| `package.json` name still "my-v0-project" | 🟢 Low | Not fixed |
+| `package.json` name still "my-v0-project" | 🟢 Low | Fixed 2026-09-20 (`kingslive`) |
 | No test framework (no Jest/Vitest/Playwright) | 🟢 Low | Not fixed |
 
 ---

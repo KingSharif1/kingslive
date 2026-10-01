@@ -1,12 +1,12 @@
 # STATUS.md — KingsLive
 
-> Last updated: 2026-09-01
+> Last updated: 2026-09-20
 
 ## Snapshot
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Portfolio | Updated | 11 rows; `repo_public` + `timeline_date` columns live |
+| Portfolio | Updated | SSR project rows; Sheet hamburger below `md`; package name `kingslive` |
 | Blog | Updated | Pad sheet + Studio Preview. Table insert is `noteTable` (not reserved `table`) |
 | Studio | Restored | `/studio` + route loading shell; client-only mount |
 | CTROOM login | Fixed | Magic links via Brevo; original tab signs in after click |
@@ -24,8 +24,8 @@
 
 ## Working on
 
-Shipping BLOG-6/7/8 to master (notebook notes, Studio tools, draft preview).
+KL-10 / KL-01 / KL-02 (package name, mobile nav, SSR projects).
 
 ## Next
 
-See first PENDING items in `TASKS.md`.
+Remaining ARK tickets KL-03…KL-12. First PENDING in `TASKS.md` is still BLOG-2 (Sanity metadata).

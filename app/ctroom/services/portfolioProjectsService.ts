@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import { ALL_PROJECTS, type PortfolioProject } from '@/lib/portfolio-projects'
+import type { PortfolioProject } from '@/lib/portfolio-projects'
 import { projectToRow, rowToProject, type PortfolioProjectRow } from './portfolioProjectRow'
 
 export type { PortfolioProjectRow }
@@ -13,51 +13,6 @@ async function adminHeaders(): Promise<HeadersInit> {
   return {
     Authorization: `Bearer ${session.access_token}`,
     'Content-Type': 'application/json',
-  }
-}
-
-function isMissingTable(error: { code?: string; message?: string } | null) {
-  if (!error) return false
-  return (
-    error.code === '42P01' ||
-    error.code === 'PGRST205' ||
-    /portfolio_projects/i.test(error.message || '') ||
-    /relation .* does not exist/i.test(error.message || '')
-  )
-}
-
-/** Public read — static seed only if the table is missing or the query fails */
-export async function fetchPublishedProjects(): Promise<{
-  projects: PortfolioProject[]
-  source: 'supabase' | 'static'
-  tableMissing?: boolean
-}> {
-  try {
-    const { data, error } = await supabase
-      .from('portfolio_projects')
-      .select('*')
-      .eq('published', true)
-      .order('sort_order', { ascending: true })
-
-    if (error) {
-      if (isMissingTable(error)) {
-        return { projects: ALL_PROJECTS, source: 'static', tableMissing: true }
-      }
-      console.error('portfolio fetch error:', error)
-      return { projects: ALL_PROJECTS, source: 'static' }
-    }
-
-    if (!data?.length) {
-      return { projects: [], source: 'supabase' }
-    }
-
-    return {
-      projects: data.map((row) => rowToProject(row as PortfolioProjectRow)),
-      source: 'supabase',
-    }
-  } catch (err) {
-    console.error('portfolio fetch failed:', err)
-    return { projects: ALL_PROJECTS, source: 'static', tableMissing: true }
   }
 }
 

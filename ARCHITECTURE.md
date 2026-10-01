@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — KingsLive
 
-> Last updated: 2026-09-01
+> Last updated: 2026-09-20
 
 ## System (one line)
 
@@ -10,7 +10,7 @@ Public portfolio + Sanity blog on kingsharif.com; private CTROOM HQ (auth, Milo,
 
 | Surface | Route | Source of truth |
 |---------|-------|-----------------|
-| Portfolio | `/` | Supabase `portfolio_projects` (`published = true`), static seed only if table missing |
+| Portfolio | `/` | Server fetch of `portfolio_projects` (`published = true`) in `app/page.tsx` → `HomePage`; static seed only if table/env missing |
 | Blog | `/blog`, `/blog/[slug]` | Sanity project `n31jvc6a` / dataset `production` |
 | Studio | `/studio` | Sanity Studio (NextStudio) |
 | CTROOM | `/ctroom` | Supabase (`kinglive cms`) + client state in `CtroomDashboard`; views via `lazyViews.tsx` |
@@ -61,8 +61,9 @@ app/studio/         Sanity Studio mount
 app/ctroom/         Private HQ
 lib/sanity*.ts      CMS client + queries
 lib/portfolio-projects.ts
-components/         Portfolio chrome (Header, Footer, Projects, Skills)
+components/         Portfolio chrome (Header + Sheet mobile nav, Footer, Projects, Skills, HomePage)
                     Petals: ParticleBackground on public routes only (not /ctroom or /studio)
+lib/fetchPublishedProjects.ts  Public anon read for homepage ISR
 docs/               ADRs + feature notes
 ```
 

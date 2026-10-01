@@ -1,3 +1,21 @@
+## Task KL-10 — Rename package.json name
+Status: DONE
+Scope: `package.json`, `package-lock.json`
+Result: Package name is `kingslive` (was `my-v0-project`).
+Files changed: `package.json`, `package-lock.json`
+
+## Task KL-01 — Mobile portfolio nav
+Status: DONE
+Scope: `components/Header.tsx`
+Result: Below `md`, a hamburger opens the existing shadcn Sheet with the same Projects / Blog / Contact links. Desktop `hidden md:flex` nav is unchanged. Header is only used on the homepage.
+Files changed: `components/Header.tsx`
+
+## Task KL-02 — SSR homepage projects
+Status: DONE
+Scope: `app/page.tsx`, homepage chrome, public project fetch
+Result: `/` is a server component that loads published projects (anon Supabase, ISR 60s, static seed fallback) and passes them into `HomePage`. No client-fetch waterfall for the project list.
+Files changed: `app/page.tsx`, `components/HomePage.tsx`, `lib/fetchPublishedProjects.ts`, `app/ctroom/services/portfolioProjectsService.ts`
+
 ## Task BLOG-8 — Table schema: `noteTable`, not `table`
 Status: DONE
 Scope: Sanity schema + post PortableText
