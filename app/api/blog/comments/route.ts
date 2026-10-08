@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { SchemaUnavailableError, visitorFromCookie, VISITOR_COOKIE } from '@/lib/blog/engagement'
 import { getEngagementStore } from '@/lib/blog/engagement-store'
-import { handleLikesGet, handleLikesPost } from '@/lib/blog/handlers'
+import { handleCommentsGet, handleCommentsPost } from '@/lib/blog/handlers'
 import { respond } from '@/lib/blog/respond'
 
 export const dynamic = 'force-dynamic'
@@ -12,20 +12,18 @@ function visitorOf(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const visitor = visitorOf(request)
   try {
     const store = getEngagementStore()
-    return respond(await handleLikesGet({
+    return respond(await handleCommentsGet({
       postId: request.nextUrl.searchParams.get('postId'),
-      visitorId: visitor.id,
       store,
     }))
   } catch (error) {
     if (error instanceof SchemaUnavailableError) {
-      return NextResponse.json({ likes: 0, liked: false, unavailable: true })
+      return NextResponse.json({ unavailable: true, comments: [] })
     }
-    console.error('likes GET failed', error)
-    return NextResponse.json({ likes: 0, liked: false })
+    console.error('comments GET failed', error)
+    return NextResponse.json({ error: 'Could not load comments.' }, { status: 500 })
   }
 }
 
@@ -39,7 +37,7 @@ export async function POST(request: NextRequest) {
   }
   try {
     const store = getEngagementStore()
-    return respond(await handleLikesPost({
+    return respond(await handleCommentsPost({
       body,
       visitorId: visitor.id,
       isNewVisitor: visitor.isNew,
@@ -48,12 +46,12 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof SchemaUnavailableError) {
       return respond({
-        status: 200,
-        body: { likes: 0, liked: false, unavailable: true },
+        status: 503,
+        body: { unavailable: true, error: 'Comments are offline until this notebook’s database is updated.' },
         visitorCookie: visitor.isNew ? visitor.id : undefined,
       })
     }
-    console.error('likes POST failed', error)
-    return NextResponse.json({ error: 'Could not update the like.' }, { status: 500 })
+    console.error('comments POST failed', error)
+    return NextResponse.json({ error: 'Could not post that comment.' }, { status: 500 })
   }
 }

@@ -1,13 +1,13 @@
 # STATUS.md — KingsLive
 
-> Last updated: 2026-09-01
+> Last updated: 2026-10-08
 
 ## Snapshot
 
 | Area | Status | Notes |
 |------|--------|-------|
 | Portfolio | Updated | 11 rows; `repo_public` + `timeline_date` columns live |
-| Blog | Updated | Pad sheet + Studio Preview. Table insert is `noteTable` (not reserved `table`) |
+| Blog | Updated | Engagement (KL-13) is server routes keyed on the Sanity post id. Apply `supabase/migrations/20261008_blog_engagement.sql` on kingslive before comments go live. |
 | Studio | Restored | `/studio` + route loading shell; client-only mount |
 | CTROOM login | Fixed | Magic links via Brevo; original tab signs in after click |
 | GitHub hub | New | CTROOM → GitHub: status, merge PRs, Vercel deploy hooks |
@@ -24,7 +24,7 @@
 
 ## Working on
 
-Shipping BLOG-6/7/8 to master (notebook notes, Studio tools, draft preview).
+KL-13 blog comments, replies, likes, and views. Schema is in the repo; it still has to be run on the kingslive Supabase project.
 
 ## Next
 

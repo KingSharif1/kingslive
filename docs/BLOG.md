@@ -97,6 +97,16 @@ The blog is branded **Cerebration**. Two rooms, same `blog-world` tokens:
 | Broken inline images | Wrong project in CDN URL | Fallbacks now use `n31jvc6a` |
 | “type table is not allowed by the schema” | `_type: table` is reserved by Studio’s Portable Text editor | Delete the red error block. Insert **Table** again (now `noteTable`). Hard-refresh `/studio` after schema compile. |
 
+## Engagement (KL-13)
+
+Comments, likes, and views are Supabase rows keyed by the Sanity document id (`post.id`), not `blog_posts`.
+
+- Name only. `localStorage` key `kl_display_name` and cookie `kl_name`. No email, no account.
+- `POST/GET /api/blog/comments` — service role, honeypot, length limits, profanity and link rejection, 5 comments / 10 minutes / visitor. Replies use `parent_id` and stop at one level.
+- `POST/GET /api/blog/likes` — one row in `blog_post_likes` per visitor cookie. A second like does not increment. `action: "unlike"` removes it.
+- `POST /api/blog/views` — `BlogViewBeacon` calls this after mount (not during render). Same visitor + post inside 24 hours does not count. Known bots are skipped.
+- If `supabase/migrations/20261008_blog_engagement.sql` has not been applied on the kingslive project, comment GET returns `{ unavailable: true }` and the form is hidden.
+
 ## Legacy note
 
 `app/api/blog/posts` still talks to Supabase `blog_posts`. The **public UI does not use it** — Sanity is canonical. Prefer Sanity for new content.

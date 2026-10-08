@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — KingsLive
 
-> Last updated: 2026-09-01
+> Last updated: 2026-10-08
 
 ## System (one line)
 
@@ -28,6 +28,19 @@ Sanity Studio (/studio)
 ```
 
 `/blog` chrome: `blog-world` is a calm field. Reading column `.blog-read` is the legal pad (equal blue rules, type on a 1.75rem grid). Red double margin is a full-height background rule on `blog-world--note`. Body: Georgia. Titles: Young Serif. Do not reuse `PORTFOLIO_PAGE` / `Header` there.
+
+Engagement (comments, likes, views) is Supabase, keyed by the Sanity document id (`BlogPost.id` / `_id`), not the legacy `blog_posts` uuid table.
+
+```
+Visitor browser
+  → display name in localStorage `kl_display_name` + cookie `kl_name` (no account, no email)
+  → httpOnly cookie `kl_vid` (minted by the API)
+  → POST/GET /api/blog/comments | /api/blog/likes | /api/blog/views
+  → service role (RLS bypass) on the kingslive project in NEXT_PUBLIC_SUPABASE_URL
+  → blog_comments (parent_id, is_hidden) · blog_post_likes · blog_post_view_hits · blog_post_analytics
+```
+
+Views are counted from a client effect (`BlogViewBeacon`), not during render, so SSR and React StrictMode do not double-fire. The server still drops a second hit for the same visitor and post inside 24 hours, and skips known bots. One like per visitor; unlike deletes the row. If the migration is not applied, comment GET returns `{ unavailable: true }` and the form stays hidden.
 
 Studio **Preview** tab uses Presentation + Next draft mode (`/api/draft-mode/enable`). Drafts need `SANITY_API_TOKEN`. Body fetch for a note goes through `/api/blog/note/[slug]` so the token never hits the browser.
 

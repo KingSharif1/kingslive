@@ -1,9 +1,13 @@
 import { createBrowserClient } from '@supabase/ssr'
 
-export const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+// @supabase/ssr throws at construction when the URL or key is missing.
+// Next collects page data by importing route modules, so a missing env
+// during `next build` used to fail the build before any request ran.
+// Real deploys set both variables; the placeholders are only for that import.
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321'
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'public-anon-key'
+
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
 
 // Image upload helper function
 export const uploadImage = async (file: File): Promise<string> => {

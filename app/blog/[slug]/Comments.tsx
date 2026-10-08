@@ -1,348 +1,295 @@
-"use client"
+'use client'
 
-import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { MessageCircle, Send, User, Clock, AlertCircle, CheckCircle } from "lucide-react"
-import { supabase } from "@/lib/supabase"
-import { moderateContent, shouldAutoApproveByTime, sanitizeContent } from "@/lib/content-moderation"
+import { useEffect, useId, useState } from 'react'
+import { readDisplayName, rememberDisplayName } from '@/lib/blog/display-name'
 
-interface Comment {
+type Comment = {
   id: string
   post_id: string
+  parent_id: string | null
   author_name: string
-  author_email?: string | null // guests no longer submit email; legacy rows may still carry one
   content: string
-  approved: boolean
   created_at: string
-  archived: boolean
+  replies?: Comment[]
 }
 
-interface CommentsProps {
-  postId: string
-  autoApproveHours?: number // Hours before auto-approval (default 24)
+const OFFLINE = 'Comments are offline until this notebook’s database is updated. You can still read the note.'
+
+function formatDate(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export default function Comments({ postId, autoApproveHours = 24 }: CommentsProps) {
+export default function Comments({ postId }: { postId: string; autoApproveHours?: number }) {
+  const nameId = useId()
+  const bodyId = useId()
+  const websiteId = useId()
   const [comments, setComments] = useState<Comment[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [unavailable, setUnavailable] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle')
-  const [errorMessage, setErrorMessage] = useState('')
-
-  // Form state
   const [name, setName] = useState('')
   const [content, setContent] = useState('')
+  const [website, setWebsite] = useState('')
+  const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
 
-  // Fetch comments
   useEffect(() => {
-    fetchComments()
+    setName(readDisplayName())
+  }, [])
 
-    // Listen for custom event to open comment form
-    const handleOpenComments = () => {
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      setLoading(true)
+      setLoadError('')
+      try {
+        const res = await fetch(`/api/blog/comments?postId=${encodeURIComponent(postId)}`, { cache: 'no-store' })
+        const data = (await res.json()) as { comments?: Comment[]; unavailable?: boolean; error?: string }
+        if (cancelled) return
+        if (data.unavailable) {
+          setUnavailable(true)
+          setComments([])
+          return
+        }
+        if (!res.ok) {
+          setLoadError(data.error || 'Could not load comments.')
+          setComments([])
+          return
+        }
+        setComments(Array.isArray(data.comments) ? data.comments : [])
+      } catch {
+        if (!cancelled) setLoadError('Could not load comments.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+
+    const open = () => {
       setShowForm(true)
+      window.setTimeout(() => {
+        document.getElementById(bodyId)?.focus()
+      }, 0)
     }
-    window.addEventListener('open-comments', handleOpenComments)
-
+    window.addEventListener('open-comments', open)
     return () => {
-      window.removeEventListener('open-comments', handleOpenComments)
+      cancelled = true
+      window.removeEventListener('open-comments', open)
     }
-  }, [postId])
+  }, [postId, bodyId])
 
-  const fetchComments = async () => {
+  const onName = (value: string) => {
+    setName(value)
+    rememberDisplayName(value)
+  }
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setSubmitting(true)
+    setError('')
+    setNotice('')
+    rememberDisplayName(name)
     try {
-      const { data, error } = await supabase
-        .from('blog_comments')
-        .select('id, post_id, author_name, content, approved, created_at')
-        .eq('post_id', postId)
-        .eq('archived', false)
-        .order('created_at', { ascending: false })
-        .limit(50)
-
-      if (error) {
-        console.error('Error fetching comments:', error)
-        setComments([])
+      const res = await fetch('/api/blog/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          postId,
+          authorName: name,
+          content,
+          parentId: replyTo?.id ?? null,
+          website,
+        }),
+      })
+      const data = (await res.json()) as {
+        ok?: boolean
+        unavailable?: boolean
+        error?: string
+        comment?: Comment
+      }
+      if (data.unavailable) {
+        setUnavailable(true)
+        setShowForm(false)
         return
       }
-
-      // Filter: show approved comments OR auto-approve after threshold
-      const visibleComments = (data || []).filter(comment => {
-        if (comment.approved) return true
-        return shouldAutoApproveByTime(comment.created_at, autoApproveHours)
-      }) as Comment[]
-
-      setComments(visibleComments)
-    } catch (err) {
-      console.error('Error fetching comments:', err)
-      setComments([])
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    setSubmitStatus('idle')
-    setErrorMessage('')
-
-    // Validate — guests leave a name and a comment, nothing else
-    if (!name.trim() || !content.trim()) {
-      setErrorMessage('Please add your name and a comment')
-      setIsSubmitting(false)
-      return
-    }
-
-    // Content moderation (now async with OpenAI)
-    const moderation = await moderateContent(content)
-
-    if (moderation.hasProfanity) {
-      setErrorMessage('Your comment contains inappropriate language. Please revise and try again.')
-      setIsSubmitting(false)
-      return
-    }
-
-    // Check OpenAI moderation results
-    if (moderation.openAIFlagged) {
-      const categories = moderation.openAICategories?.join(', ') || 'policy violation'
-      setErrorMessage(`Your comment was flagged for: ${categories}. Please revise and try again.`)
-      setIsSubmitting(false)
-      return
-    }
-
-    try {
-      const { error } = await supabase
-        .from('blog_comments')
-        .insert({
-          post_id: postId,
-          author_name: sanitizeContent(name.trim()),
-          content: sanitizeContent(content.trim()),
-          approved: moderation.shouldAutoApprove, // Auto-approve clean comments
-          archived: false
-        })
-
-      if (error) throw error
-
-      setSubmitStatus('success')
-      setName('')
-      setContent('')
-      setShowForm(false)
-
-      // Refresh comments if auto-approved
-      if (moderation.shouldAutoApprove) {
-        fetchComments()
+      if (!res.ok) {
+        setError(data.error || 'Could not post that comment.')
+        return
       }
-    } catch (err) {
-      console.error('Error submitting comment:', err)
-      setSubmitStatus('error')
-      setErrorMessage('Failed to submit comment. Please try again.')
+      if (data.comment) {
+        setComments((prev) => insertComment(prev, data.comment as Comment))
+      }
+      setContent('')
+      setReplyTo(null)
+      setShowForm(false)
+      setNotice('Posted.')
+    } catch {
+      setError('Could not post that comment.')
     } finally {
-      setIsSubmitting(false)
+      setSubmitting(false)
     }
   }
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    })
-  }
+  const count = comments.reduce((sum, comment) => sum + 1 + (comment.replies?.length || 0), 0)
 
   return (
-    <section id="comments" className="mt-16 pt-12 border-t border-[var(--border)]">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-3">
-          <MessageCircle className="w-6 h-6 text-[var(--foreground)]" />
-          <h2 className="text-2xl font-fraunces font-semibold text-[var(--foreground)]">
-            Comments {comments.length > 0 && `(${comments.length})`}
-          </h2>
-        </div>
-
-        {!showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="px-4 py-2 rounded-full bg-[var(--foreground)] text-[var(--background)] font-medium text-sm hover:opacity-90 transition-opacity"
-          >
-            Leave a comment
+    <section id="comments" className="blog-comments" aria-labelledby="comments-heading">
+      <div className="blog-comments__head">
+        <h2 id="comments-heading">
+          Comments{count > 0 ? ` (${count})` : ''}
+        </h2>
+        {!unavailable && !showForm && (
+          <button type="button" className="blog-comments__textbtn" onClick={() => setShowForm(true)}>
+            Leave a note
           </button>
         )}
       </div>
 
-      {/* Success Message */}
-      <AnimatePresence>
-        {submitStatus === 'success' && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="mb-6 p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
-          >
-            <div className="flex items-center gap-3">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-              <div>
-                <p className="font-medium text-green-800 dark:text-green-200">Comment submitted!</p>
-                <p className="text-sm text-green-600 dark:text-green-400">
-                  Your comment will appear shortly after review.
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <p className="sr-only" role="status" aria-live="polite">{notice}</p>
 
-      {/* Comment Form */}
-      <AnimatePresence>
-        {showForm && (
-          <motion.form
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            onSubmit={handleSubmit}
-            className="mb-8 p-6 rounded-2xl bg-[var(--secondary)] border border-[var(--border)]"
-          >
-            <div className="grid grid-cols-1 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-[var(--muted-foreground)] mb-2">
-                  Name *
-                </label>
+      {unavailable ? (
+        <p className="blog-comments__quiet">{OFFLINE}</p>
+      ) : (
+        <>
+          {showForm && (
+            <form className="blog-comments__form" onSubmit={submit}>
+              <div className="blog-comments__field">
+                <label htmlFor={nameId}>Name</label>
                 <input
+                  id={nameId}
+                  name="authorName"
                   type="text"
+                  autoComplete="nickname"
+                  maxLength={40}
+                  required
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Your name"
-                  className="w-full px-4 py-3 rounded-xl bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-                  maxLength={50}
+                  onChange={(event) => onName(event.target.value)}
                 />
               </div>
-            </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-[var(--muted-foreground)] mb-2">
-                Comment *
-              </label>
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Share your thoughts..."
-                rows={4}
-                className="w-full px-4 py-3 rounded-xl bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] resize-none font-open-sans"
-                maxLength={2000}
-              />
-              <div className="flex justify-between mt-1">
-                <span className="text-xs text-[var(--muted-foreground)]">
-                  Be respectful and constructive
-                </span>
-                <span className="text-xs text-[var(--muted-foreground)]">
-                  {content.length}/2000
-                </span>
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {errorMessage && (
-              <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-600" />
-                  <p className="text-sm text-red-600 dark:text-red-400">{errorMessage}</p>
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForm(false)
-                  setErrorMessage('')
-                }}
-                className="px-4 py-2 rounded-full text-sm font-medium text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex items-center gap-2 px-6 py-2 rounded-full bg-[var(--foreground)] text-[var(--background)] font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    Submit
-                  </>
-                )}
-              </button>
-            </div>
-          </motion.form>
-        )}
-      </AnimatePresence>
-
-      {/* Comments List */}
-      {isLoading ? (
-        <div className="space-y-4">
-          {[1, 2].map((i) => (
-            <div key={i} className="animate-pulse p-6 rounded-2xl bg-[var(--secondary)]">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-[var(--muted)]" />
-                <div className="space-y-2">
-                  <div className="h-4 w-24 bg-[var(--muted)] rounded" />
-                  <div className="h-3 w-16 bg-[var(--muted)] rounded" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="h-4 w-full bg-[var(--muted)] rounded" />
-                <div className="h-4 w-3/4 bg-[var(--muted)] rounded" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : comments.length === 0 ? (
-        <div className="text-center py-12">
-          <MessageCircle className="w-12 h-12 text-[var(--muted-foreground)] mx-auto mb-4 opacity-50" />
-          <p className="text-[var(--muted-foreground)] mb-2">No comments yet</p>
-          <p className="text-sm text-[var(--muted-foreground)] opacity-70">
-            Be the first to share your thoughts!
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {comments.map((comment, index) => (
-            <motion.div
-              key={comment.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="p-6 rounded-2xl bg-[var(--secondary)] border border-[var(--border)]"
-            >
-              {/* Comment Header */}
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--foreground)]/20 to-[var(--foreground)]/5 flex items-center justify-center">
-                  <User className="w-5 h-5 text-[var(--foreground)]" />
-                </div>
-                <div>
-                  <p className="font-medium text-[var(--foreground)]">{comment.author_name}</p>
-                  <div className="flex items-center gap-1 text-xs text-[var(--muted-foreground)]">
-                    <Clock className="w-3 h-3" />
-                    {formatDate(comment.created_at)}
-                  </div>
-                </div>
+              <div className="blog-comments__hp" aria-hidden="true">
+                <label htmlFor={websiteId}>Website</label>
+                <input
+                  id={websiteId}
+                  name="website"
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={website}
+                  onChange={(event) => setWebsite(event.target.value)}
+                />
               </div>
 
-              {/* Comment Content */}
-              <p className="text-[var(--foreground)] font-open-sans leading-relaxed whitespace-pre-wrap">
-                {comment.content}
-              </p>
-            </motion.div>
-          ))}
-        </div>
+              {replyTo && (
+                <p className="blog-comments__replying" id="comment-replying">
+                  Replying to {replyTo.name}
+                  <button type="button" onClick={() => setReplyTo(null)}>
+                    Cancel reply
+                  </button>
+                </p>
+              )}
+
+              <div className="blog-comments__field">
+                <label htmlFor={bodyId}>Comment</label>
+                <textarea
+                  id={bodyId}
+                  name="content"
+                  required
+                  rows={4}
+                  maxLength={2000}
+                  value={content}
+                  aria-describedby={replyTo ? 'comment-replying' : undefined}
+                  onChange={(event) => setContent(event.target.value)}
+                />
+                <span className="blog-comments__count">{content.length}/2000</span>
+              </div>
+
+              {error && (
+                <p className="blog-comments__error" role="alert">{error}</p>
+              )}
+
+              <div className="blog-comments__actions">
+                <button
+                  type="button"
+                  className="blog-comments__textbtn"
+                  onClick={() => {
+                    setShowForm(false)
+                    setError('')
+                    setReplyTo(null)
+                  }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="blog-comments__submit" disabled={submitting}>
+                  {submitting ? 'Posting…' : replyTo ? 'Post reply' : 'Post'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {loading ? (
+            <p className="blog-comments__quiet">Loading comments…</p>
+          ) : loadError ? (
+            <p className="blog-comments__error" role="alert">{loadError}</p>
+          ) : comments.length === 0 ? (
+            <p className="blog-comments__quiet">No notes in the margin yet.</p>
+          ) : (
+            <ul className="blog-comments__list">
+              {comments.map((comment) => (
+                <li key={comment.id}>
+                  <CommentItem
+                    comment={comment}
+                    onReply={() => {
+                      setReplyTo({ id: comment.id, name: comment.author_name })
+                      setShowForm(true)
+                      window.setTimeout(() => document.getElementById(bodyId)?.focus(), 0)
+                    }}
+                  />
+                  {comment.replies && comment.replies.length > 0 && (
+                    <ul className="blog-comments__replies">
+                      {comment.replies.map((reply) => (
+                        <li key={reply.id}>
+                          <CommentItem comment={reply} />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </section>
+  )
+}
+
+function insertComment(list: Comment[], comment: Comment): Comment[] {
+  if (!comment.parent_id) return [...list, { ...comment, replies: comment.replies ?? [] }]
+  return list.map((item) => {
+    if (item.id !== comment.parent_id) return item
+    return { ...item, replies: [...(item.replies ?? []), comment] }
+  })
+}
+
+function CommentItem({ comment, onReply }: { comment: Comment; onReply?: () => void }) {
+  return (
+    <article className="blog-comments__item">
+      <header>
+        <span className="blog-comments__author">{comment.author_name}</span>
+        <time dateTime={comment.created_at}>{formatDate(comment.created_at)}</time>
+      </header>
+      <p>{comment.content}</p>
+      {onReply && (
+        <button type="button" className="blog-comments__textbtn" onClick={onReply} aria-label={`Reply to ${comment.author_name}`}>
+          Reply
+        </button>
+      )}
+    </article>
   )
 }
