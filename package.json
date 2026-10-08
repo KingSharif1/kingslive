@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint --dir lib/blog --dir app/api/blog/comments --dir app/api/blog/views --dir components/blog --file components/BlogLikeButton.tsx --file 'app/blog/[slug]/Comments.tsx' --file 'app/blog/[slug]/page.tsx' --file app/api/blog/likes/route.ts --file app/api/blog/engagement.route.test.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.80",
@@ -64,6 +66,7 @@
     "recharts": "2.15.0",
     "sanity": "^4.21.0",
     "sonner": "^2.0.1",
+    "styled-components": "^6.5.3",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "teller-connect-react": "^0.2.3",
@@ -72,12 +75,15 @@
   "devDependencies": {
     "@next/bundle-analyzer": "^15",
     "@tanstack/react-query-devtools": "^5.85.5",
-    "@types/node": "^22",
+    "@types/node": "^22.19.1",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^15.5.18",
     "postcss": "^8",
     "postcss-import": "^16.1.1",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.0.3"
   }
 }

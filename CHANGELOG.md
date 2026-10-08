@@ -1,5 +1,16 @@
 # CHANGELOG.md
 
+## 2026-10-08 — Task KL-13: Blog comments, replies, likes, views
+What: Visitors leave a name (remembered in the browser) and a comment on a Sanity note. Replies nest one level. Likes are one per visitor cookie and can be removed. Views count once per visitor per 24 hours and skip bots. Writes go through `/api/blog/comments`, `/api/blog/likes`, and `/api/blog/views` with the service role. `post_id` is the Sanity document id. `author_email` is nullable and unused. `is_hidden` hides a row from the public list.
+Files: `app/api/blog/comments/route.ts`, `app/api/blog/likes/route.ts`, `app/api/blog/views/route.ts`, `app/blog/[slug]/Comments.tsx`, `app/blog/[slug]/page.tsx`, `components/BlogLikeButton.tsx`, `components/blog/BlogViewBeacon.tsx`, `lib/blog/*`, `app/globals.css`, `supabase/migrations/20261008_blog_engagement.sql`
+Why: Browser inserts failed (`author_email` NOT NULL, legacy `blog_posts` key). Likes incremented on every click. Views used the slug and could double-count.
+Decisions: No accounts and no email. Server route, not the anon client. Migration is idempotent and must be run on the kingslive Supabase project (the URL in `NEXT_PUBLIC_SUPABASE_URL`), not HireIQ or Nami. Until it is applied, the comment box stays hidden.
+Next: Run the migration, then on https://kingsharif.com/blog/roomba-694-raspberry-pi-ros2-build-log-days-1-3 check name memory, a comment, a reply, one like, and one view per day.
+
+Build: `styled-components` is a Sanity peer and was not installed, so `next build` could not compile Studio. Importing `@/lib/supabase` and the CTROOM admin client threw when `NEXT_PUBLIC_SUPABASE_URL` was unset during page-data collection. Both clients now construct with a local placeholder if the env is missing, so the build finishes; real deploys still use the real keys.
+
+Vercel: the first preview failed in `npm ci`, before `next build`. The lockfile had been written with `--legacy-peer-deps`, and Vite 7 (already in the Sanity tree, and required by Vitest) peer-depends on `@types/node@>=22.12`. The lock still had 22.10.10, so a strict install tried to pull `@types/node@26` and exited ERESOLVE. `@types/node` is now `^22.19.1` (locked at 22.19.1) and the lockfile is one `npm` can `npm ci` without `--legacy-peer-deps`.
+
 ## 2026-09-01 — Task BLOG-8: Table is `noteTable`, not reserved `table`
 What: Studio was rejecting Pin/Signal blocks (`_type: table`) and then hiding Photos/Table/FAQ from the insert bar when those objects were registered as shared schema types. They are inline `blockContent` members again; the table is `noteTable`.
 Files: `sanity/schemaTypes/blockContentType.ts`, `app/blog/[slug]/page.tsx`, `docs/BLOG.md`

@@ -1,10 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 
-// Service role key bypasses RLS — never expose this to the client
+// Service role key bypasses RLS — never expose this to the client.
+// Placeholders keep `next build` from throwing while it imports this module
+// with no env. A real request still needs the real URL and service role key.
 const adminSupabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 'public-anon-key',
+  { auth: { persistSession: false, autoRefreshToken: false } },
 )
 
 /**

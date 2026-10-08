@@ -61,8 +61,11 @@ fix-imports.js
 .vscode/
 .idea/
 
-#supabase
+# Supabase local state. SQL migrations stay in git (`git check-ignore` on this
+# directory used to swallow them — re-include the migrations folder explicitly).
 supabase/*
+!supabase/migrations/
+!supabase/migrations/**
 
 #nextjs
 .next

@@ -694,3 +694,7 @@ grep -r "process\.env\." --include="*.ts" --include="*.tsx" . | grep -v node_mod
 
 *Last updated: May 2026. Updated by: Claude (Anthropic) based on full architecture review and planning session with King Sharif.*
 *Previous session context: WINDSURF_HANDOFF.md*
+
+## Blog engagement (KL-13, 2026-10-08)
+
+Public notes take a display name remembered in the browser (`kl_display_name` / `kl_name`). No accounts, no email. Comments, one-level replies, likes, and views go through `/api/blog/comments`, `/api/blog/likes`, and `/api/blog/views` with the service role. `post_id` is the Sanity document id. Apply `supabase/migrations/20261008_blog_engagement.sql` on the kingslive project in `NEXT_PUBLIC_SUPABASE_URL` (not HireIQ, not Nami). Until that SQL is applied, the comment form hides instead of crashing.

@@ -1,3 +1,9 @@
+## Task KL-13 — Blog comments, replies, views, and likes
+Status: DONE
+Scope: `/api/blog/comments`, `/api/blog/likes`, `/api/blog/views`, comment UI, like button, view beacon, `supabase/migrations/20261008_blog_engagement.sql`
+Result: Name-only identity (localStorage + cookie). Comments and replies are one level deep, keyed on the Sanity post id, written by the service role. One like per visitor cookie, unlike allowed. Views dedupe for 24h and skip bots; the beacon does not run during render. If the migration is missing, the comment form hides. Vitest covers validation, dedupe, and threading.
+Files changed: `app/api/blog/comments/route.ts`, `app/api/blog/likes/route.ts`, `app/api/blog/views/route.ts`, `app/blog/[slug]/Comments.tsx`, `app/blog/[slug]/page.tsx`, `components/BlogLikeButton.tsx`, `components/blog/BlogViewBeacon.tsx`, `lib/blog/*`, `app/globals.css`, `supabase/migrations/20261008_blog_engagement.sql`, `vitest.config.ts`
+
 ## Task BLOG-8 — Table schema: `noteTable`, not `table`
 Status: DONE
 Scope: Sanity schema + post PortableText

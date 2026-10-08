@@ -1,5 +1,12 @@
 # DECISIONS.md
 
+## 2026-10-08 — Blog engagement is a name and a cookie, not an account
+- **Context:** Comments were inserted from the browser into `blog_comments` and died on `author_email NOT NULL` and a `post_id` tied to legacy `blog_posts`. Likes incremented on every click. Views incremented from the client with the slug, so a refresh could count twice.
+- **Options:** Magic-link accounts / email on the comment / name remembered in the browser. Client writes vs a service-role route.
+- **Choice:** Name only (`localStorage` + `kl_name`). Visitor id is httpOnly `kl_vid`. `/api/blog/comments`, `/api/blog/likes`, and `/api/blog/views` validate input and write with the service role. Replies are one level (`parent_id`). Likes are one row per visitor and can be removed. Views dedupe for 24 hours and skip bots. Schema lives in `supabase/migrations/20261008_blog_engagement.sql` and must be applied on the kingslive project, not HireIQ or Nami.
+- **Tradeoff:** No email means no reply notifications and a cleared cookie is a new visitor. In-memory rate limit is per server instance; the durable limit is recent rows for that visitor id.
+- **Revisit if:** You want notifications, or moderation in CTROOM beyond `is_hidden` / `approved`.
+
 ## 2026-09-01 — Never name a Portable Text object `table`
 - **Context:** Inserting our Pin/Signal table on localhost showed “type table is not allowed by the schema”.
 - **Options:** Enable Sanity’s native table plugin / keep `_type: table` as a registered type / rename to `noteTable`.
