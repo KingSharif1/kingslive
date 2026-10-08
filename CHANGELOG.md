@@ -9,6 +9,8 @@ Next: Run the migration, then on https://kingsharif.com/blog/roomba-694-raspberr
 
 Build: `styled-components` is a Sanity peer and was not installed, so `next build` could not compile Studio. Importing `@/lib/supabase` and the CTROOM admin client threw when `NEXT_PUBLIC_SUPABASE_URL` was unset during page-data collection. Both clients now construct with a local placeholder if the env is missing, so the build finishes; real deploys still use the real keys.
 
+Vercel: the first preview failed in `npm ci`, before `next build`. The lockfile had been written with `--legacy-peer-deps`, and Vite 7 (already in the Sanity tree, and required by Vitest) peer-depends on `@types/node@>=22.12`. The lock still had 22.10.10, so a strict install tried to pull `@types/node@26` and exited ERESOLVE. `@types/node` is now `^22.19.1` (locked at 22.19.1) and the lockfile is one `npm` can `npm ci` without `--legacy-peer-deps`.
+
 ## 2026-09-01 — Task BLOG-8: Table is `noteTable`, not reserved `table`
 What: Studio was rejecting Pin/Signal blocks (`_type: table`) and then hiding Photos/Table/FAQ from the insert bar when those objects were registered as shared schema types. They are inline `blockContent` members again; the table is `noteTable`.
 Files: `sanity/schemaTypes/blockContentType.ts`, `app/blog/[slug]/page.tsx`, `docs/BLOG.md`
