@@ -34,7 +34,7 @@ export const MobileHeader = ({ isMobileMenuOpen, setIsMobileMenuOpen, currentVie
             </div>
 
             {isMobileMenuOpen && (
-                <div className="md:hidden fixed inset-0 z-40 bg-background pt-24 px-6 animate-in slide-in-from-top-10">
+                <div className="md:hidden fixed inset-0 z-40 bg-background pt-24 px-6 pb-8 overflow-y-auto animate-in slide-in-from-top-10">
                     <nav className="space-y-2">
                         {[
                             { id: 'dashboard',  icon: LayoutDashboard, label: 'Dashboard'  },

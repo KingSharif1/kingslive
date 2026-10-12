@@ -839,7 +839,7 @@ export function VaultView() {
       </div>
 
       {/* ── Scrollable content ─────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5">
+      <div className="flex-1 overflow-y-auto px-4 md:px-6 pt-5 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
         <AnimatePresence mode="wait">
           <motion.div
             key={`${topTab}/${section}`}

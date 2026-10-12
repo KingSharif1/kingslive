@@ -660,7 +660,7 @@ export const ChatView = ({
             </div>
 
             {/* ── Input Island ── */}
-            <div className="absolute bottom-0 left-0 right-0 px-4 pb-4 pt-2 z-10" style={{ background: 'linear-gradient(to top, #080808 60%, transparent)' }}>
+            <div className="absolute bottom-0 left-0 right-0 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 z-10" style={{ background: 'linear-gradient(to top, #080808 60%, transparent)' }}>
                 <div className="max-w-3xl mx-auto">
                     <div className="backdrop-blur-xl shadow-xl rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                         {/* Active tool chip */}

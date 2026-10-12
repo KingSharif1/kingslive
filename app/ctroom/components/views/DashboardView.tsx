@@ -68,7 +68,7 @@ export const DashboardView = ({
     ];
 
     return (
-        <div className="flex flex-col h-full overflow-y-auto hq-scroll" style={{ color: '#e5e5e5' }}>
+        <div className="flex flex-col min-h-full hq-scroll" style={{ color: '#e5e5e5' }}>
 
             {/* ── Top breadcrumb bar ─────────────────────────────── */}
             <div className="flex items-center justify-between px-8 py-3 border-b flex-shrink-0"

@@ -69,7 +69,7 @@ export const Sidebar = ({
     return (
         <div
             className={cn(
-                'hidden md:flex flex-col h-screen sticky top-0 transition-all duration-300 hq-scroll overflow-y-auto',
+                'hidden md:flex flex-col h-dvh sticky top-0 transition-all duration-300 hq-scroll overflow-y-auto',
                 isCollapsed ? 'w-[72px]' : 'w-64'
             )}
             style={{ background: '#080808', borderRight: '1px solid rgba(255,255,255,0.05)' }}

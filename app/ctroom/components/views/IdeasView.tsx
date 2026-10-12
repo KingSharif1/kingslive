@@ -1166,7 +1166,7 @@ export const IdeasView = ({
 
                 {/* Editor Area */}
                 <div className="flex-1 overflow-y-auto">
-                    <div className="h-full flex flex-col px-4 md:px-8 lg:px-16 py-6 md:py-10 max-w-4xl mx-auto w-full">
+                    <div className="h-full flex flex-col px-4 md:px-8 lg:px-16 pt-6 pb-28 md:py-10 max-w-4xl mx-auto w-full">
 
                         {/* Title */}
                         <input
@@ -1250,7 +1250,7 @@ export const IdeasView = ({
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                         className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-card border-t border-border shadow-2xl"
                     >
-                        <div className="flex items-center justify-around p-2 pb-safe">
+                        <div className="flex items-center justify-around p-2 pb-[env(safe-area-inset-bottom)]">
                             <button
                                 onClick={() => showAddMenu(activeBlockId || blocks[blocks.length - 1]?.id)}
                                 className="flex flex-col items-center gap-1 p-2 hover:bg-secondary rounded-lg transition-colors flex-1"
@@ -1340,7 +1340,7 @@ export const IdeasView = ({
                                     className="w-full bg-secondary/50 border-none rounded-lg px-3 py-2.5 md:py-2 text-sm focus:ring-0 outline-none"
                                 />
                             </div>
-                            <div className="max-h-[50vh] md:max-h-64 overflow-y-auto p-2 md:p-1 pb-safe">
+                            <div className="max-h-[50vh] md:max-h-64 overflow-y-auto p-2 md:p-1 pb-[env(safe-area-inset-bottom)]">
                                 {filteredBlockTypes.map(bt => (
                                     <button
                                         key={bt.type}

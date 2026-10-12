@@ -147,7 +147,7 @@ export const MissionsView = ({ onMissionClick, githubToken }: MissionsViewProps)
 
     return (
         <div
-            className="flex flex-col min-h-full hq-scroll overflow-y-auto"
+            className="flex flex-col min-h-full hq-scroll"
             style={{ color: '#f4f4f5', padding: '2.5rem 2.5rem', background: '#09090b' }}
         >
             {/* ── Header ─────────────────────────────────────── */}

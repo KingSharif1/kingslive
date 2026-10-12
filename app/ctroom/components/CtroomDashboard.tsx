@@ -723,7 +723,7 @@ export function CtroomDashboard() {
     return (
         <motion.div 
             className={cn(
-                "h-screen w-full bg-background text-foreground font-inter selection:bg-primary/20 flex flex-col md:flex-row overflow-hidden",
+                "h-dvh w-full bg-background text-foreground font-inter selection:bg-primary/20 flex flex-col md:flex-row overflow-hidden",
                 accent !== 'none' && `ctroom-accent-${accent}`
             )}
             initial={{ opacity: 0, scale: 0.98 }}
@@ -758,10 +758,10 @@ export function CtroomDashboard() {
                 setCurrentView={handleViewChange}
             />
 
-            <main className="flex-1 overflow-hidden w-full relative h-full" style={{ background: '#080808' }}>
+            <main className="flex-1 overflow-hidden w-full relative h-full flex flex-col" style={{ background: '#080808' }}>
                 <div className="md:hidden h-16 flex-shrink-0" />
 
-                <div className={cn("h-full w-full", isFullBleedView ? "p-0" : "p-4 md:p-6 overflow-y-auto")}>
+                <div className={cn("flex-1 min-h-0 w-full", isFullBleedView ? "p-0" : "p-4 md:p-6 overflow-y-auto")}>
 
                     {currentView === 'dashboard' && (
                         <DashboardView

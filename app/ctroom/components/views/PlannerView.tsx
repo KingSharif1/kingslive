@@ -320,7 +320,7 @@ export const PlannerView = ({
             </AnimatePresence>
 
             {/* ── Left Sidebar ─────────────────────────────────────────────── */}
-            <div className="w-56 flex-shrink-0 flex flex-col overflow-y-auto hq-scroll" style={{ background: '#0a0a0a', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="w-56 flex-shrink-0 hidden md:flex flex-col overflow-y-auto hq-scroll" style={{ background: '#0a0a0a', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
 
                 {/* HQ breadcrumb */}
                 <div className="px-4 py-3 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-white/20" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
@@ -483,7 +483,7 @@ export const PlannerView = ({
                         onSlotClick={(_hour) => { openItemModal(); }}
                     />
                 ) : (
-                    <div className={`flex-1 overflow-y-auto hq-scroll p-6 w-full ${plannerTab === 'tasks' && boardMode === 'board' ? '' : 'max-w-3xl mx-auto'}`}>
+                    <div className={`flex-1 overflow-y-auto hq-scroll p-6 pb-20 md:pb-6 w-full ${plannerTab === 'tasks' && boardMode === 'board' ? '' : 'max-w-3xl mx-auto'}`}>
 
                         {/* HQ Header */}
                         <div className="flex items-center justify-between mb-6">
@@ -1156,7 +1156,7 @@ function DaySchedulePanel({ day, actionItems, missions, onSlotClick }: {
             )}
 
             {/* Time grid */}
-            <div ref={scheduleRef} className="flex-1 overflow-y-auto hq-scroll">
+            <div ref={scheduleRef} className="flex-1 overflow-y-auto hq-scroll pb-16">
                 <div style={{ position: 'relative', height: SCHEDULE_HOURS.length * SLOT_PX + 1 }}>
 
                     {/* "Now" indicator */}
@@ -1301,7 +1301,7 @@ function CalendarPanel({ calDate, setCalDate, calView, setCalView, weekDays, mon
             )}
 
             {calView === 'week' && (
-                <div className="p-4 overflow-y-auto hq-scroll flex-1">
+                <div className="p-4 pb-20 md:pb-4 overflow-y-auto hq-scroll flex-1">
                     <div className="grid grid-cols-7 gap-2">
                         {weekDays.map(day => {
                             const items = getItemsForDay(day);
@@ -1349,7 +1349,7 @@ function CalendarPanel({ calDate, setCalDate, calView, setCalView, weekDays, mon
             )}
 
             {calView === 'month' && (
-                <div className="p-4 overflow-y-auto hq-scroll flex-1">
+                <div className="p-4 pb-20 md:pb-4 overflow-y-auto hq-scroll flex-1">
                     <div className="grid grid-cols-7 mb-1">
                         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
                             <div key={d} className="text-center font-mono text-[10px] font-semibold uppercase text-white/25 py-1">{d}</div>
