@@ -264,7 +264,10 @@ export async function POST(req: NextRequest) {
 
         let content = '';
 
-        // Route to the right provider
+        // Route to the right provider.
+        // NOTE (2026-10-12): all gemini-2.x models are deprecated (404) and the
+        // Gemini account has depleted credits (402), so any gemini- request is
+        // rerouted to OpenAI until the account is topped up.
         if (model.startsWith('claude-')) {
             content = await callAnthropic(systemPrompt, messages, model);
         } else if (model.startsWith('gpt-')) {
@@ -272,13 +275,14 @@ export async function POST(req: NextRequest) {
         } else if (model === 'groq-llama') {
             content = await callOpenAI(systemPrompt, messages, 'llama-3.3-70b-versatile', 'https://api.groq.com/openai/v1');
         } else if (model.startsWith('gemini-')) {
-            content = await callGemini(systemPrompt, messages, model);
+            content = await callOpenAI(systemPrompt, messages, 'gpt-4o-mini');
         } else {
-            // Fallback: try Gemini, then Claude
+            // Fallback: try OpenAI (verified working 2026-10-12).
+            // Gemini models are deprecated and the Gemini account has no credits.
             try {
-                content = await callGemini(systemPrompt, messages, 'gemini-2.0-flash');
+                content = await callOpenAI(systemPrompt, messages, 'gpt-4o-mini');
             } catch {
-                content = await callAnthropic(systemPrompt, messages, 'claude-sonnet-4-6');
+                content = await callOpenAI(systemPrompt, messages, 'gpt-4o');
             }
         }
 

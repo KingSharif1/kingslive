@@ -1177,16 +1177,11 @@ function CashFlowPanel({ accounts, transactions, subscriptions }: {
 }
 
 const VAULT_AI_MODELS = [
-  // Google Gemini
-  { id: 'gemini-2.0-flash',             label: 'Gemini 2.0 Flash' },
-  { id: 'gemini-1.5-flash',             label: 'Gemini 1.5 Flash' },
-  { id: 'gemini-1.5-pro',               label: 'Gemini 1.5 Pro' },
-  // OpenAI
+  // OpenAI (verified working 2026-10-12)
   { id: 'gpt-4o-mini',                  label: 'GPT-4o Mini' },
   { id: 'gpt-4o',                       label: 'GPT-4o' },
-  // Anthropic
-  { id: 'claude-3-5-haiku-20241022',    label: 'Claude 3.5 Haiku' },
-  { id: 'claude-3-5-sonnet-20241022',   label: 'Claude 3.5 Sonnet' },
+  // Google Gemini — DEPRECATED (404) + account credits depleted (402). Hidden until fixed.
+  // Anthropic — needs ANTHROPIC_API_KEY installed.
 ];
 
 const VAULT_QUICK_PROMPTS = [
@@ -1265,7 +1260,7 @@ function VaultAIChat({ transactions, budgets, debts, goals, subscriptions, accou
   const [chatId, setChatId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [model, setModel] = useState('gemini-2.0-flash');
+  const [model, setModel] = useState('gpt-4o-mini');
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<{ id: string; title: string; updated_at: string; messages: VaultChatMsg[] }[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -1279,7 +1274,7 @@ function VaultAIChat({ transactions, budgets, debts, goals, subscriptions, accou
         setHistory(chats as any);
         setChatId(latest.id);
         setMessages((latest.messages || []) as VaultChatMsg[]);
-        setModel(latest.model || 'gemini-2.0-flash');
+        setModel(latest.model || 'gpt-4o-mini');
       }
     });
   }, []);
@@ -1357,7 +1352,7 @@ function VaultAIChat({ transactions, budgets, debts, goals, subscriptions, accou
   const loadChat = useCallback((chat: { id: string; messages: VaultChatMsg[]; model: string }) => {
     setChatId(chat.id);
     setMessages(chat.messages || []);
-    setModel(chat.model || 'gemini-2.0-flash');
+    setModel(chat.model || 'gpt-4o-mini');
     setShowHistory(false);
     scrollToBottom();
   }, []);

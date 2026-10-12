@@ -20,11 +20,14 @@ import { supabase } from '@/lib/supabase';
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 const AI_MODELS: AIModel[] = [
-    { id: 'gemini-2.0-flash', name: 'Gemini Flash', provider: 'Google', description: 'Fast & Multimodal', contextTokens: '1M', icon: '✦' },
+    // Verified working 2026-10-12. Gemini models are deprecated (404) and the
+    // Gemini account has depleted prepayment credits (402) — hidden until fixed.
+    // Claude/Groq need their API keys installed — hidden until then.
     { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Fast & Smart', contextTokens: '128K', icon: '⚡' },
     { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Most Capable', contextTokens: '128K', icon: '🧠' },
-    { id: 'claude-sonnet-4-6', name: 'Claude Sonnet', provider: 'Anthropic', description: 'Writing & Analysis', contextTokens: '200K', icon: '◈' },
-    { id: 'groq-llama', name: 'Llama 3.3', provider: 'Groq', description: 'Lightning Fast', contextTokens: '128K', icon: '⚡' },
+    { id: 'gemini-2.0-flash', name: 'Gemini Flash', provider: 'Google', description: 'Fast & Multimodal', contextTokens: '1M', icon: '✦', available: false },
+    { id: 'claude-sonnet-4-6', name: 'Claude Sonnet', provider: 'Anthropic', description: 'Writing & Analysis', contextTokens: '200K', icon: '◈', available: false },
+    { id: 'groq-llama', name: 'Llama 3.3', provider: 'Groq', description: 'Lightning Fast', contextTokens: '128K', icon: '⚡', available: false },
 ];
 
 const PROVIDER_COLORS: Record<string, string> = {
@@ -356,7 +359,7 @@ export const ChatView = ({
                             className="absolute top-[60px] left-5 w-72 backdrop-blur-xl rounded-2xl shadow-2xl z-50 p-2"
                             style={{ background: 'rgba(10,10,10,0.97)', border: '1px solid rgba(255,255,255,0.1)' }}
                         >
-                            {AI_MODELS.map(model => (
+                            {AI_MODELS.filter(model => model.available !== false).map(model => (
                                 <button
                                     key={model.id}
                                     onClick={() => { setSelectedModel(model); setShowModelPicker(false); }}

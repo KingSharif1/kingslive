@@ -54,7 +54,8 @@ export async function POST(req: NextRequest) {
       goals: GoalInput[];
     };
 
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    // NOTE (2026-10-12): Gemini deprecated (404) + credits depleted (402). Using OpenAI.
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ nudges: [] });
     }
@@ -112,13 +113,16 @@ Rules:
     let res: Response;
     try {
       res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        `https://api.openai.com/v1/chat/completions`,
         {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json', 'authorization': `Bearer ${apiKey}` },
           body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: 1024, temperature: 0.2, responseMimeType: 'application/json' },
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: 1024,
+            temperature: 0.2,
+            response_format: { type: 'json_object' },
           }),
           signal: controller.signal,
         }
@@ -132,7 +136,7 @@ Rules:
     }
 
     const data = await res.json();
-    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+    const raw = data?.choices?.[0]?.message?.content || '[]';
 
     let nudges: VaultAiNudge[] = [];
     try {

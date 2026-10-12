@@ -53,7 +53,7 @@ export function VaultAdvisorChat() {
         timestamp: new Date().toISOString(),
       }));
       const title = plain.find(m => m.role === 'user')?.content.slice(0, 48) || 'Vault chat';
-      const id = await VaultDataService.saveVaultChat(chatId, plain, title, 'gemini-2.0-flash');
+      const id = await VaultDataService.saveVaultChat(chatId, plain, title, 'gpt-4o-mini');
       if (id) setChatId(id);
 
       const last = finished[finished.length - 1];

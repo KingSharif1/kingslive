@@ -15,9 +15,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ summary: 'No commits to summarize.' });
         }
 
-        const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+        // NOTE (2026-10-12): Gemini models are deprecated (404) and the Gemini
+        // account has depleted credits (402). Using OpenAI instead.
+        const apiKey = process.env.OPENAI_API_KEY;
         if (!apiKey) {
-            return NextResponse.json({ summary: 'AI summary unavailable (Gemini API key not configured).' });
+            return NextResponse.json({ summary: 'AI summary unavailable (OpenAI API key not configured).' });
         }
 
         const commitList = commits
@@ -31,18 +33,18 @@ export async function POST(req: NextRequest) {
         let res: Response;
         try {
             res = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+                `https://api.openai.com/v1/chat/completions`,
                 {
                     method: 'POST',
-                    headers: { 'content-type': 'application/json' },
+                    headers: { 'content-type': 'application/json', 'authorization': `Bearer ${apiKey}` },
                     body: JSON.stringify({
-                        contents: [{
+                        model: 'gpt-4o-mini',
+                        messages: [{
                             role: 'user',
-                            parts: [{
-                                text: `Summarize these Git commits in 2 short plain-English sentences for a project overview. Focus on what changed. Be concise and skip commit IDs.\n\n${commitList}`,
-                            }],
+                            content: `Summarize these Git commits in 2 short plain-English sentences for a project overview. Focus on what changed. Be concise and skip commit IDs.\n\n${commitList}`,
                         }],
-                        generationConfig: { maxOutputTokens: 150, temperature: 0.4 },
+                        max_tokens: 150,
+                        temperature: 0.4,
                     }),
                     signal: controller.signal,
                 }
@@ -53,13 +55,13 @@ export async function POST(req: NextRequest) {
 
         if (!res.ok) {
             const errBody = await res.json().catch(() => ({}));
-            const errMsg = (errBody as any)?.error?.message || `Gemini API error ${res.status}`;
-            console.error('[ai-summary] Gemini error:', errMsg);
+            const errMsg = (errBody as any)?.error?.message || `OpenAI API error ${res.status}`;
+            console.error('[ai-summary] OpenAI error:', errMsg);
             return NextResponse.json({ summary: 'Could not generate summary.' });
         }
 
         const data = await res.json();
-        const summary = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Could not generate summary.';
+        const summary = data.choices?.[0]?.message?.content?.trim() || 'Could not generate summary.';
         return NextResponse.json({ summary });
 
     } catch (err: any) {

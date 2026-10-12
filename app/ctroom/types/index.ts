@@ -235,6 +235,8 @@ export interface AIModel {
   description: string;
   contextTokens: string;
   icon: string;
+  /** False when the provider key is missing or the model is deprecated. Hidden from pickers. */
+  available?: boolean;
 }
 
 // Vault / Finance types

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { streamText, convertToModelMessages, stepCountIs, type UIMessage } from 'ai';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenAI } from '@ai-sdk/openai';
 import { getVaultSupabaseUser } from '@/lib/vault/supabaseAuth';
 import { buildAdvisorSystemPrompt } from '@/lib/vault/advisorContext';
 import { createAdvisorTools } from '@/lib/vault/advisorTools';
 
-const googleProvider = createGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY,
+// NOTE (2026-10-12): Gemini models are deprecated (404) and the Gemini account
+// has depleted credits (402). Advisor now runs on OpenAI (verified working).
+const openaiProvider = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 async function executeConfirmedAction(
@@ -94,7 +96,7 @@ export async function POST(req: NextRequest) {
     const tools = createAdvisorTools(supabase, user.id);
 
     const result = streamText({
-      model: googleProvider('gemini-2.0-flash'),
+      model: openaiProvider('gpt-4o-mini'),
       system,
       messages: await convertToModelMessages(messages),
       tools,
@@ -118,24 +120,26 @@ export async function PUT(req: NextRequest) {
     }
 
     const system = await buildAdvisorSystemPrompt(supabase, user.id);
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ reply: 'No Gemini API key configured.' });
+      return NextResponse.json({ reply: 'No OpenAI API key configured.' });
     }
 
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      `https://api.openai.com/v1/chat/completions`,
       {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'authorization': `Bearer ${apiKey}` },
         body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: `${system}\n\nUser: ${message}` }] }],
-          generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
+          model: 'gpt-4o-mini',
+          messages: [{ role: 'user', content: `${system}\n\nUser: ${message}` }],
+          max_tokens: 1024,
+          temperature: 0.7,
         }),
       },
     );
     const data = await res.json();
-    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response.';
+    const reply = data?.choices?.[0]?.message?.content || 'No response.';
     return NextResponse.json({ reply });
   } catch {
     return NextResponse.json({ reply: 'Something went wrong.' }, { status: 500 });
