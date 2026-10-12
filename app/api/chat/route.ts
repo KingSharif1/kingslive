@@ -1,7 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
+import { createClient } from '@supabase/supabase-js';
 
 const customSearch = google.customsearch('v1');
+
+// ─── Milo v2 mind: soul + long-term memories ─────────────────────────────────
+
+async function getMiloMind(): Promise<{ soul: string; memories: string[] }> {
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
+    const [{ data: soulRow }, { data: memRows }] = await Promise.all([
+      supabase.from('milo_config').select('value').eq('key', 'soul').maybeSingle(),
+      supabase.from('milo_memories').select('fact').order('importance', { ascending: false }).limit(20),
+    ]);
+    return {
+      soul: typeof soulRow?.value === 'string' ? soulRow.value : '',
+      memories: (memRows || []).map((m: any) => m.fact),
+    };
+  } catch {
+    return { soul: '', memories: [] };
+  }
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,10 +48,11 @@ interface ThinkingStep {
 
 // ─── System prompt builder ────────────────────────────────────────────────────
 
-function buildSystemPrompt(ctx?: CtroomContext): string {
+function buildSystemPrompt(ctx?: CtroomContext, soul?: string, memories?: string[]): string {
     const today = ctx?.today ? new Date(ctx.today).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-    let prompt = `You are Milo, King Sharif's elite personal AI assistant — think Jarvis from Iron Man.
+    // Soul first — his words define who Milo is. Fall back to the built-in default.
+    let prompt = soul?.trim() || `You are Milo, King Sharif's elite personal AI assistant — think Jarvis from Iron Man.
 You are sharp, direct, context-aware, and always helpful. You know what King is working on.
 
 King's Profile:
@@ -41,6 +64,16 @@ King's Profile:
 - Interests: AI Agents, Minimalist Design, Creative Coding
 
 Today is ${today}.`;
+
+    // Always ground in today, even with a custom soul.
+    if (soul?.trim() && !soul.includes(today)) {
+        prompt += `\n\nToday is ${today}.`;
+    }
+
+    // Long-term memories — things Milo must not forget.
+    if (memories && memories.length > 0) {
+        prompt += `\n\nThings you remember about King:\n${memories.map(m => `  • ${m}`).join('\n')}`;
+    }
 
     if (ctx?.todayTaskCount !== undefined) {
         prompt += `\n\nToday's workload: ${ctx.todayTaskCount} task${ctx.todayTaskCount !== 1 ? 's' : ''} on deck.`;
@@ -221,7 +254,9 @@ export async function POST(req: NextRequest) {
         const thinkingSteps: ThinkingStep[] = [];
         thinkingSteps.push({ title: 'Processing Request', status: 'completed', description: `Model: ${model}` });
 
-        let systemPrompt = buildSystemPrompt(ctroomContext);
+        // Milo v2: soul + long-term memories shape every response.
+        const { soul, memories } = await getMiloMind();
+        let systemPrompt = buildSystemPrompt(ctroomContext, soul, memories);
 
         // Web search tool
         const needsSearch = tools?.includes('web') && (
