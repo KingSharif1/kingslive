@@ -21,6 +21,7 @@ export interface DreamBoard {
   canvas_width: number;
   canvas_height: number;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface DreamItem {
@@ -189,6 +190,14 @@ export async function dbLoadItems(boardId: string): Promise<DreamItem[]> {
     .eq('board_id', boardId)
     .order('z_index', { ascending: true });
   return (data as DreamItem[]) || [];
+}
+
+export async function dbCountItems(boardId: string): Promise<number> {
+  const { count } = await sb()
+    .from('dreamboard_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('board_id', boardId);
+  return count || 0;
 }
 
 export async function dbCreateItem(item: Omit<DreamItem, 'id'>): Promise<DreamItem | null> {
