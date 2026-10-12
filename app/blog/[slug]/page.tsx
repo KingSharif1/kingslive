@@ -19,6 +19,7 @@ import BackToTop from "@/components/blog/BackToTop"
 import Comments from "./Comments"
 import { BlogLikeButton } from "@/components/BlogLikeButton"
 import BlogViewBeacon from "@/components/blog/BlogViewBeacon"
+import BlogReadingTracker from "@/components/blog/BlogReadingTracker"
 
 import { portableTextComponents } from "@/components/blog/portableTextComponents"
 // Extended BlogPost type for slug page (includes content)
@@ -532,6 +533,7 @@ export default function BlogPostPage() {
         url={typeof window !== 'undefined' ? window.location.href : ''}
       />
       {!isPreview ? <BlogViewBeacon postId={post.id} /> : null}
+      {!isPreview ? <BlogReadingTracker postId={post.id} /> : null}
       <main className="pb-20">
         {/* Desktop sidebar: brand, nav, and article actions */}
         <aside className="blog-rail hidden lg:flex" aria-label="Article actions">

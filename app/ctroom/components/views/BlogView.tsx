@@ -37,6 +37,76 @@ interface EnrichedPost extends BlogPost {
     commentCount?: number;
 }
 
+interface ReadingStats {
+    sessions: number;
+    avgActiveSeconds: number;
+    avgMaxDepth: number;
+    returningDevices: number;
+    finishedCount: number;
+}
+
+function summarizeSessions(rows: Array<{
+    device_hash: string;
+    active_seconds: number | null;
+    max_scroll_depth: number | null;
+    milestones: number[] | null;
+}>): ReadingStats {
+    const sessions = rows.length;
+    if (sessions === 0) {
+        return { sessions: 0, avgActiveSeconds: 0, avgMaxDepth: 0, returningDevices: 0, finishedCount: 0 };
+    }
+    const totalActive = rows.reduce((s, r) => s + (r.active_seconds || 0), 0);
+    const totalDepth = rows.reduce((s, r) => s + (r.max_scroll_depth || 0), 0);
+    const deviceCounts: Record<string, number> = {};
+    let finishedCount = 0;
+    for (const r of rows) {
+        deviceCounts[r.device_hash] = (deviceCounts[r.device_hash] || 0) + 1;
+        if (Array.isArray(r.milestones) && r.milestones.includes(100)) finishedCount += 1;
+    }
+    return {
+        sessions,
+        avgActiveSeconds: Math.round(totalActive / sessions),
+        avgMaxDepth: Math.round(totalDepth / sessions),
+        returningDevices: Object.values(deviceCounts).filter(c => c > 1).length,
+        finishedCount,
+    };
+}
+
+function formatDuration(totalSeconds: number): string {
+    if (totalSeconds < 60) return `${totalSeconds}s`;
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    return s === 0 ? `${m}m` : `${m}m ${s}s`;
+}
+
+// ─── Reader analytics panel (real reading sessions) ─────────────────────────
+
+function ReaderAnalyticsPanel({ stats }: { stats: ReadingStats }) {
+    if (stats.sessions === 0) return null;
+    const tiles = [
+        { value: formatDuration(stats.avgActiveSeconds), label: 'avg read time', color: '#8b5cf6' },
+        { value: `${stats.avgMaxDepth}%`, label: 'avg scroll depth', color: '#3b82f6' },
+        { value: String(stats.returningDevices), label: 'returning readers', color: '#00ff88' },
+        { value: String(stats.finishedCount), label: 'read to the end', color: '#f97316' },
+    ];
+    return (
+        <div>
+            <p className="font-mono text-[10px] uppercase tracking-widest mb-2" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                Reader analytics · {stats.sessions} session{stats.sessions === 1 ? '' : 's'}
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {tiles.map(t => (
+                    <div key={t.label} className="rounded-lg px-3 py-2.5"
+                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <p className="font-mono text-base font-bold" style={{ color: t.color }}>{t.value}</p>
+                        <p className="font-mono text-[9px] uppercase tracking-widest mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>{t.label}</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 // ─── Mini bar chart ───────────────────────────────────────────────────────────
 
 function MiniBar({ value, max, color = '#00ff88' }: { value: number; max: number; color?: string }) {
@@ -85,6 +155,7 @@ function AnalyticsBadge({ icon: Icon, value, label, color }: {
 export const BlogView = () => {
     const [posts, setPosts] = useState<EnrichedPost[]>([]);
     const [analytics, setAnalytics] = useState<Record<string, PostAnalytics>>({});
+    const [reading, setReading] = useState<Record<string, ReadingStats>>({});
     const [pendingComments, setPendingComments] = useState<Comment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -133,6 +204,31 @@ export const BlogView = () => {
             (allComments || []).forEach((c: any) => {
                 commentCounts[c.post_id] = (commentCounts[c.post_id] || 0) + 1;
             });
+
+            // Reading sessions (real reader behavior: time, scroll depth, returns)
+            const readingMap: Record<string, ReadingStats> = {};
+            try {
+                const { data: sessionRows } = await supabase
+                    .from('blog_reading_sessions')
+                    .select('post_id, device_hash, active_seconds, max_scroll_depth, milestones')
+                    .order('created_at', { ascending: false })
+                    .limit(2000);
+                const byPost: Record<string, Array<{
+                    device_hash: string;
+                    active_seconds: number | null;
+                    max_scroll_depth: number | null;
+                    milestones: number[] | null;
+                }>> = {};
+                (sessionRows || []).forEach((r: any) => {
+                    (byPost[r.post_id] = byPost[r.post_id] || []).push(r);
+                });
+                for (const [postId, rows] of Object.entries(byPost)) {
+                    readingMap[postId] = summarizeSessions(rows);
+                }
+            } catch {
+                // Table may not exist yet (migration not run) — panel stays hidden.
+            }
+            setReading(readingMap);
 
             // Merge everything
             const enriched: EnrichedPost[] = sanityPosts.map(p => ({
@@ -449,9 +545,13 @@ export const BlogView = () => {
                                                             )}
                                                         </div>
 
+                                                        {/* Real reader behavior */}
+                                                        {reading[post.id] && (
+                                                            <ReaderAnalyticsPanel stats={reading[post.id]} />
+                                                        )}
+
                                                         {/* Referrers */}
-                                                        {a.referrers && Object.keys(a.referrers).length > 0 && (
-                                                            <div>
+                                                        {a.referrers && Object.keys(a.referrers).length > 0 && (                                                            <div>
                                                                 <p className="font-mono text-[10px] uppercase tracking-widest mb-2" style={{ color: 'rgba(255,255,255,0.25)' }}>
                                                                     Top Referrers
                                                                 </p>
