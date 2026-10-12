@@ -173,8 +173,7 @@ async function callAnthropic(systemPrompt: string, messages: ChatMessage[], mode
     return data.content?.[0]?.text || '';
 }
 
-async function callOpenAI(systemPrompt: string, messages: ChatMessage[], modelId: string, baseUrl = 'https://api.openai.com/v1'): Promise<string> {
-    const apiKey = baseUrl.includes('groq') ? process.env.GROQ_API_KEY : process.env.OPENAI_API_KEY;
+async function callOpenAI(systemPrompt: string, messages: ChatMessage[], modelId: string, baseUrl = 'https://api.openai.com/v1'): Promise<string> {    const apiKey = baseUrl.includes('groq') ? process.env.GROQ_API_KEY : process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error(`API key missing for ${baseUrl}`);
 
     const res = await fetch(`${baseUrl}/chat/completions`, {
@@ -234,6 +233,49 @@ async function callGemini(systemPrompt: string, messages: ChatMessage[], modelId
 
     const data = await res.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+// ─── Decide model: cheap router picks the best engine per task ───────────────
+
+async function decideModel(query: string, messages: ChatMessage[]): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return 'gpt-4o-mini';
+
+  // Fast heuristic first: short casual messages never need the big model.
+  const q = query.trim();
+  if (q.length < 60 && !/(code|write|essay|analyze|analyse|explain|compare|design|debug|plan)/i.test(q)) {
+    return 'gpt-4o-mini';
+  }
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You route tasks to the best AI model. Reply with exactly one word: QUICK or DEEP.
+QUICK = simple Q&A, small talk, short factual answers, quick rewrites.
+DEEP = code, debugging, long writing, analysis, planning, math, multi-step reasoning.
+Conversation so far: ${messages.slice(-4).map(m => `${m.role}: ${m.content.slice(0, 120)}`).join('\n')}`,
+          },
+          { role: 'user', content: q.slice(0, 500) },
+        ],
+        max_tokens: 5,
+        temperature: 0,
+      }),
+    });
+    const data = await res.json();
+    const verdict = (data?.choices?.[0]?.message?.content || '').trim().toUpperCase();
+    if (verdict.startsWith('DEEP')) {
+      return process.env.ANTHROPIC_API_KEY ? 'claude-sonnet-4-6' : 'gpt-4o';
+    }
+    return 'gpt-4o-mini';
+  } catch {
+    return 'gpt-4o-mini';
+  }
 }
 
 // ─── Route handler ────────────────────────────────────────────────────────────
@@ -298,18 +340,36 @@ export async function POST(req: NextRequest) {
         thinkingSteps.push({ title: 'Generating Response', status: 'pending', description: `Using ${model}` });
 
         let content = '';
+        let routedModel = model;
+
+        // ─── Decide model (router) ───────────────────────────────────────────
+        // When the client sends model: 'auto', a cheap model picks the best
+        // engine for the task. Quick Q&A -> gpt-4o-mini; deep work -> gpt-4o
+        // (Claude when ANTHROPIC_API_KEY is installed).
+        if (model === 'auto') {
+            thinkingSteps.push({ title: 'Deciding Model', status: 'pending', description: 'Routing to the best engine' });
+            try {
+                routedModel = await decideModel(query, messages);
+                thinkingSteps[thinkingSteps.length - 1].status = 'completed';
+                thinkingSteps[thinkingSteps.length - 1].description = `Routed to ${routedModel}`;
+            } catch {
+                routedModel = 'gpt-4o-mini';
+                thinkingSteps[thinkingSteps.length - 1].status = 'failed';
+                thinkingSteps[thinkingSteps.length - 1].description = 'Router failed, using default';
+            }
+        }
 
         // Route to the right provider.
         // NOTE (2026-10-12): all gemini-2.x models are deprecated (404) and the
         // Gemini account has depleted credits (402), so any gemini- request is
         // rerouted to OpenAI until the account is topped up.
-        if (model.startsWith('claude-')) {
-            content = await callAnthropic(systemPrompt, messages, model);
-        } else if (model.startsWith('gpt-')) {
-            content = await callOpenAI(systemPrompt, messages, model);
-        } else if (model === 'groq-llama') {
+        if (routedModel.startsWith('claude-')) {
+            content = await callAnthropic(systemPrompt, messages, routedModel);
+        } else if (routedModel.startsWith('gpt-')) {
+            content = await callOpenAI(systemPrompt, messages, routedModel);
+        } else if (routedModel === 'groq-llama') {
             content = await callOpenAI(systemPrompt, messages, 'llama-3.3-70b-versatile', 'https://api.groq.com/openai/v1');
-        } else if (model.startsWith('gemini-')) {
+        } else if (routedModel.startsWith('gemini-')) {
             content = await callOpenAI(systemPrompt, messages, 'gpt-4o-mini');
         } else {
             // Fallback: try OpenAI (verified working 2026-10-12).

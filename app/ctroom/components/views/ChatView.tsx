@@ -23,6 +23,7 @@ const AI_MODELS: AIModel[] = [
     // Verified working 2026-10-12. Gemini models are deprecated (404) and the
     // Gemini account has depleted prepayment credits (402) — hidden until fixed.
     // Claude/Groq need their API keys installed — hidden until then.
+    { id: 'auto', name: 'Auto', provider: 'OpenAI', description: 'Decide model picks the best engine', contextTokens: '-', icon: '✨' },
     { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Fast & Smart', contextTokens: '128K', icon: '⚡' },
     { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Most Capable', contextTokens: '128K', icon: '🧠' },
     { id: 'gemini-2.0-flash', name: 'Gemini Flash', provider: 'Google', description: 'Fast & Multimodal', contextTokens: '1M', icon: '✦', available: false },
