@@ -1,0 +1,93 @@
+/* CTROOM Paper Theme — engineer paper, but softer.
+   Warm cream, faint dot grid, ink outlines, tactile cards.
+   Apply via .paper-theme on the CTROOM root. */
+
+.paper-theme {
+  --background: #f7f3ea;          /* warm cream paper */
+  --foreground: #2b2620;          /* soft ink */
+  --card: #fffdf7;                /* card paper, slightly lighter */
+  --card-foreground: #2b2620;
+  --popover: #fffdf7;
+  --popover-foreground: #2b2620;
+  --primary: #3a5a40;             /* sage ink green */
+  --primary-foreground: #f7f3ea;
+  --secondary: #ece5d3;           /* aged paper */
+  --secondary-foreground: #2b2620;
+  --muted: #efe9d8;
+  --muted-foreground: #6b6257;    /* pencil gray */
+  --accent: #e8dfc8;
+  --accent-foreground: #2b2620;
+  --border: #d8cdb4;             /* ink wash */
+  --input: #e5dcc4;
+  --ring: #3a5a40;
+  --radius: 0.9rem;              /* softer corners */
+}
+
+.paper-theme body,
+.paper-theme {
+  background-color: var(--background);
+  background-image: radial-gradient(#d8cdb4 1px, transparent 1px);
+  background-size: 24px 24px;    /* faint dot grid */
+  color: var(--foreground);
+}
+
+/* Index-card look */
+.paper-theme .paper-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(43, 38, 32, 0.06), 0 1px 2px rgba(43, 38, 32, 0.04);
+}
+
+.paper-theme .paper-card:hover {
+  box-shadow: 0 4px 16px rgba(43, 38, 32, 0.08), 0 2px 4px rgba(43, 38, 32, 0.05);
+}
+
+/* Ledger rows */
+.paper-theme .ledger-row {
+  border-bottom: 1px dashed var(--border);
+}
+
+/* Ink buttons */
+.paper-theme .btn-ink {
+  background: #2b2620;
+  color: #f7f3ea;
+  border-radius: var(--radius);
+}
+
+.paper-theme .btn-ink:hover {
+  background: #3a352d;
+}
+
+/* Handwritten accent for headings */
+.paper-theme .font-hand {
+  font-family: var(--font-display), Georgia, serif;
+  letter-spacing: 0.01em;
+}
+
+/* Milo chat bubbles on paper */
+.paper-theme .milo-bubble-user {
+  background: #dde5d3;           /* sage tint */
+  border: 1px solid #c5cdb8;
+  border-radius: 1.2rem 1.2rem 0.3rem 1.2rem;
+}
+
+.paper-theme .milo-bubble-milo {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1.2rem 1.2rem 1.2rem 0.3rem;
+  box-shadow: 0 2px 8px rgba(43, 38, 32, 0.05);
+}
+
+/* Dark mode: midnight paper */
+.paper-theme.dark,
+.dark .paper-theme {
+  --background: #1c1a16;
+  --foreground: #e8e0cf;
+  --card: #26231d;
+  --card-foreground: #e8e0cf;
+  --border: #3a352c;
+  --muted: #2a271f;
+  --muted-foreground: #9a917e;
+  background-image: radial-gradient(#3a352c 1px, transparent 1px);
+}
