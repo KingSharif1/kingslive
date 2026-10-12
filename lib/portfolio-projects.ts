@@ -241,6 +241,18 @@ export function showGithubLink(project: PortfolioProject): boolean {
   return Boolean(project.repoUrl && project.repoPublic === true)
 }
 
+/** next/image can resize local files and the hosts configured in next.config.js. */
+export function shouldOptimizeImage(src: string): boolean {
+  if (!src || src.startsWith('data:')) return false
+  if (src.startsWith('/')) return true
+  try {
+    const host = new URL(src).hostname
+    return host === 'cdn.sanity.io' || host.endsWith('.supabase.co')
+  } catch {
+    return false
+  }
+}
+
 export function getGithubRepoPath(repoUrl: string | null | undefined): string | null {
   if (!repoUrl) return null
   const match = repoUrl.match(/github\.com\/([^/]+\/[^/#?]+)/i)

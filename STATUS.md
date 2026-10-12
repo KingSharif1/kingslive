@@ -1,12 +1,12 @@
 # STATUS.md — KingsLive
 
-> Last updated: 2026-10-08
+> Last updated: 2026-10-12
 
 ## Snapshot
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Portfolio | Updated | 11 rows; `repo_public` + `timeline_date` columns live |
+| Portfolio | Updated | PORT-8: server-rendered homepage. Mobile Lighthouse 94, LCP 3.0s (was 84 / 4.4s on production) |
 | Blog | Updated | Engagement (KL-13) is server routes keyed on the Sanity post id. Apply `supabase/migrations/20261008_blog_engagement.sql` on kingslive before comments go live. |
 | Studio | Restored | `/studio` + route loading shell; client-only mount |
 | CTROOM login | Fixed | Magic links via Brevo; original tab signs in after click |
@@ -24,7 +24,7 @@
 
 ## Working on
 
-KL-13 blog comments, replies, likes, and views. Schema is in the repo; it still has to be run on the kingslive Supabase project.
+Nothing in progress. KL-13 schema still has to be run on the kingslive Supabase project before comments go live.
 
 ## Next
 

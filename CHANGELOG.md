@@ -1,5 +1,12 @@
 # CHANGELOG.md
 
+## 2026-10-12 — Task PORT-8: Faster portfolio first paint
+What: The homepage is a server component. Published projects and two blog teasers are fetched on the server (cached 300s) instead of after hydration. Skill icons are lazy, so they are not preloaded. Blog and CTROOM fonts are not preloaded on the portfolio. Framer Motion is off the skills grid. The Supabase browser client is off the homepage. Petal canvas JS loads only on desktop when motion is allowed.
+Files: `app/page.tsx`, `app/layout.tsx`, `components/ProjectsSection.tsx`, `components/SkillsSection.tsx`, `components/Header.tsx`, `components/Footer.tsx`, `components/portfolio/*`, `lib/portfolio-public.ts`, `lib/portfolio-projects.ts`
+Why: Mobile Lighthouse on https://kingsharif.com scored 84 with LCP 4.4s (85% render delay). The trace preloaded eight fonts (~356KB) and 25 skill icons, then the client downloaded the Supabase client, Framer Motion, and a 26KB `/api/blog/notes` payload that included full post bodies.
+Decisions: Preload only Unbounded and Sora. Do not edit blog pages, globals.css, or package.json (open PRs #18–#20).
+Next: Preview Lighthouse should land near the local after-numbers (mobile 94 / LCP 3.0s / JS 137KB). If PRs #18 or #20 add blog fonts, set `preload: false` on those faces.
+
 ## 2026-10-08 — Task KL-13: Blog comments, replies, likes, views
 What: Visitors leave a name (remembered in the browser) and a comment on a Sanity note. Replies nest one level. Likes are one per visitor cookie and can be removed. Views count once per visitor per 24 hours and skip bots. Writes go through `/api/blog/comments`, `/api/blog/likes`, and `/api/blog/views` with the service role. `post_id` is the Sanity document id. `author_email` is nullable and unused. `is_hidden` hides a row from the public list.
 Files: `app/api/blog/comments/route.ts`, `app/api/blog/likes/route.ts`, `app/api/blog/views/route.ts`, `app/blog/[slug]/Comments.tsx`, `app/blog/[slug]/page.tsx`, `components/BlogLikeButton.tsx`, `components/blog/BlogViewBeacon.tsx`, `lib/blog/*`, `app/globals.css`, `supabase/migrations/20261008_blog_engagement.sql`

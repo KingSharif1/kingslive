@@ -22,24 +22,29 @@ const sora = Sora({
 // font-display → Young Serif  (section titles / view headings)
 // font-inter   → Inter        (body, labels, buttons — ctroom default)
 // font-mono    → JetBrains Mono (stats, numbers, code/project tags)
+// Portfolio first paint only preloads Unbounded + Sora (set above).
+// These faces download when a route actually uses them.
 
 const youngSerif = Young_Serif({
   subsets: ['latin'],
   weight: '400',
   variable: '--font-display',
   display: 'swap',
+  preload: false,
 })
 
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
   display: 'swap',
+  preload: false,
 })
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
   variable: '--font-mono',
   display: 'swap',
+  preload: false,
 })
 
 // Blog body serif (Cerebration "old book" text) — normal + italic faces,
@@ -48,6 +53,7 @@ const alegreya = Alegreya({
   subsets: ['latin'],
   variable: '--font-alegreya',
   display: 'swap',
+  preload: false,
 })
 
 const alegreyaItalic = Alegreya({
@@ -55,6 +61,7 @@ const alegreyaItalic = Alegreya({
   style: 'italic',
   variable: '--font-alegreya-italic',
   display: 'swap',
+  preload: false,
 })
 
 // Blog handwriting (Cerebration notebook body text) — Caveat, the closest
@@ -64,6 +71,7 @@ const caveat = Caveat({
   weight: ['400', '500', '600', '700'],
   variable: '--font-caveat',
   display: 'swap',
+  preload: false,
 })
 
 export const metadata = {

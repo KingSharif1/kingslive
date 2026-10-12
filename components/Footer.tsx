@@ -1,11 +1,7 @@
-"use client"
-
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { ScrollToSection } from "@/components/portfolio/ScrollToSection"
 
 export function Footer() {
-  const pathname = usePathname()
-  const isHome = pathname === "/"
   const currentYear = new Date().getFullYear()
 
   return (
@@ -23,21 +19,17 @@ export function Footer() {
               </Link>
               <Link
                 href="/blog"
+                prefetch={false}
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Blog
               </Link>
-              {isHome && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    document.getElementById("connect")?.scrollIntoView({ behavior: "smooth" })
-                  }
-                  className="text-left text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Contact
-                </button>
-              )}
+              <ScrollToSection
+                id="connect"
+                className="text-left text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Contact
+              </ScrollToSection>
               <Link
                 href="/privacy"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"

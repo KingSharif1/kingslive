@@ -1,3 +1,9 @@
+## Task PORT-8 — Faster portfolio first paint
+Status: DONE
+Scope: portfolio homepage, its components, `lib/portfolio-projects.ts`, font preload flags in `app/layout.tsx`
+Result: Mobile Lighthouse 84 → 94, LCP 4.4s → 3.0s, TBT 70ms → 20ms, CLS 0, JS transfer 230KB → 137KB. Desktop 99 → 100, LCP 0.9s → 0.6s, JS 250KB → 139KB. Homepage is server-rendered (projects + two note teasers, 300s cache).
+Files changed: `app/page.tsx`, `app/layout.tsx`, `components/ProjectsSection.tsx`, `components/SkillsSection.tsx`, `components/Header.tsx`, `components/Footer.tsx`, `components/portfolio/*`, `lib/portfolio-public.ts`, `lib/portfolio-projects.ts`, `lib/portfolio-projects.test.ts`
+
 ## Task KL-13 — Blog comments, replies, views, and likes
 Status: DONE
 Scope: `/api/blog/comments`, `/api/blog/likes`, `/api/blog/views`, comment UI, like button, view beacon, `supabase/migrations/20261008_blog_engagement.sql`
