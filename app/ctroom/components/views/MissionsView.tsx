@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus, Github, Flame,
@@ -98,16 +99,36 @@ export const MissionsView = ({ onMissionClick, githubToken }: MissionsViewProps)
                 const updated = { ...editingMission, ...data };
                 setMissions(prev => prev.map(m => m.id === editingMission.id ? updated : m));
                 if (data.domainUrl) checkDomainStatuses([updated]);
+                syncMissionToArk(editingMission.id);
             }
         } else {
             const saved = await CtroomDataService.saveMission({ ...data, progress: 0 } as any);
             if (saved) {
                 setMissions(prev => [...prev, saved]);
                 if (saved.domainUrl) checkDomainStatuses([saved]);
+                syncMissionToArk(saved.id);
             }
         }
         setIsFormModalOpen(false);
         setEditingMission(undefined);
+    };
+
+    // Fire-and-forget: mirror the mission to ARK (ctroom-sync.md). Never blocks the UI.
+    const syncMissionToArk = async (missionId: string) => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) return;
+            await fetch('/api/ctroom/ark/sync-project', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({ missionId }),
+            });
+        } catch (e) {
+            console.warn('[ark-sync] failed (non-blocking):', e);
+        }
     };
 
     const handleDeleteMission = async (id: string) => {
