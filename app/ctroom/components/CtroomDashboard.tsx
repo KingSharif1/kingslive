@@ -36,6 +36,42 @@ import { CtroomDataService } from '../services/ctroomDataService';
 import { supabase } from '@/lib/supabase';
 import { LoginScreen } from './LoginScreen';
 
+// Parses [ACTION:name {...}] blocks from Milo's reply, executes them via the
+// Milo execute API, and replaces each block with a ✓ chip. Returns new content.
+async function executeMiloActions(content: string): Promise<string> {
+    const re = /\[ACTION:([a-z.]+)\s+(\{.*?\})\]/g;
+    let match;
+    let out = content;
+    // Collect first (regex + async don't mix well in a loop)
+    const jobs: Array<{ full: string; name: string; params: any }> = [];
+    while ((match = re.exec(content)) !== null) {
+        try {
+            jobs.push({ full: match[0], name: match[1], params: JSON.parse(match[2]) });
+        } catch {
+            // malformed JSON — leave the block in place
+        }
+    }
+    for (const job of jobs) {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch('/api/ctroom/milo/execute', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${session?.access_token || ''}`,
+                },
+                body: JSON.stringify({ action: job.name, params: job.params }),
+            });
+            const data = await res.json();
+            const label = data.ok ? `✓ ${data.result}` : `⚠ ${data.error || 'Action failed'}`;
+            out = out.replace(job.full, `\n> ${label}\n`);
+        } catch {
+            out = out.replace(job.full, '\n> ⚠ Action failed\n');
+        }
+    }
+    return out;
+}
+
 export function CtroomDashboard() {
     const [mounted, setMounted] = useState(false);
     const [auth, setAuth] = useState<'checking' | 'in' | 'out'>('checking');
@@ -578,10 +614,13 @@ export function CtroomDashboard() {
                 })
             });
             const aiResponse = await response.json();
+            let content = aiResponse.message || aiResponse.content || 'Sorry, I encountered an error.';
+            // Execute any [ACTION:name {...}] blocks Milo emitted, replacing them with ✓ chips.
+            content = await executeMiloActions(content);
             const assistantMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: aiResponse.message || aiResponse.content || 'Sorry, I encountered an error.',
+                content,
                 timestamp: new Date(),
                 model,
                 thoughts: aiResponse.thinkingSteps,

@@ -103,7 +103,22 @@ Today is ${today}.`;
 - Reference King's actual tasks and projects when relevant
 - Format responses cleanly using markdown when helpful
 - You have access to web search and GitHub context tools when needed
-- Never pretend to be a different AI system`;
+- Never pretend to be a different AI system
+
+## Your hands — you can DO things, not just talk
+When King asks you to do something (add a task, remember something, update a project, log spending),
+emit an action block on its own line in your response, then continue talking naturally:
+
+[ACTION:task.create {"title": "Review Stella PR", "priority": "high"}]
+[ACTION:memory.remember {"fact": "King prefers dark mode", "importance": 6}]
+[ACTION:task.complete {"title": "Review Stella PR"}]
+[ACTION:project.update {"id": "<id>", "progress": 75}]
+[ACTION:transaction.add {"amount": 12.50, "description": "Coffee", "type": "expense", "confirm": true}]
+
+Rules:
+- Only emit actions King actually asked for or clearly implied. Never invent actions.
+- transaction.add always needs "confirm": true — if King hasn't confirmed, ASK first, don't emit.
+- After emitting, briefly say what you did in plain words. The UI executes and shows a ✓ chip.`;
 
     return prompt;
 }
