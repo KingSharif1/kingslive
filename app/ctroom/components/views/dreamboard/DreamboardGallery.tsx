@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Plus, Trash2, MoreHorizontal, Calendar, Target, Clock } from 'lucide-react';
 import {
   DreamBoard, BoardType,
   BOARD_THEMES, BOARD_TYPE_OPTIONS,
-  dbCreateBoard, dbDeleteBoard, dbUpdateBoard, uploadToStorage,
+  dbCreateBoard, dbDeleteBoard, dbUpdateBoard, dbCountItems, uploadToStorage,
 } from './DreamboardStore';
 
 interface DreamboardGalleryProps {
@@ -22,6 +22,19 @@ export function DreamboardGallery({
   const [showCreate, setShowCreate]   = useState(false);
   const [activeYear, setActiveYear]   = useState(new Date().getFullYear().toString());
   const [menuBoardId, setMenuBoardId] = useState<string | null>(null);
+  const [itemCounts, setItemCounts]   = useState<Record<string, number>>({});
+
+  // Per-board item counts for the HQ stats
+  useEffect(() => {
+    let live = true;
+    Promise.all(boards.map(async b => [b.id, await dbCountItems(b.id)] as const)).then(pairs => {
+      if (!live) return;
+      setItemCounts(Object.fromEntries(pairs));
+    });
+    return () => { live = false; };
+  }, [boards]);
+
+  const totalItems = Object.values(itemCounts).reduce((s, n) => s + n, 0);
 
   // Create form state
   const [newTitle,    setNewTitle]    = useState('');
@@ -77,23 +90,27 @@ export function DreamboardGallery({
   return (
     <div className="flex flex-col h-full bg-[#070707] text-white">
       {/* Header */}
-      <div className="flex items-center justify-between px-8 pt-8 pb-4">
+      <div className="flex items-center justify-between px-4 sm:px-8 pt-6 sm:pt-8 pb-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dreamboard</h1>
-          <p className="text-white/40 text-sm mt-0.5">Your vision, visualized</p>
+          <p className="text-white/40 text-sm mt-0.5">
+            {boards.length > 0
+              ? `${boards.length} board${boards.length !== 1 ? 's' : ''} · ${totalItems} vision item${totalItems !== 1 ? 's' : ''}`
+              : 'Your vision, visualized'}
+          </p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
           className="flex items-center gap-2 bg-[#00ff88]/10 hover:bg-[#00ff88]/20 border border-[#00ff88]/30 text-[#00ff88] px-4 py-2 rounded-xl text-sm font-medium transition-all"
         >
-          <Plus size={15} /> New Board
+          <Plus size={15} /> <span className="hidden sm:inline">New Board</span><span className="sm:hidden">New</span>
         </button>
       </div>
 
       {/* Year tabs */}
       {allYears.length > 1 && (
-        <div className="px-8 mb-4">
-          <div className="flex gap-1 bg-white/5 p-1 rounded-xl w-fit">
+        <div className="px-4 sm:px-8 mb-4">
+          <div className="flex gap-1 bg-white/5 p-1 rounded-xl w-fit max-w-full overflow-x-auto">
             {allYears.map(y => (
               <button
                 key={y}
@@ -112,7 +129,7 @@ export function DreamboardGallery({
       )}
 
       {/* Board grid */}
-      <div className="flex-1 overflow-y-auto px-8 pb-8">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-8 pb-8">
         {filteredBoards.length === 0 && !showCreate && (
           <div className="flex flex-col items-center justify-center h-64 text-center">
             <div className="text-4xl mb-3">🌠</div>
@@ -131,6 +148,7 @@ export function DreamboardGallery({
             <BoardCard
               key={board.id}
               board={board}
+              itemCount={itemCounts[board.id]}
               isMenuOpen={menuBoardId === board.id}
               onOpen={() => onSelect(board)}
               onMenuToggle={() => setMenuBoardId(menuBoardId === board.id ? null : board.id)}
@@ -278,10 +296,22 @@ export function DreamboardGallery({
 }
 
 // ── Board card ────────────────────────────────────────────────────────────────
+function timeAgo(iso: string): string {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+}
+
 function BoardCard({
-  board, isMenuOpen, onOpen, onMenuToggle, onDelete, onMenuClose,
+  board, itemCount, isMenuOpen, onOpen, onMenuToggle, onDelete, onMenuClose,
 }: {
   board: DreamBoard;
+  itemCount?: number;
   isMenuOpen: boolean;
   onOpen: () => void;
   onMenuToggle: () => void;
@@ -300,14 +330,19 @@ function BoardCard({
         {board.cover_url && (
           <img src={board.cover_url} className="absolute inset-0 w-full h-full object-cover" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+        {itemCount !== undefined && itemCount > 0 && (
+          <div className="absolute top-2.5 left-2.5 bg-black/55 backdrop-blur-sm border border-white/10 rounded-full px-2.5 py-1 text-[11px] text-white/80 font-medium">
+            {itemCount} item{itemCount !== 1 ? 's' : ''}
+          </div>
+        )}
         <div className="absolute bottom-0 left-0 right-0 p-3 text-left">
           <p className="text-white font-semibold text-sm leading-tight line-clamp-2">{board.title}</p>
-          {board.period && (
-            <p className="text-white/50 text-xs mt-0.5 flex items-center gap-1">
-              <span>{typeIcon}</span> {board.period}
-            </p>
-          )}
+          <p className="text-white/50 text-xs mt-1 flex items-center gap-1.5">
+            {board.period && <span className="flex items-center gap-1"><span>{typeIcon}</span> {board.period}</span>}
+            {board.period && <span className="text-white/25">·</span>}
+            <span className="flex items-center gap-1"><Clock size={11} /> {timeAgo(board.updated_at || board.created_at)}</span>
+          </p>
         </div>
       </button>
 

@@ -292,6 +292,9 @@ export function DreamboardCanvas({ board, onBack }: DreamboardCanvasProps) {
   const isPanning   = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0, ox: 0, oy: 0 });
 
+  // Touch pan (mobile): one finger on empty canvas pans, two fingers always pan
+  const touchPanRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+
   // Left panel
   const [panelOpen,   setPanelOpen]   = useState(false);
   const [panelTab,    setPanelTab]    = useState<PanelTab>('elements');
@@ -330,8 +333,15 @@ export function DreamboardCanvas({ board, onBack }: DreamboardCanvasProps) {
       setItems(data);
       pushHistory(data);
       setLoading(false);
+      // On small screens, fit the board to view on first load so it is usable immediately
+      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        requestAnimationFrame(() => fitToScreenRef.current());
+      }
     });
   }, [board.id]);
+
+  const fitToScreenRef = useRef(fitToScreen);
+  useEffect(() => { fitToScreenRef.current = fitToScreen; });
 
   // Non-passive wheel handler (React attaches onWheel as passive, blocking preventDefault)
   useEffect(() => {
@@ -574,6 +584,24 @@ export function DreamboardCanvas({ board, onBack }: DreamboardCanvasProps) {
     setPanOffset({ x: (cw / 2) - ((minX + maxX) / 2) * z, y: (ch / 2) - ((minY + maxY) / 2) * z });
   }
 
+  // ── Touch pan (mobile) ────────────────────────────────────────────────────
+  function onCanvasTouchStart(e: React.TouchEvent<HTMLDivElement>) {
+    if (e.touches.length === 2 || (e.touches.length === 1 && (isPanMode || e.target === e.currentTarget))) {
+      const t = e.touches[0];
+      touchPanRef.current = { x: t.clientX, y: t.clientY, ox: panOffsetRef.current.x, oy: panOffsetRef.current.y };
+    }
+  }
+  function onCanvasTouchMove(e: React.TouchEvent<HTMLDivElement>) {
+    const start = touchPanRef.current;
+    if (!start) return;
+    const t = e.touches[0];
+    if (!t) return;
+    setPanOffset({ x: start.ox + (t.clientX - start.x), y: start.oy + (t.clientY - start.y) });
+  }
+  function onCanvasTouchEnd() {
+    touchPanRef.current = null;
+  }
+
   // ── Lasso handlers ────────────────────────────────────────────────────────────
   function onCanvasMouseDown(e: React.MouseEvent<HTMLDivElement>) {
     if (isPanMode) {
@@ -704,7 +732,7 @@ export function DreamboardCanvas({ board, onBack }: DreamboardCanvasProps) {
     <div className="flex flex-col h-full bg-[#070707] text-white select-none" style={{ fontFamily: 'Inter, sans-serif' }}>
 
       {/* ── Top toolbar ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-white/8 bg-[#0a0a0a] flex-shrink-0">
+      <div className="flex items-center gap-2 px-3 sm:px-4 py-2 border-b border-white/8 bg-[#0a0a0a] flex-shrink-0 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <button onClick={onBack}
           className="flex items-center gap-1.5 text-white/50 hover:text-white transition-colors text-sm mr-2">
           <ArrowLeft size={15} /> Back
@@ -805,9 +833,13 @@ export function DreamboardCanvas({ board, onBack }: DreamboardCanvasProps) {
           ))}
         </div>
 
-        {/* ── Left slide-out panel ──────────────────────────────────────────── */}
+        {/* ── Left slide-out panel (bottom sheet on mobile) ───────────────────── */}
         {panelOpen && (
-          <div className="w-64 bg-[#0d0d0d] border-r border-white/8 flex flex-col overflow-hidden flex-shrink-0">
+          <div className="fixed inset-x-0 bottom-0 z-40 max-h-[72vh] rounded-t-2xl bg-[#0d0d0d] border-t border-white/10 flex flex-col overflow-hidden md:static md:z-auto md:rounded-none md:border-t-0 md:border-r md:border-white/8 md:w-64 md:max-h-none flex-shrink-0 shadow-2xl md:shadow-none">
+            {/* drag handle (mobile) */}
+            <div className="md:hidden flex justify-center pt-2 pb-1" onClick={() => setPanelOpen(false)}>
+              <div className="w-10 h-1 rounded-full bg-white/20" />
+            </div>
             <div className="flex items-center justify-between px-4 pt-3 pb-2">
               <span className="text-xs font-medium text-white/60 uppercase tracking-wider">{panelTab}</span>
               <button onClick={() => setPanelOpen(false)} className="text-white/30 hover:text-white transition-colors">
@@ -954,11 +986,14 @@ export function DreamboardCanvas({ board, onBack }: DreamboardCanvasProps) {
         )}
 
         {/* ── Canvas area ───────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-hidden relative" ref={canvasRef}
+        <div className="flex-1 overflow-hidden relative touch-none" ref={canvasRef}
           style={{ cursor: isPanMode ? (isPanning.current ? 'grabbing' : 'grab') : 'crosshair' }}
           onMouseDown={onCanvasMouseDown}
           onMouseMove={onCanvasMouseMove}
           onMouseUp={onCanvasMouseUp}
+          onTouchStart={onCanvasTouchStart}
+          onTouchMove={onCanvasTouchMove}
+          onTouchEnd={onCanvasTouchEnd}
           onMouseLeave={() => { isPanning.current = false; isLassoing.current = false; setLasso(null); }}>
 
           {/* Board surface */}
@@ -1067,9 +1102,9 @@ export function DreamboardCanvas({ board, onBack }: DreamboardCanvasProps) {
           })()}
         </div>
 
-        {/* ── Right properties panel ────────────────────────────────────────── */}
+        {/* ── Right properties panel (bottom sheet on mobile) ─────────────────── */}
         {selectedItem && (
-          <div className="w-56 bg-[#0a0a0a] border-l border-white/8 flex flex-col overflow-y-auto flex-shrink-0">
+          <div className="fixed inset-x-0 bottom-0 z-40 max-h-[60vh] rounded-t-2xl bg-[#0a0a0a] border-t border-white/10 flex flex-col overflow-y-auto md:static md:z-auto md:rounded-none md:border-t-0 md:border-l md:border-white/8 md:w-56 md:max-h-none flex-shrink-0 shadow-2xl md:shadow-none">
             <div className="px-3 py-3 border-b border-white/8">
               <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Properties</p>
             </div>

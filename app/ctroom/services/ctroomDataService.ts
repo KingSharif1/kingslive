@@ -474,9 +474,78 @@ export class CtroomDataService {
     return !error;
   }
 
-  static async fetchMessages(): Promise<Message[]> { return []; } 
-  static async saveMessage(message: any): Promise<Message | null> { return null; }
-  static async clearMessages(): Promise<boolean> { return true; }
+  // ==================== CHAT MESSAGES ====================
+  // Persisted to chat_messages (metadata JSONB carries model/thoughts/context).
+
+  static async fetchMessages(limit = 100): Promise<Message[]> {
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .limit(limit);
+      if (error) {
+        console.error('Error fetching messages:', error);
+        return [];
+      }
+      return (data || []).map(m => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        timestamp: new Date(m.created_at),
+        model: m.metadata?.model,
+        thoughts: m.metadata?.thoughts,
+        sources: m.metadata?.sources,
+        attachments: m.metadata?.attachments,
+        context: m.metadata?.context,
+      })) as Message[];
+    } catch (error) {
+      console.error('Error in fetchMessages:', error);
+      return [];
+    }
+  }
+
+  static async saveMessage(message: Message): Promise<Message | null> {
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .insert([{
+          role: message.role,
+          content: message.content,
+          metadata: {
+            model: message.model || null,
+            thoughts: message.thoughts || null,
+            sources: message.sources || null,
+            attachments: message.attachments || null,
+            context: message.context || null,
+          },
+        }])
+        .select()
+        .single();
+      if (error) {
+        console.error('Error saving message:', error);
+        return null;
+      }
+      return { ...message, id: data.id, timestamp: new Date(data.created_at) };
+    } catch (error) {
+      console.error('Error in saveMessage:', error);
+      return null;
+    }
+  }
+
+  static async clearMessages(): Promise<boolean> {
+    try {
+      const { error } = await supabase.from('chat_messages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (error) {
+        console.error('Error clearing messages:', error);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error in clearMessages:', error);
+      return false;
+    }
+  }
   
   // ==================== USER PROFILE ====================
   

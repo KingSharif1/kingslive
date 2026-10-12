@@ -13,6 +13,7 @@ import type {
 import { ApartmentGoalCard } from './ApartmentGoalCard';
 import { TriageInbox } from './TriageInbox';
 import { FinanceSnapshotCard } from './FinanceSnapshotCard';
+import { MoneyGlance } from './MoneyGlance';
 import { HealthCheckCard } from './HealthCheckCard';
 import { BillsStatusLine } from './BillsStatusLine';
 import { CashFlowSummary } from './CashFlowSummary';
@@ -88,6 +89,13 @@ export function SeeTab({
           Snapshot / Report
         </button>
       </div>
+
+      <MoneyGlance
+        snapshot={snapshot}
+        billsStatus={billsStatus}
+        subscriptions={subscriptions}
+        transactions={allTransactions}
+      />
 
       <FinanceSnapshotCard snapshot={snapshot} />
       <HealthCheckCard metrics={snapshot.health} healthScore={snapshot.healthScore} />
