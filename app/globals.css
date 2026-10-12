@@ -245,7 +245,8 @@ html.dark body::before,
   --shelf-hi: #9a7a52;
   --shelf-mid: #6f5233;
   --shelf-lo: #4a3520;
-  --font-note: var(--font-caveat), 'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
+  --font-note: var(--font-shantell), 'Shantell Sans', 'Segoe Print', 'Bradley Hand', cursive;
+  --font-typewriter: var(--font-special-elite), 'Special Elite', 'Courier New', monospace;
   --foreground: var(--blog-ink);
   --muted-foreground: var(--blog-muted);
   --background: var(--blog-field);
@@ -410,7 +411,7 @@ html.dark .blog-world,
   --blog-line: 2rem;
   position: relative;
   z-index: 1;
-  width: min(88%, 100rem);
+  width: 100%;
   min-height: 100vh;
   margin-left: auto;
   margin-right: auto;
@@ -492,8 +493,8 @@ html.dark .blog-world,
 .blog-read .blog-ruled h2,
 .blog-read .blog-ruled h3 {
   background-color: var(--blog-paper);
-  /* section headings are handwriting too — the whole page reads as one hand */
-  font-family: var(--font-note), Georgia, serif;
+  /* section headings are typewriter — titles typed, body handwritten */
+  font-family: var(--font-typewriter);
   font-weight: 700;
   text-decoration-line: underline;
   text-decoration-color: color-mix(in srgb, var(--blog-rule) 38%, transparent);
@@ -3183,7 +3184,7 @@ html.dark .blog-footer__wind {
 }
 
 .blog-titlepage__title {
-  font-family: var(--font-note), Georgia, serif;
+  font-family: var(--font-typewriter);
   font-weight: 700;
   font-size: clamp(2.6rem, 7vw, 4.4rem);
   line-height: 1.05;
