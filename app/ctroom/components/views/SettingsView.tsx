@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import MiloTab from './settings/MiloTab';
 import {
     User, Key, Shield, Eye, EyeOff, Check, X, Loader2,
     Github, Sparkles, Zap, Bot, Plus, Trash2, ExternalLink,
@@ -16,7 +17,7 @@ interface SettingsViewProps {
     onAccentPreview: (accent: CtroomAccent) => void;
 }
 
-type SettingsTab = 'profile' | 'integrations' | 'appearance' | 'schedule' | 'privacy';
+type SettingsTab = 'profile' | 'integrations' | 'appearance' | 'schedule' | 'privacy' | 'milo';
 
 // ─── Provider definitions ───────────────────────────────────────────────────
 
@@ -102,6 +103,7 @@ export const SettingsView = ({ settings, onSave, onAccentPreview }: SettingsView
 
     const tabs: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
         { id: 'profile',     label: 'Profile',     icon: User    },
+        { id: 'milo',        label: 'Milo',        icon: Bot     },
         { id: 'integrations',label: 'Integrations',icon: Key     },
         { id: 'appearance',  label: 'Appearance',  icon: Sparkles},
         { id: 'schedule',    label: 'Schedule',    icon: Clock   },
@@ -139,6 +141,9 @@ export const SettingsView = ({ settings, onSave, onAccentPreview }: SettingsView
             <div className="min-h-[500px]">
                 {activeTab === 'profile' && (
                     <ProfileTab local={local} setLocal={setLocal} />
+                )}
+                {activeTab === 'milo' && (
+                    <MiloTab />
                 )}
                 {activeTab === 'integrations' && (
                     <IntegrationsTab local={local} setLocal={setLocal} />
