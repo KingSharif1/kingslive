@@ -1,5 +1,5 @@
 import './globals.css'
-import { Unbounded, Sora, Young_Serif, Inter, JetBrains_Mono, Alegreya, Caveat } from 'next/font/google'
+import { Unbounded, Sora, Young_Serif, Inter, JetBrains_Mono, Alegreya, Caveat, Special_Elite, Shantell_Sans } from 'next/font/google'
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
 
@@ -66,6 +66,21 @@ const caveat = Caveat({
   display: 'swap',
 })
 
+// Blog notebook redesign (2026-10-12, his picks): typewriter titles,
+// handwritten body.
+const specialElite = Special_Elite({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-special-elite',
+  display: 'swap',
+})
+const shantellSans = Shantell_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-shantell',
+  display: 'swap',
+})
+
 export const metadata = {
   title: 'King Sharif',
   description: 'Portfolio of King Sharif - Full Stack Developer',
@@ -96,7 +111,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://cdn.sanity.io" />
         <link rel="dns-prefetch" href="https://cdn.sanity.io" />
       </head>
-      <body className={`${unbounded.variable} ${sora.variable} ${youngSerif.variable} ${inter.variable} ${jetbrainsMono.variable} ${alegreya.variable} ${alegreyaItalic.variable} ${caveat.variable} font-sans`}>
+      <body className={`${unbounded.variable} ${sora.variable} ${youngSerif.variable} ${inter.variable} ${jetbrainsMono.variable} ${alegreya.variable} ${alegreyaItalic.variable} ${caveat.variable} ${specialElite.variable} ${shantellSans.variable} font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
           <Toaster
