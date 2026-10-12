@@ -245,7 +245,8 @@ html.dark body::before,
   --shelf-hi: #9a7a52;
   --shelf-mid: #6f5233;
   --shelf-lo: #4a3520;
-  --font-note: var(--font-caveat), 'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
+  --font-note: var(--font-shantell), 'Shantell Sans', 'Segoe Print', 'Bradley Hand', cursive;
+  --font-typewriter: var(--font-special-elite), 'Special Elite', 'Courier New', monospace;
   --foreground: var(--blog-ink);
   --muted-foreground: var(--blog-muted);
   --background: var(--blog-field);
@@ -3596,5 +3597,530 @@ html.dark .blog-oldbook,
   .blog-comments__replies {
     margin-left: 1.5rem !important;
     padding-left: 1.15rem !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   THE LIBRARY v2 (2026-10-12) — the bookshelf that holds the notebooks.
+   Cohesive with the notebook post page: ruled paper, red margin, taped
+   photos, typewriter titles (Special Elite), handwritten body
+   (Shantell Sans). One responsive card grid for every screen size.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.lib2-eyebrow {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--blog-muted);
+  margin-bottom: 1rem;
+}
+
+.lib2-h1 {
+  font-family: var(--font-typewriter);
+  font-size: clamp(2.4rem, 6vw, 3.8rem);
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+  color: var(--blog-ink);
+}
+
+.lib2-lede {
+  font-family: var(--font-note);
+  font-size: 1.15rem;
+  line-height: 1.55;
+  color: var(--blog-muted);
+  margin-top: 1rem;
+  max-width: 34rem;
+}
+
+.lib2-stats {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--blog-muted);
+  margin-top: 1.25rem;
+}
+
+/* --- toolbar: search + shelf pills --- */
+.lib2-toolbar {
+  position: sticky;
+  top: 68px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.85rem 1.25rem;
+  margin: 0 0 2rem;
+  background: color-mix(in srgb, var(--blog-field) 88%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid color-mix(in srgb, var(--blog-ink) 12%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--blog-ink) 12%, transparent);
+}
+
+@media (min-width: 640px) {
+  .lib2-toolbar {
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lib2-toolbar {
+    flex-direction: row;
+    align-items: center;
+    gap: 1.5rem;
+    padding-left: 4rem;
+    padding-right: 4rem;
+  }
+}
+
+.lib2-search {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--blog-muted);
+  border-bottom: 1px solid color-mix(in srgb, var(--blog-ink) 25%, transparent);
+  padding-bottom: 0.45rem;
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .lib2-search {
+    flex: 0 0 240px;
+  }
+}
+
+.lib2-search input {
+  background: transparent;
+  border: 0;
+  outline: none;
+  width: 100%;
+  font-family: var(--font-note);
+  font-size: 1.05rem;
+  color: var(--blog-ink);
+}
+
+.lib2-search input::placeholder {
+  color: var(--blog-muted);
+  opacity: 0.8;
+}
+
+.lib2-search:focus-within {
+  border-bottom-color: var(--blog-bloom);
+  color: var(--blog-bloom);
+}
+
+.lib2-shelves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.lib2-pill {
+  font-family: var(--font-typewriter);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  color: var(--blog-muted);
+  border: 1px solid color-mix(in srgb, var(--blog-ink) 22%, transparent);
+  border-radius: 999px;
+  padding: 0.42rem 0.85rem;
+  background: transparent;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s, transform 0.15s;
+}
+
+.lib2-pill:hover {
+  color: var(--blog-ink);
+  border-color: var(--blog-ink);
+  transform: translateY(-1px);
+}
+
+.lib2-pill[data-active="true"] {
+  color: var(--blog-field);
+  background: var(--blog-ink);
+  border-color: var(--blog-ink);
+}
+
+.lib2-pill__count {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  opacity: 0.65;
+  margin-left: 0.3rem;
+}
+
+/* --- shared bits --- */
+.lib2-tagtab {
+  display: inline-block;
+  font-family: var(--font-typewriter);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--blog-field);
+  background: var(--blog-bloom);
+  padding: 0.28rem 0.7rem 0.22rem;
+  border-radius: 2px;
+  transform: rotate(-1.2deg);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+  margin-bottom: 0.9rem;
+}
+
+.lib2-meta {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--blog-muted);
+  margin-top: 0.7rem;
+}
+
+.lib2-open {
+  font-family: var(--font-typewriter);
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  color: var(--blog-ink);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--blog-bloom) 60%, transparent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+}
+
+.lib2-open:hover {
+  color: var(--blog-bloom);
+}
+
+/* --- featured: the open notebook --- */
+.lib2-featured {
+  position: relative;
+  display: grid;
+  gap: 1.75rem;
+  margin-bottom: 3rem;
+  padding: 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--blog-ink) 18%, transparent);
+  border-radius: 4px;
+  background:
+    linear-gradient(var(--blog-paper), var(--blog-paper)),
+    var(--blog-field);
+  background-color: color-mix(in srgb, var(--blog-paper) 82%, transparent);
+  box-shadow: 0 24px 48px -32px rgb(0 0 0 / 0.45);
+}
+
+@media (min-width: 768px) {
+  .lib2-featured {
+    grid-template-columns: 1.05fr 1fr;
+    align-items: center;
+    gap: 2.5rem;
+    padding: 2.25rem;
+  }
+}
+
+.lib2-featured__stamp {
+  position: absolute;
+  top: -0.9rem;
+  right: 1.5rem;
+  transform: rotate(3deg);
+  font-family: var(--font-typewriter);
+  font-size: 0.7rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--blog-bloom);
+  border: 2px solid var(--blog-bloom);
+  border-radius: 3px;
+  padding: 0.32rem 0.7rem 0.28rem 0.85rem;
+  background: var(--blog-field);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.12);
+  pointer-events: none;
+}
+
+.lib2-featured__art {
+  display: block;
+  position: relative;
+  background: #fbf8f1;
+  padding: 0.65rem 0.65rem 0.55rem;
+  border-radius: 2px;
+  transform: rotate(-1deg);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.14),
+    0 16px 32px -18px rgb(0 0 0 / 0.5);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lib2-featured:hover .lib2-featured__art {
+  transform: rotate(0deg);
+}
+
+.lib2-featured__art::before,
+.lib2-featured__art::after {
+  content: "";
+  position: absolute;
+  top: -0.75rem;
+  width: 5rem;
+  height: 1.5rem;
+  background-color: color-mix(in srgb, var(--blog-bloom) 30%, #f3ead2);
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgb(255 255 255 / 0.14) 0 6px,
+    transparent 6px 12px
+  );
+  opacity: 0.88;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.lib2-featured__art::before {
+  left: 8%;
+  transform: rotate(-5deg);
+}
+
+.lib2-featured__art::after {
+  right: 8%;
+  transform: rotate(4deg);
+}
+
+.lib2-featured__art-inner {
+  display: block;
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 1px;
+  background: var(--blog-field);
+}
+
+.lib2-featured__title {
+  font-family: var(--font-typewriter);
+  font-size: clamp(1.7rem, 3.4vw, 2.5rem);
+  line-height: 1.12;
+  margin-top: 0.9rem;
+  color: var(--blog-ink);
+}
+
+.lib2-featured__title a:hover {
+  color: var(--blog-bloom);
+}
+
+.lib2-featured__excerpt {
+  font-family: var(--font-note);
+  font-size: 1.12rem;
+  line-height: 1.6;
+  color: var(--blog-muted);
+  margin-top: 1rem;
+}
+
+/* --- the shelf: year sections with notebook cards --- */
+.lib2-year {
+  margin-bottom: 2.75rem;
+}
+
+.lib2-year__head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.lib2-year__plate {
+  font-family: var(--font-typewriter);
+  font-size: 0.85rem;
+  letter-spacing: 0.28em;
+  color: #f3ead4;
+  background: linear-gradient(180deg, var(--shelf-hi), var(--shelf-mid) 60%, var(--shelf-lo));
+  padding: 0.45rem 1.1rem 0.4rem 1.3rem;
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    0 2px 5px rgb(0 0 0 / 0.3);
+  white-space: nowrap;
+}
+
+.lib2-year__rule {
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--blog-ink) 30%, transparent),
+    transparent);
+}
+
+.lib2-grid {
+  display: grid;
+  gap: 1.4rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .lib2-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1100px) {
+  .lib2-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* --- one notebook on the shelf --- */
+.lib2-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--blog-paper);
+  background-image:
+    repeating-linear-gradient(
+      transparent 0,
+      transparent calc(var(--blog-line) - 1px),
+      color-mix(in srgb, var(--blog-rule) 26%, transparent) calc(var(--blog-line) - 1px),
+      color-mix(in srgb, var(--blog-rule) 26%, transparent) var(--blog-line)
+    );
+  border: 1px solid color-mix(in srgb, var(--blog-ink) 16%, transparent);
+  border-radius: 3px 8px 8px 3px;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.1),
+    0 14px 28px -20px rgb(0 0 0 / 0.45);
+  transform: rotate(var(--card-tilt, 0deg));
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s;
+  overflow: hidden;
+}
+
+.lib2-card:hover {
+  transform: rotate(0deg) translateY(-6px);
+  box-shadow:
+    0 2px 4px rgb(0 0 0 / 0.12),
+    0 28px 44px -22px rgb(0 0 0 / 0.5);
+}
+
+.lib2-card__margin {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2.4rem;
+  border-left: 1px solid color-mix(in srgb, var(--blog-bloom) 38%, transparent);
+  pointer-events: none;
+}
+
+.lib2-card__body {
+  flex: 1;
+  padding: 1.5rem 1.4rem 1.1rem 3.2rem;
+}
+
+.lib2-card__title {
+  font-family: var(--font-typewriter);
+  font-size: 1.28rem;
+  line-height: 1.25;
+  color: var(--blog-ink);
+}
+
+.lib2-card__title a:hover {
+  color: var(--blog-bloom);
+}
+
+.lib2-card__thumb {
+  display: block;
+  position: relative;
+  margin: 1.1rem 0 0.4rem;
+  background: #fbf8f1;
+  padding: 0.5rem 0.5rem 0.4rem;
+  border-radius: 2px;
+  transform: rotate(1.1deg);
+  box-shadow: 0 8px 18px -10px rgb(0 0 0 / 0.45);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lib2-card:hover .lib2-card__thumb {
+  transform: rotate(0deg);
+}
+
+.lib2-card__thumb::before {
+  content: "";
+  position: absolute;
+  top: -0.6rem;
+  left: 50%;
+  width: 4.2rem;
+  height: 1.25rem;
+  transform: translateX(-50%) rotate(-3deg);
+  background-color: color-mix(in srgb, var(--blog-bloom) 30%, #f3ead2);
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgb(255 255 255 / 0.14) 0 6px,
+    transparent 6px 12px
+  );
+  opacity: 0.9;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.lib2-card__thumb-frame {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 1px;
+  background: var(--blog-field);
+}
+
+.lib2-card__excerpt {
+  font-family: var(--font-note);
+  font-size: 1.02rem;
+  line-height: 1.62rem;
+  color: var(--blog-muted);
+  margin-top: 0.9rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.lib2-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.4rem 1.2rem 3.2rem;
+  border-top: 1px dashed color-mix(in srgb, var(--blog-ink) 18%, transparent);
+  margin-top: 0.6rem;
+}
+
+/* --- empty state + colophon --- */
+.lib2-empty {
+  padding: 4rem 1rem;
+  text-align: center;
+  color: var(--blog-muted);
+  font-family: var(--font-note);
+  font-size: 1.1rem;
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.lib2-empty__title {
+  font-family: var(--font-typewriter);
+  font-size: 1.4rem;
+  color: var(--blog-ink);
+}
+
+.lib2-colophon {
+  text-align: center;
+  font-family: var(--font-typewriter);
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  color: var(--blog-muted);
+  padding: 2.5rem 0 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lib2-card,
+  .lib2-card__thumb,
+  .lib2-featured__art,
+  .lib2-pill {
+    transition: none;
   }
 }
