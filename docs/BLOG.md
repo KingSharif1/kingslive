@@ -337,3 +337,26 @@ User picked **Caveat** as the handwriting font (`next/font/google`, weights 400/
     `{ flagged: false }` and no `usingFallback` field, preserving the
     long-standing instant auto-approve of clean comments. Verified: `tsc`
     clean, `POST /api/moderate` → 200 `{flagged:false}` on the no-key path.
+
+## Reading analytics (2026-10-12, PR muse/blog-analytics)
+
+Real reader behavior, not just view counts. `BlogReadingTracker`
+(`components/blog/BlogReadingTracker.tsx`) mounts on every post page and
+records one session per page view: active seconds (paused while the tab is
+hidden), deepest scroll point, 25/50/75/100 milestones, and a SHA-256 device
+hash from a random localStorage id (no PII, no tracking cookies). One beacon
+fires on `pagehide` via `navigator.sendBeacon` with a keepalive-fetch
+fallback; bots, ad blockers, and SSR are all silent no-ops.
+
+Sessions land in `blog_reading_sessions` through
+`POST /api/blog/reading-session` (service-role, same pattern as the other
+engagement routes). **Run
+`supabase/migrations/20261012_blog_reading_sessions.sql` in the Supabase SQL
+editor for the kingslive project before this records anything** — until then
+the route returns `{ ok: false, unavailable: true }` and the blog is
+unaffected. RLS: public read (CTROOM's BlogView reads with the anon key),
+no public write.
+
+CTROOM BlogView shows a "Reader analytics" panel per post: avg read time,
+avg scroll depth, returning readers (devices with 2+ sessions), and
+read-to-the-end count.

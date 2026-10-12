@@ -41,6 +41,18 @@ export type LikeState = { likes: number; liked: boolean }
 
 export type ViewResult = { views: number; counted: boolean }
 
+export type ReadingSessionInput = {
+  postId: string
+  deviceHash: string
+  activeSeconds: number
+  maxScrollDepth: number
+  milestones: number[]
+  referrer: string | null
+  startedAt: string | null
+}
+
+export type ReadingSessionResult = { ok: boolean }
+
 export interface EngagementStore {
   listComments(postId: string): Promise<CommentRow[]>
   findComment(id: string): Promise<Pick<CommentRow, 'id' | 'post_id' | 'parent_id'> | null>
@@ -56,6 +68,7 @@ export interface EngagementStore {
   like(postId: string, visitorId: string): Promise<LikeState>
   unlike(postId: string, visitorId: string): Promise<LikeState>
   recordView(postId: string, visitorId: string, now: Date): Promise<ViewResult>
+  recordReadingSession(input: ReadingSessionInput): Promise<ReadingSessionResult>
 }
 
 export function isSchemaMissing(error: { code?: string; message?: string } | null | undefined): boolean {
@@ -235,4 +248,51 @@ export function validateLikeBody(body: unknown):
   if (!isPostId(postId)) return { ok: false, error: 'postId required' }
   const action = record.action === 'unlike' ? 'unlike' : 'like'
   return { ok: true, postId, action }
+}
+
+const DEVICE_HASH_RE = /^[0-9a-f]{64}$/i
+const MILESTONES = [25, 50, 75, 100]
+
+function clampInt(value: unknown, min: number, max: number): number {
+  const n = typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : 0
+  return Math.min(max, Math.max(min, n))
+}
+
+/**
+ * Validate a reading-session beacon body. Everything is clamped, never
+ * rejected, except a bad postId or deviceHash — garbage in gets a 400.
+ */
+export function validateReadingSessionBody(body: unknown):
+  | { ok: true; input: ReadingSessionInput }
+  | { ok: false; error: string } {
+  if (!body || typeof body !== 'object') return { ok: false, error: 'postId required' }
+  const record = body as Record<string, unknown>
+  const postId = typeof record.postId === 'string' ? record.postId.trim() : ''
+  if (!isPostId(postId)) return { ok: false, error: 'postId required' }
+  const deviceHash = typeof record.deviceHash === 'string' ? record.deviceHash.trim() : ''
+  if (!DEVICE_HASH_RE.test(deviceHash)) return { ok: false, error: 'deviceHash required' }
+  const milestones = Array.isArray(record.milestones)
+    ? [...new Set(
+        record.milestones
+          .map((m) => (typeof m === 'number' ? Math.round(m) : -1))
+          .filter((m) => MILESTONES.includes(m)),
+      )].sort((a, b) => a - b)
+    : []
+  const referrer = typeof record.referrer === 'string' ? record.referrer.slice(0, 500) : null
+  const startedAt =
+    typeof record.startedAt === 'string' && !Number.isNaN(Date.parse(record.startedAt))
+      ? record.startedAt
+      : null
+  return {
+    ok: true,
+    input: {
+      postId,
+      deviceHash: deviceHash.toLowerCase(),
+      activeSeconds: clampInt(record.activeSeconds, 0, 86400),
+      maxScrollDepth: clampInt(record.maxScrollDepth, 0, 100),
+      milestones,
+      referrer,
+      startedAt,
+    },
+  }
 }

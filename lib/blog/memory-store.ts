@@ -4,6 +4,8 @@ import {
   type CommentRow,
   type EngagementStore,
   type LikeState,
+  type ReadingSessionInput,
+  type ReadingSessionResult,
   type ViewResult,
 } from '@/lib/blog/engagement'
 
@@ -14,8 +16,10 @@ import {
 export function createMemoryStore(options?: { unavailable?: boolean }): EngagementStore & {
   reset: () => void
   comments: CommentRow[]
+  sessions: ReadingSessionInput[]
 } {
   const comments: CommentRow[] = []
+  const sessions: ReadingSessionInput[] = []
   const commentVisitors = new Map<string, { visitorId: string; createdAt: string }>()
   const likes = new Map<string, Set<string>>()
   const legacyLikes = new Map<string, number>()
@@ -30,10 +34,12 @@ export function createMemoryStore(options?: { unavailable?: boolean }): Engageme
   const likeTotal = (postId: string): LikeState['likes'] =>
     (legacyLikes.get(postId) ?? 0) + (likes.get(postId)?.size ?? 0)
 
-  const store: EngagementStore & { reset: () => void; comments: CommentRow[] } = {
+  const store: EngagementStore & { reset: () => void; comments: CommentRow[]; sessions: ReadingSessionInput[] } = {
     comments,
+    sessions,
     reset() {
       comments.splice(0, comments.length)
+      sessions.splice(0, sessions.length)
       commentVisitors.clear()
       likes.clear()
       legacyLikes.clear()
@@ -103,6 +109,11 @@ export function createMemoryStore(options?: { unavailable?: boolean }): Engageme
         viewCounts.set(postId, (viewCounts.get(postId) ?? 0) + 1)
       }
       return { views: viewCounts.get(postId) ?? 0, counted }
+    },
+    async recordReadingSession(input: ReadingSessionInput): Promise<ReadingSessionResult> {
+      guard()
+      sessions.push({ ...input })
+      return { ok: true }
     },
   }
 

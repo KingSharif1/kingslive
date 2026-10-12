@@ -5,6 +5,8 @@ import {
   type CommentRow,
   type EngagementStore,
   type LikeState,
+  type ReadingSessionInput,
+  type ReadingSessionResult,
   type ViewResult,
 } from '@/lib/blog/engagement'
 
@@ -170,6 +172,20 @@ export class SupabaseEngagementStore implements EngagementStore {
       counted: Boolean(payload.counted),
       views: typeof payload.views === 'number' ? payload.views : 0,
     }
+  }
+
+  async recordReadingSession(input: ReadingSessionInput): Promise<ReadingSessionResult> {
+    const { error } = await this.db.from('blog_reading_sessions').insert({
+      post_id: input.postId,
+      device_hash: input.deviceHash,
+      started_at: input.startedAt,
+      active_seconds: input.activeSeconds,
+      max_scroll_depth: input.maxScrollDepth,
+      milestones: input.milestones,
+      referrer: input.referrer,
+    })
+    if (error) raise(error)
+    return { ok: true }
   }
 
   private async readLegacyLikes(postId: string): Promise<number> {

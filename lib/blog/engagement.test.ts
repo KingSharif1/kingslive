@@ -7,6 +7,7 @@ import {
   shouldSkipView,
   threadComments,
   validateCommentBody,
+  validateReadingSessionBody,
   VIEW_WINDOW_MS,
   type CommentRow,
 } from '@/lib/blog/engagement'
@@ -106,5 +107,48 @@ describe('view dedupe', () => {
     expect(shouldSkipView('Mozilla/5.0', null)).toBe(false)
     expect(shouldSkipView('Mozilla/5.0 (compatible; Googlebot/2.1)', null)).toBe(true)
     expect(shouldSkipView('Mozilla/5.0', 'prefetch')).toBe(true)
+  })
+})
+
+describe('reading session validation', () => {
+  const HASH = 'a'.repeat(64)
+
+  it('accepts a full beacon body and clamps the numbers', () => {
+    const result = validateReadingSessionBody({
+      postId: POST,
+      deviceHash: HASH.toUpperCase(),
+      activeSeconds: 95.7,
+      maxScrollDepth: 120,
+      milestones: [25, 25, 50, 999],
+      referrer: 'https://example.com/',
+      startedAt: '2026-10-12T02:00:00.000Z',
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.input.activeSeconds).toBe(96)
+      expect(result.input.maxScrollDepth).toBe(100)
+      expect(result.input.milestones).toEqual([25, 50])
+      expect(result.input.deviceHash).toBe(HASH)
+    }
+  })
+
+  it('rejects a bad postId or deviceHash', () => {
+    expect(validateReadingSessionBody({ postId: '', deviceHash: HASH }).ok).toBe(false)
+    expect(validateReadingSessionBody({ postId: POST, deviceHash: 'short' }).ok).toBe(false)
+    expect(validateReadingSessionBody(null).ok).toBe(false)
+  })
+
+  it('defaults missing fields safely', () => {
+    const result = validateReadingSessionBody({ postId: POST, deviceHash: HASH })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.input).toMatchObject({
+        activeSeconds: 0,
+        maxScrollDepth: 0,
+        milestones: [],
+        referrer: null,
+        startedAt: null,
+      })
+    }
   })
 })
