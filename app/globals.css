@@ -3800,3 +3800,329 @@ html.dark .blog-oldbook,
   transform: rotate(-2deg);
   opacity: 0.9;
 }
+
+/* ── Like button: smooth, tactile, with particle burst ─────────────────── */
+.like-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.5rem 0.75rem;
+  margin: -0.5rem -0.75rem;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--blog-muted);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  border-radius: 999px;
+  transition: color 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
+}
+.like-btn:hover { color: var(--blog-ink); background: color-mix(in srgb, var(--blog-ink) 6%, transparent); }
+.like-btn:active { transform: scale(0.94); }
+.like-btn:focus-visible { outline: 2px solid var(--blog-bloom); outline-offset: 2px; }
+.like-btn[data-maxed="true"] { opacity: 0.45; cursor: default; }
+.like-btn[data-maxed="true"]:active { transform: none; }
+
+.like-btn__heart-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+}
+.like-btn__heart {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  transition: fill 0.25s ease, stroke 0.25s ease, transform 0.18s ease;
+}
+.like-btn[data-liked="true"] .like-btn__heart {
+  fill: var(--blog-bloom);
+  stroke: var(--blog-bloom);
+}
+.like-btn__heart--pop {
+  animation: like-pop 0.35s cubic-bezier(0.34, 1.8, 0.64, 1);
+}
+@keyframes like-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.45); }
+  70% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+
+.like-btn__particle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 999px;
+  background: var(--blog-bloom);
+  pointer-events: none;
+  animation: like-burst 0.65s cubic-bezier(0.15, 0.85, 0.45, 1) forwards;
+}
+@keyframes like-burst {
+  0% {
+    transform: translate(-50%, -50%) rotate(var(--pa)) translateX(6px) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(var(--pa)) translateX(var(--pd)) scale(0.2);
+    opacity: 0;
+  }
+}
+
+.like-btn__plus {
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  transform: translateX(-50%);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--blog-bloom);
+  pointer-events: none;
+  animation: like-rise 0.8s ease-out forwards;
+}
+@keyframes like-rise {
+  0% { opacity: 0; transform: translate(-50%, 6px) scale(0.7); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -18px) scale(1.05); }
+}
+
+.like-btn__count {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  min-width: 1.5ch;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .like-btn__heart--pop, .like-btn__particle, .like-btn__plus { animation: none; }
+  .like-btn { transition: none; }
+}
+
+/* ── Library v3: the reading room — lectern spread + wooden shelves ───── */
+.lib-cover--portrait { aspect-ratio: 3 / 4; }
+
+/* Latest volume, open on the lectern */
+.lectern {
+  margin: 0.5rem 0 3rem;
+  perspective: 1400px;
+}
+.lectern__spread {
+  display: grid;
+  grid-template-columns: 1fr;
+  background: var(--blog-paper);
+  border: 1px solid color-mix(in srgb, var(--blog-ink) 22%, transparent);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow:
+    0 2px 6px rgba(20, 14, 8, 0.12),
+    0 24px 60px -20px rgba(20, 14, 8, 0.4);
+  position: relative;
+}
+.lectern__page { position: relative; min-width: 0; }
+.lectern__page--left {
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--blog-ink) 4%, var(--blog-paper));
+  text-decoration: none;
+}
+.lectern__page--left .lib-cover { aspect-ratio: 16 / 10; flex: 1; min-height: 220px; }
+.lectern__plate-caption {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--blog-muted);
+  text-align: center;
+  padding: 0.8rem 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--blog-ink) 12%, transparent);
+}
+.lectern__gutter { display: none; }
+.lectern__page--right {
+  padding: 1.75rem 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 27px, color-mix(in srgb, var(--blog-ink) 5%, transparent) 28px),
+    var(--blog-paper);
+}
+.lib-title--spread {
+  font-size: clamp(1.7rem, 3.6vw, 2.6rem);
+  line-height: 1.18;
+}
+.lectern__excerpt {
+  color: var(--blog-muted);
+  line-height: 1.7;
+  font-size: 0.98rem;
+}
+.lectern__excerpt::first-letter {
+  font-family: var(--font-typewriter), 'Special Elite', 'Courier New', monospace;
+  font-size: 2.6em;
+  line-height: 0.9;
+  float: left;
+  margin: 0.08em 0.12em 0 0;
+  color: var(--blog-ink);
+}
+@media (min-width: 900px) {
+  .lectern__spread { grid-template-columns: 1.05fr 1fr; }
+  .lectern__gutter {
+    display: block;
+    width: 26px;
+    margin-left: -13px;
+    margin-right: -13px;
+    z-index: 2;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(20, 14, 8, 0.16) 42%,
+      rgba(20, 14, 8, 0.28) 50%,
+      rgba(20, 14, 8, 0.16) 58%,
+      transparent 100%);
+    pointer-events: none;
+  }
+  .lectern__page--left .lib-cover { min-height: 340px; }
+  .lectern__page--right { padding: 2.75rem 2.5rem; justify-content: center; }
+}
+.lectern--loading .lectern__spread { min-height: 300px; }
+
+/* The stacks: volumes standing on a wooden plank */
+.stack-shelf { margin-bottom: 0.5rem; }
+.stack-shelf__books {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.1rem;
+  padding: 1.5rem 0.25rem 0;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+@media (min-width: 900px) {
+  .stack-shelf__books { overflow-x: visible; flex-wrap: wrap; gap: 1.6rem; padding-top: 2rem; }
+}
+.stack-book {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.stack-book__volume {
+  position: relative;
+  display: block;
+  width: 128px;
+  height: var(--bh, 210px);
+  transform: rotate(var(--tilt, 0deg));
+  transform-origin: bottom center;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border-radius: 2px 6px 6px 2px;
+  box-shadow:
+    inset 8px 0 12px -6px rgba(20, 14, 8, 0.45),
+    4px 6px 14px rgba(20, 14, 8, 0.28);
+}
+.stack-book__volume .lib-cover { border-radius: 2px 6px 6px 2px; height: 100%; }
+/* spine highlight along the left edge */
+.stack-book__volume::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 10px;
+  z-index: 2;
+  border-radius: 2px 0 0 2px;
+  background: linear-gradient(90deg, rgba(20,14,8,0.38), rgba(20,14,8,0.08) 70%, transparent);
+  pointer-events: none;
+}
+.stack-book__sheen {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: 2px 6px 6px 2px;
+  background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.14) 45%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.stack-book:hover .stack-book__volume,
+.stack-book:focus-visible .stack-book__volume {
+  transform: rotate(0deg) translateY(-10px) scale(1.04);
+}
+.stack-book:hover .stack-book__sheen,
+.stack-book:focus-visible .stack-book__sheen { opacity: 1; }
+.stack-book:active .stack-book__volume { transform: rotate(0deg) translateY(-4px) scale(1.01); }
+.stack-book:focus-visible { outline: 2px solid var(--blog-bloom); outline-offset: 4px; border-radius: 4px; }
+
+.stack-book__label {
+  margin-top: 0.7rem;
+  max-width: 132px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.stack-book__label-title {
+  font-family: var(--font-typewriter), 'Special Elite', 'Courier New', monospace;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: var(--blog-ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.stack-book__label-date {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--blog-muted);
+}
+.stack-book:hover .stack-book__label-title { text-decoration: underline; text-underline-offset: 2px; }
+
+.stack-shelf__plank {
+  height: 14px;
+  margin-top: -2px;
+  border-radius: 2px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.14), transparent 45%),
+    repeating-linear-gradient(90deg, transparent 0 46px, rgba(20,14,8,0.12) 46px 48px),
+    linear-gradient(180deg, #6b4f2e, #4a3520);
+  box-shadow: 0 10px 22px -8px rgba(20, 14, 8, 0.5);
+}
+.blog-world.dark .stack-shelf__plank,
+.blog-library.dark .stack-shelf__plank {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.08), transparent 45%),
+    repeating-linear-gradient(90deg, transparent 0 46px, rgba(0,0,0,0.25) 46px 48px),
+    linear-gradient(180deg, #3a2c1c, #241a10);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stack-book__volume, .stack-book__sheen { transition: none; }
+}
+
+/* like button inside the post-page rail / bottombar: no negative margins there */
+.blog-rail__item .like-btn,
+.blog-bottombar__item .like-btn {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+}
+.blog-rail__item .like-btn__heart-wrap,
+.blog-bottombar__item .like-btn__heart-wrap {
+  width: 22px;
+  height: 22px;
+}
+.blog-rail__item .like-btn__heart,
+.blog-bottombar__item .like-btn__heart {
+  width: 19px;
+  height: 19px;
+}

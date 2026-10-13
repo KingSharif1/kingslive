@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, useCallback, useRef, Suspense } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { Share2, Copy, Check, X, Twitter, Facebook, Linkedin, MessageSquare, Home, BookOpen } from "lucide-react"
+import { Heart, Share2, Copy, Check, X, Twitter, Facebook, Linkedin, MessageSquare, Home, BookOpen } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import ScrollProgress from "@/app/components/ScrollProgress"
 import { BlogNav } from "@/components/BlogNav"
@@ -13,12 +13,12 @@ import { BlogPost, countPortableTextWords } from "@/lib/sanity-queries"
 import { getProjectById } from "@/lib/portfolio-projects"
 import { PortableText } from '@portabletext/react'
 import ReactMarkdown from 'react-markdown'
+import { supabase } from "@/lib/supabase"
 import BlogDrift from "@/components/blog/BlogDrift"
 import BlogCursor from "@/components/blog/BlogCursor"
 import BackToTop from "@/components/blog/BackToTop"
 import Comments from "./Comments"
 import { BlogLikeButton } from "@/components/BlogLikeButton"
-import BlogViewBeacon from "@/components/blog/BlogViewBeacon"
 
 import { portableTextComponents } from "@/components/blog/portableTextComponents"
 // Extended BlogPost type for slug page (includes content)
@@ -169,6 +169,48 @@ Learn about variants, gestures, and layout animations for complex interactions.`
   }
 ]
 
+
+// Fire-and-forget view tracking - doesn't block render
+function trackViewCount(postId: string): void {
+  // Check if we've already counted this view in this session
+  const viewKey = `viewed_${postId}`
+  if (typeof window !== 'undefined' && sessionStorage.getItem(viewKey)) {
+    return // Already counted this session
+  }
+
+  // Mark as viewed immediately to prevent duplicate calls
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem(viewKey, 'true')
+  }
+
+  // Fire and forget - use async IIFE
+  (async () => {
+    try {
+      const { data: existing } = await supabase
+        .from('blog_post_analytics')
+        .select('view_count')
+        .eq('post_id', postId)
+        .single()
+
+      if (existing) {
+        await supabase
+          .from('blog_post_analytics')
+          .update({
+            view_count: (existing.view_count || 0) + 1,
+            last_updated: new Date().toISOString()
+          })
+          .eq('post_id', postId)
+      } else {
+        await supabase
+          .from('blog_post_analytics')
+          .insert({ post_id: postId, view_count: 1, likes: 0 })
+      }
+    } catch (err) {
+      console.error('Error tracking view:', err)
+    }
+  })()
+}
+
 // Share Modal Component
 function ShareModal({ isOpen, onClose, title, url }: { isOpen: boolean; onClose: () => void; title: string; url: string }) {
   const [copied, setCopied] = useState(false)
@@ -296,6 +338,11 @@ export default function BlogPostPage() {
         setIsPreview(Boolean(data?.preview))
         console.log('Fetched post from Sanity:', sanityPost?.title)
         setPost(sanityPost)
+
+        // Track view count (fire-and-forget, uses slug as post_id)
+        if (sanityPost) {
+          trackViewCount(slug)
+        }
       } catch (error) {
         console.error('Error fetching post:', error)
         setPost(null)
@@ -531,7 +578,6 @@ export default function BlogPostPage() {
         title={post.title}
         url={typeof window !== 'undefined' ? window.location.href : ''}
       />
-      {!isPreview ? <BlogViewBeacon postId={post.id} /> : null}
       <main className="pb-20">
         {/* Desktop sidebar: brand, nav, and article actions */}
         <aside className="blog-rail hidden lg:flex" aria-label="Article actions">
@@ -552,7 +598,7 @@ export default function BlogPostPage() {
           <span className="blog-rail__rule" aria-hidden="true" />
           <div className="blog-rail__actions">
             <div className="blog-rail__item" title="Like">
-              <BlogLikeButton postId={post.id} variant="icon" />
+              <BlogLikeButton postId={post.id} />
               <span>Like</span>
             </div>
             <button
@@ -581,7 +627,7 @@ export default function BlogPostPage() {
             <span>Home</span>
           </Link>
           <div className="blog-bottombar__item" title="Like">
-            <BlogLikeButton postId={post.id} variant="icon" />
+            <BlogLikeButton postId={post.id} />
             <span>Like</span>
           </div>
           <button

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { BlogNav } from '@/components/BlogNav'
@@ -23,17 +23,31 @@ function formatWhen(createdAt: string) {
   }
 }
 
-/** Engraved cover plate with an aged-paper fallback when a post has no cover yet. */
-function CoverArt({ post, sizes, className }: { post: BlogPost; sizes: string; className?: string }) {
+function hashStr(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
+  return Math.abs(h)
+}
+
+/** Portrait book cover — engraved plate cropped to volume proportions. */
+function BookCover({
+  post,
+  sizes,
+  portrait = false,
+}: {
+  post: BlogPost
+  sizes: string
+  portrait?: boolean
+}) {
   if (!post.cover_image) {
     return (
-      <span className={cn('lib-cover lib-cover--fallback', className)} aria-hidden="true">
+      <span className={cn('lib-cover', portrait && 'lib-cover--portrait', 'lib-cover--fallback')} aria-hidden="true">
         <span className="lib-cover__initial">{post.title.charAt(0)}</span>
       </span>
     )
   }
   return (
-    <span className={cn('lib-cover', className)} aria-hidden="true">
+    <span className={cn('lib-cover', portrait && 'lib-cover--portrait')} aria-hidden="true">
       <Image
         src={post.cover_image}
         alt=""
@@ -50,58 +64,83 @@ function Stamp({ children }: { children: React.ReactNode }) {
   return <span className="lib-stamp">{children}</span>
 }
 
-/** Latest volume, large — the library's "new acquisition" card. */
-function FeaturedCard({ post }: { post: BlogPost }) {
+/* ── Latest: the open volume on the lectern ─────────────────────────── */
+function LecternSpread({ post }: { post: BlogPost }) {
   const when = formatWhen(post.created_at)
   return (
-    <article className="lib-featured group">
-      <Link href={`/blog/${post.slug}`} className="lib-featured__art" aria-label={post.title}>
-        <CoverArt post={post} sizes="(min-width: 1024px) 44vw, 100vw" className="lib-featured__cover" />
-      </Link>
-      <div className="lib-featured__body">
-        <div className="flex items-center gap-3 flex-wrap">
-          <Stamp>New acquisition</Stamp>
-          {post.tags[0] && <span className="lib-tagtab">{post.tags[0]}</span>}
-        </div>
-        <h2 className="lib-title lib-title--featured">
-          <Link href={`/blog/${post.slug}`}>{post.title}</Link>
-        </h2>
-        <p className="lib-date">{when.long}</p>
-        <p className="lib-excerpt">{post.excerpt}</p>
-        <div className="lib-actions">
-          <Link href={`/blog/${post.slug}`} className="lib-open">
-            Open the volume <span aria-hidden="true">→</span>
-          </Link>
-          <BlogLikeButton postId={post.id} />
+    <article className="lectern" aria-label={`Latest: ${post.title}`}>
+      <div className="lectern__spread">
+        <Link
+          href={`/blog/${post.slug}`}
+          className="lectern__page lectern__page--left"
+          aria-label={`${post.title} — open`}
+          tabIndex={-1}
+        >
+          <BookCover post={post} sizes="(min-width: 900px) 40vw, 100vw" />
+          <span className="lectern__plate-caption">
+            Plate I{post.tags[0] ? ` — ${post.tags[0]}` : ''}
+          </span>
+        </Link>
+        <div className="lectern__gutter" aria-hidden="true" />
+        <div className="lectern__page lectern__page--right">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Stamp>Latest entry</Stamp>
+            <span className="lib-date">{when.long}</span>
+          </div>
+          <h2 className="lib-title lib-title--spread">
+            <Link href={`/blog/${post.slug}`}>{post.title}</Link>
+          </h2>
+          <p className="lectern__excerpt">{post.excerpt}</p>
+          <div className="lib-actions">
+            <Link href={`/blog/${post.slug}`} className="lib-open">
+              Read the volume <span aria-hidden="true">→</span>
+            </Link>
+            <BlogLikeButton postId={post.id} />
+          </div>
         </div>
       </div>
     </article>
   )
 }
 
-/** One catalog card in the stacks grid. */
-function VolumeCard({ post }: { post: BlogPost }) {
+/* ── Shelf: volumes standing on a wooden plank ───────────────────────── */
+function ShelfBook({ post }: { post: BlogPost }) {
+  const h = hashStr(post.id)
+  const tilt = (((h >> 2) % 5) - 2) * 0.9 // -1.8 .. 1.8deg
+  const height = 196 + (h % 40) // 196..236px
   const when = formatWhen(post.created_at)
   return (
-    <article className="lib-card group">
-      <Link href={`/blog/${post.slug}`} className="lib-card__art" aria-label={post.title} tabIndex={-1}>
-        <CoverArt post={post} sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 100vw" />
-      </Link>
-      <div className="lib-card__body">
-        {post.tags[0] && <span className="lib-tagtab">{post.tags[0]}</span>}
-        <h3 className="lib-title lib-title--card">
-          <Link href={`/blog/${post.slug}`}>{post.title}</Link>
-        </h3>
-        <p className="lib-date">{when.long}</p>
-        <p className="lib-excerpt lib-excerpt--card">{post.excerpt}</p>
-        <div className="lib-actions lib-actions--card">
-          <Link href={`/blog/${post.slug}`} className="lib-open">
-            Open <span aria-hidden="true">→</span>
-          </Link>
-          <BlogLikeButton postId={post.id} />
-        </div>
+    <Link
+      href={`/blog/${post.slug}`}
+      className="stack-book"
+      style={{ '--tilt': `${tilt.toFixed(2)}deg`, '--bh': `${height}px` } as CSSProperties}
+      aria-label={`${post.title} — ${when.long}`}
+    >
+      <span className="stack-book__volume" aria-hidden="true">
+        <BookCover post={post} portrait sizes="180px" />
+        <span className="stack-book__sheen" />
+      </span>
+      <span className="stack-book__label">
+        <span className="stack-book__label-title">{post.title}</span>
+        <span className="stack-book__label-date">{when.short}</span>
+      </span>
+    </Link>
+  )
+}
+
+function Shelf({ year, books }: { year: number; books: BlogPost[] }) {
+  return (
+    <section className="stack-shelf" aria-label={`Volumes from ${year}`}>
+      <p className="lib-year">
+        <span className="lib-year__plate">{year}</span>
+      </p>
+      <div className="stack-shelf__books">
+        {books.map((post) => (
+          <ShelfBook key={post.id} post={post} />
+        ))}
       </div>
-    </article>
+      <div className="stack-shelf__plank" aria-hidden="true" />
+    </section>
   )
 }
 
@@ -126,7 +165,6 @@ export default function BlogPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    // Accept a shelf name directly; map legacy ?tag= values to their shelf.
     const tagParam = params.get('tag')
     if (tagParam) {
       if (SHELVES.some((s) => s.name === tagParam)) setActiveShelf(tagParam)
@@ -221,7 +259,6 @@ export default function BlogPage() {
         </div>
       </header>
 
-      {/* search + subject filters: one toolbar, pill subjects with counts */}
       <div className="px-5 sm:px-10 lg:px-16 pb-8">
         <label className="block max-w-sm mb-4">
           <span className="sr-only">Search the library</span>
@@ -272,17 +309,18 @@ export default function BlogPage() {
 
       <main className="px-5 sm:px-10 lg:px-16 pb-10">
         {loading ? (
-          <div aria-busy="true" aria-label="Loading the library" className="lib-grid">
-            {[0, 1, 2].map((i) => (
-              <article key={i} className="lib-card" aria-hidden="true">
-                <div className="lib-card__art wait-block" />
-                <div className="lib-card__body space-y-3">
-                  <div className="wait-block h-3 w-16" />
-                  <div className="wait-block h-6 w-4/5" />
-                  <div className="wait-block h-4 w-full" />
-                </div>
-              </article>
-            ))}
+          <div aria-busy="true" aria-label="Loading the library">
+            <div className="lectern lectern--loading" aria-hidden="true">
+              <div className="lectern__spread">
+                <div className="wait-block lectern__page" />
+                <div className="wait-block lectern__page" />
+              </div>
+            </div>
+            <div className="stack-shelf__books" aria-hidden="true">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="wait-block" style={{ width: 132, height: 190 }} />
+              ))}
+            </div>
           </div>
         ) : filteredPosts.length === 0 ? (
           <div className="py-20 text-[var(--blog-muted)]">
@@ -290,18 +328,9 @@ export default function BlogPage() {
           </div>
         ) : (
           <>
-            {featured && <FeaturedCard post={featured} />}
+            {featured && <LecternSpread post={featured} />}
             {shelves.map(([year, books]) => (
-              <section key={year} aria-label={`Volumes from ${year}`}>
-                <p className="lib-year">
-                  <span className="lib-year__plate">{year}</span>
-                </p>
-                <div className="lib-grid">
-                  {books.map((post) => (
-                    <VolumeCard key={post.id} post={post} />
-                  ))}
-                </div>
-              </section>
+              <Shelf key={year} year={year} books={books} />
             ))}
             <p className="blog-index__colophon" aria-hidden="true">
               — that&apos;s everything in the library —
