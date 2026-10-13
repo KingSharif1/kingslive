@@ -1,5 +1,5 @@
 import './globals.css'
-import { Unbounded, Sora, Young_Serif, Inter, JetBrains_Mono, Alegreya, Caveat } from 'next/font/google'
+import { Unbounded, Sora, Young_Serif, Inter, JetBrains_Mono, Alegreya, Caveat, Special_Elite } from 'next/font/google'
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
 
@@ -66,6 +66,14 @@ const caveat = Caveat({
   display: 'swap',
 })
 
+// Blog typewriter (Cerebration library titles) — Special Elite.
+const specialElite = Special_Elite({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-typewriter',
+  display: 'swap',
+})
+
 export const metadata = {
   title: 'King Sharif',
   description: 'Portfolio of King Sharif - Full Stack Developer',
@@ -96,7 +104,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://cdn.sanity.io" />
         <link rel="dns-prefetch" href="https://cdn.sanity.io" />
       </head>
-      <body className={`${unbounded.variable} ${sora.variable} ${youngSerif.variable} ${inter.variable} ${jetbrainsMono.variable} ${alegreya.variable} ${alegreyaItalic.variable} ${caveat.variable} font-sans`}>
+      <body className={`${unbounded.variable} ${sora.variable} ${youngSerif.variable} ${inter.variable} ${jetbrainsMono.variable} ${alegreya.variable} ${alegreyaItalic.variable} ${caveat.variable} ${specialElite.variable} font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
           <Toaster

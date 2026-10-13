@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { BlogNav } from '@/components/BlogNav'
@@ -24,52 +23,54 @@ function formatWhen(createdAt: string) {
   }
 }
 
-function hashStr(s: string): number {
-  let h = 0
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
-  return Math.abs(h)
+/** Engraved cover plate with an aged-paper fallback when a post has no cover yet. */
+function CoverArt({ post, sizes, className }: { post: BlogPost; sizes: string; className?: string }) {
+  if (!post.cover_image) {
+    return (
+      <span className={cn('lib-cover lib-cover--fallback', className)} aria-hidden="true">
+        <span className="lib-cover__initial">{post.title.charAt(0)}</span>
+      </span>
+    )
+  }
+  return (
+    <span className={cn('lib-cover', className)} aria-hidden="true">
+      <Image
+        src={post.cover_image}
+        alt=""
+        fill
+        quality={80}
+        sizes={sizes}
+        className="object-cover object-center"
+      />
+    </span>
+  )
 }
 
+function Stamp({ children }: { children: React.ReactNode }) {
+  return <span className="lib-stamp">{children}</span>
+}
+
+/** Latest volume, large — the library's "new acquisition" card. */
 function FeaturedCard({ post }: { post: BlogPost }) {
   const when = formatWhen(post.created_at)
   return (
-    <article className="blog-featured group">
-      <span className="blog-featured__stamp" aria-hidden="true">
-        Latest
-      </span>
-      {post.cover_image ? (
-        <Link href={`/blog/${post.slug}`} className="blog-featured__art" aria-label={post.title}>
-          <span className="blog-featured__art-inner">
-            <Image
-              src={post.cover_image}
-              alt=""
-              fill
-              quality={85}
-              className="object-cover object-center transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-              sizes="(min-width: 768px) 45vw, 100vw"
-            />
-          </span>
-        </Link>
-      ) : null}
-      <div className="min-w-0">
-        {post.tags[0] && <span className="blog-tagtab">{post.tags[0]}</span>}
-        <h2 className="font-fraunces text-3xl sm:text-4xl leading-[1.06] tracking-tight mt-4">
-          <Link href={`/blog/${post.slug}`} className="blog-title-link">
-            {post.title}
-          </Link>
+    <article className="lib-featured group">
+      <Link href={`/blog/${post.slug}`} className="lib-featured__art" aria-label={post.title}>
+        <CoverArt post={post} sizes="(min-width: 1024px) 44vw, 100vw" className="lib-featured__cover" />
+      </Link>
+      <div className="lib-featured__body">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Stamp>New acquisition</Stamp>
+          {post.tags[0] && <span className="lib-tagtab">{post.tags[0]}</span>}
+        </div>
+        <h2 className="lib-title lib-title--featured">
+          <Link href={`/blog/${post.slug}`}>{post.title}</Link>
         </h2>
-        <p className="mt-3 text-[11px] font-mono tracking-[0.22em] uppercase text-[var(--blog-muted)]">
-          {when.long}
-        </p>
-        <p className="mt-4 text-[var(--blog-muted)] leading-relaxed text-[15px] sm:text-base">
-          {post.excerpt}
-        </p>
-        <div className="flex items-center gap-6 pt-4">
-          <Link
-            href={`/blog/${post.slug}`}
-            className="text-[11px] font-mono tracking-[0.22em] uppercase text-[var(--blog-ink)]"
-          >
-            Open →
+        <p className="lib-date">{when.long}</p>
+        <p className="lib-excerpt">{post.excerpt}</p>
+        <div className="lib-actions">
+          <Link href={`/blog/${post.slug}`} className="lib-open">
+            Open the volume <span aria-hidden="true">→</span>
           </Link>
           <BlogLikeButton postId={post.id} />
         </div>
@@ -78,73 +79,30 @@ function FeaturedCard({ post }: { post: BlogPost }) {
   )
 }
 
-function Book({
-  post,
-  onOpen,
-  onRequestClose,
-}: {
-  post: BlogPost
-  onOpen: (post: BlogPost, el: HTMLElement) => void
-  onRequestClose: (immediate?: boolean) => void
-}) {
-  const h = hashStr(post.id)
-  const height = 168 + (h % 44)
-  const width = 116 + (h % 28)
-  const tilt = ((((h >> 3) % 7) - 3) * 1.1).toFixed(1)
+/** One catalog card in the stacks grid. */
+function VolumeCard({ post }: { post: BlogPost }) {
   const when = formatWhen(post.created_at)
   return (
-    <div
-      className="book"
-      style={{ height, '--letter-tilt': `${tilt}deg` } as CSSProperties}
-      onMouseEnter={(e) => onOpen(post, e.currentTarget)}
-      onMouseLeave={() => onRequestClose()}
-      onFocus={(e) => onOpen(post, e.currentTarget)}
-      onBlur={() => onRequestClose()}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') onRequestClose(true)
-      }}
-    >
-      <Link
-        href={`/blog/${post.slug}`}
-        className="letter"
-        style={{ width }}
-        aria-label={`${post.title} — open this letter`}
-      >
-        <span className="letter__tag">{post.tags[0] || 'Notes'}</span>
-        <span className="letter__title">{post.title}</span>
-        <span className="letter__meta">{when.year}</span>
-        <span className="letter__seal" aria-hidden="true" />
+    <article className="lib-card group">
+      <Link href={`/blog/${post.slug}`} className="lib-card__art" aria-label={post.title} tabIndex={-1}>
+        <CoverArt post={post} sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 100vw" />
       </Link>
-    </div>
+      <div className="lib-card__body">
+        {post.tags[0] && <span className="lib-tagtab">{post.tags[0]}</span>}
+        <h3 className="lib-title lib-title--card">
+          <Link href={`/blog/${post.slug}`}>{post.title}</Link>
+        </h3>
+        <p className="lib-date">{when.long}</p>
+        <p className="lib-excerpt lib-excerpt--card">{post.excerpt}</p>
+        <div className="lib-actions lib-actions--card">
+          <Link href={`/blog/${post.slug}`} className="lib-open">
+            Open <span aria-hidden="true">→</span>
+          </Link>
+          <BlogLikeButton postId={post.id} />
+        </div>
+      </div>
+    </article>
   )
-}
-
-// Mobile-first catalog row: full title, thumb, excerpt — no popups.
-function CatalogRow({ post }: { post: BlogPost }) {
-  const when = formatWhen(post.created_at)
-  return (
-    <Link href={`/blog/${post.slug}`} className="catalog-row">
-      <span className="catalog-row__swatch" aria-hidden="true">
-        <span>{when.year}</span>
-      </span>
-      <span className="min-w-0">
-        {post.tags[0] && <span className="catalog-row__tag">{post.tags[0]}</span>}
-        <span className="catalog-row__title">{post.title}</span>
-        <span className="catalog-row__meta">{when.long}</span>
-        <span className="catalog-row__excerpt">{post.excerpt}</span>
-      </span>
-      <span className="catalog-row__go" aria-hidden="true">
-        →
-      </span>
-    </Link>
-  )
-}
-
-interface InspectState {
-  post: BlogPost
-  x: number
-  y: number
-  below: boolean
 }
 
 // Broad shelves: each groups related subject tags so the filter stays a short,
@@ -165,13 +123,6 @@ export default function BlogPage() {
   const [activeShelf, setActiveShelf] = useState<string | null>(null)
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [mounted, setMounted] = useState(false)
-  const [inspect, setInspect] = useState<InspectState | null>(null)
-  const closeTimer = useRef<number | null>(null)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -192,54 +143,6 @@ export default function BlogPage() {
       .then((d) => setPosts(Array.isArray(d.posts) ? d.posts : []))
       .catch(() => setPosts([]))
       .finally(() => setLoading(false))
-  }, [])
-
-  const cancelScheduledClose = () => {
-    if (closeTimer.current !== null) {
-      window.clearTimeout(closeTimer.current)
-      closeTimer.current = null
-    }
-  }
-
-  const requestClose = (immediate = false) => {
-    cancelScheduledClose()
-    if (immediate) {
-      setInspect(null)
-      return
-    }
-    closeTimer.current = window.setTimeout(() => setInspect(null), 140)
-  }
-
-  const openInspect = (post: BlogPost, el: HTMLElement) => {
-    cancelScheduledClose()
-    const r = el.getBoundingClientRect()
-    const w = 290
-    const x = Math.min(Math.max(r.left + r.width / 2, w / 2 + 12), window.innerWidth - w / 2 - 12)
-    const below = r.top < 330
-    setInspect({ post, x, y: below ? r.bottom + 14 : r.top - 14, below })
-  }
-
-  // The inspector floats over the page — dismiss it on scroll/resize.
-  useEffect(() => {
-    if (!inspect) return
-    const hide = () => setInspect(null)
-    window.addEventListener('scroll', hide, true)
-    window.addEventListener('resize', hide)
-    return () => {
-      window.removeEventListener('scroll', hide, true)
-      window.removeEventListener('resize', hide)
-    }
-  }, [inspect])
-
-  // Browsing changes the list — dismiss any open inspector.
-  useEffect(() => {
-    setInspect(null)
-  }, [searchQuery, activeShelf, activeProjectId])
-
-  useEffect(() => {
-    return () => {
-      if (closeTimer.current !== null) window.clearTimeout(closeTimer.current)
-    }
   }, [])
 
   const shelfCounts = useMemo(() => {
@@ -295,7 +198,7 @@ export default function BlogPage() {
       <BlogDrift ink={isDark ? '#f0e6d8' : '#1a1612'} />
       <BlogCursor />
 
-      <header className="relative px-5 sm:px-10 lg:px-16 pt-8 pb-10 overflow-hidden">
+      <header className="relative px-5 sm:px-10 lg:px-16 pt-8 pb-8 overflow-hidden">
         <svg
           className="blog-bleed"
           viewBox="0 0 1000 150"
@@ -310,9 +213,7 @@ export default function BlogPage() {
           <p className="text-[11px] font-mono tracking-[0.32em] uppercase text-[var(--blog-muted)] mb-4">
             Cerebration · The Library · {new Date().getFullYear()}
           </p>
-          <h1 className="font-fraunces text-3xl sm:text-4xl lg:text-5xl tracking-tight text-[var(--blog-ink)]">
-            The Library
-          </h1>
+          <h1 className="lib-masthead">The Library</h1>
           <p className="mt-4 text-[15px] sm:text-base leading-relaxed text-[var(--blog-muted)] max-w-lg">
             A builder&apos;s notebook: projects, breakdowns, and lessons,
             shelved as I go. Pull one down.
@@ -369,22 +270,17 @@ export default function BlogPage() {
         </div>
       </div>
 
-      <main className="px-5 sm:px-10 lg:px-16 pb-8">
+      <main className="px-5 sm:px-10 lg:px-16 pb-10">
         {loading ? (
-          <div aria-busy="true" aria-label="Loading the library">
+          <div aria-busy="true" aria-label="Loading the library" className="lib-grid">
             {[0, 1, 2].map((i) => (
-              <article
-                key={i}
-                className="blog-volume py-8 sm:py-10 border-t border-[var(--blog-ink)]/10"
-              >
-                <div className="blog-spine wait-copy">····</div>
-                <div className="space-y-3 max-w-xl">
+              <article key={i} className="lib-card" aria-hidden="true">
+                <div className="lib-card__art wait-block" />
+                <div className="lib-card__body space-y-3">
                   <div className="wait-block h-3 w-16" />
-                  <div className="wait-block h-9 w-4/5" />
+                  <div className="wait-block h-6 w-4/5" />
                   <div className="wait-block h-4 w-full" />
-                  <div className="wait-block h-4 w-2/3" />
                 </div>
-                <div className="blog-volume__art wait-block" />
               </article>
             ))}
           </div>
@@ -395,28 +291,16 @@ export default function BlogPage() {
         ) : (
           <>
             {featured && <FeaturedCard post={featured} />}
-            {/* Mobile-first catalog: full titles, no popups (shelf takes over at md+) */}
-            <div className="catalog">
-              {shelves.map(([year, books]) => (
-                <section key={year} aria-label={`Volumes from ${year}`}>
-                  <p className="catalog-year">{year}</p>
-                  {books.map((post) => (
-                    <CatalogRow key={post.id} post={post} />
-                  ))}
-                </section>
-              ))}
-            </div>
             {shelves.map(([year, books]) => (
-              <section key={year} className="shelf" aria-label={`Volumes from ${year}`}>
-                <div className="shelf-head">
-                  <span className="shelf-plate">{year}</span>
-                </div>
-                <div className="shelf-books">
+              <section key={year} aria-label={`Volumes from ${year}`}>
+                <p className="lib-year">
+                  <span className="lib-year__plate">{year}</span>
+                </p>
+                <div className="lib-grid">
                   {books.map((post) => (
-                    <Book key={post.id} post={post} onOpen={openInspect} onRequestClose={requestClose} />
+                    <VolumeCard key={post.id} post={post} />
                   ))}
                 </div>
-                <div className="shelf-board" aria-hidden="true" />
               </section>
             ))}
             <p className="blog-index__colophon" aria-hidden="true">
@@ -427,58 +311,6 @@ export default function BlogPage() {
       </main>
 
       <BlogFooter />
-
-      {mounted &&
-        inspect &&
-        createPortal(
-          <div
-            className="book-inspector"
-            data-open="true"
-            data-below={inspect.below ? 'true' : 'false'}
-            style={{
-              left: inspect.x,
-              top: inspect.y,
-              transform: `translate(-50%, ${inspect.below ? '0' : '-100%'})`,
-            }}
-            onMouseEnter={cancelScheduledClose}
-            onMouseLeave={() => requestClose()}
-            onFocus={cancelScheduledClose}
-            onBlur={(e) => {
-              if (!e.currentTarget.contains(e.relatedTarget as Node)) requestClose()
-            }}
-            role="dialog"
-            aria-label={`${inspect.post.title} — details`}
-          >
-            {inspect.post.cover_image ? (
-              <span className="book-card__thumb">
-                <Image
-                  src={inspect.post.cover_image}
-                  alt=""
-                  fill
-                  quality={75}
-                  sizes="290px"
-                  className="object-cover object-center"
-                />
-              </span>
-            ) : null}
-            {inspect.post.tags[0] && <span className="blog-tagtab">{inspect.post.tags[0]}</span>}
-            <p className="book-card__title">
-              <Link href={`/blog/${inspect.post.slug}`}>{inspect.post.title}</Link>
-            </p>
-            <p className="book-card__date">{formatWhen(inspect.post.created_at).long}</p>
-            <p className="book-card__excerpt">{inspect.post.excerpt}</p>
-            <div className="book-card__actions">
-              <Link
-                href={`/blog/${inspect.post.slug}`}
-                className="text-[11px] font-mono tracking-[0.22em] uppercase text-[var(--blog-ink)]"
-              >
-                Open →
-              </Link>
-              <BlogLikeButton postId={inspect.post.id} />
-            </div>
-          </div>,
-          document.body
-        )}
       <BackToTop />
     </div>
   )
