@@ -1,5 +1,5 @@
 import './globals.css'
-import { Unbounded, Sora, Young_Serif, Inter, JetBrains_Mono, Alegreya, Caveat, Special_Elite } from 'next/font/google'
+import { Unbounded, Sora, Young_Serif, Inter, JetBrains_Mono, Alegreya, Caveat, Special_Elite, Permanent_Marker, Gochi_Hand } from 'next/font/google'
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
 
@@ -74,6 +74,22 @@ const specialElite = Special_Elite({
   display: 'swap',
 })
 
+// Blog marker (Cerebration sketchbook masthead) — Permanent Marker.
+const permanentMarker = Permanent_Marker({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-marker',
+  display: 'swap',
+})
+
+// Blog hand lettering (Cerebration sketchbook card titles) — Gochi Hand.
+const gochiHand = Gochi_Hand({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-hand',
+  display: 'swap',
+})
+
 export const metadata = {
   title: 'King Sharif',
   description: 'Portfolio of King Sharif - Full Stack Developer',
@@ -104,7 +120,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://cdn.sanity.io" />
         <link rel="dns-prefetch" href="https://cdn.sanity.io" />
       </head>
-      <body className={`${unbounded.variable} ${sora.variable} ${youngSerif.variable} ${inter.variable} ${jetbrainsMono.variable} ${alegreya.variable} ${alegreyaItalic.variable} ${caveat.variable} ${specialElite.variable} font-sans`}>
+      <body className={`${unbounded.variable} ${sora.variable} ${youngSerif.variable} ${inter.variable} ${jetbrainsMono.variable} ${alegreya.variable} ${alegreyaItalic.variable} ${caveat.variable} ${specialElite.variable} ${permanentMarker.variable} ${gochiHand.variable} font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
           <Toaster
