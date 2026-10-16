@@ -72,7 +72,7 @@ export const portableTextComponents: PortableTextComponents = {
     ),
     faq: ({ value }) => <BlogFaq heading={value?.heading} items={value?.items} />,
     code: ({ value }) => (
-      <div className="blog-codeblock rounded-lg overflow-hidden border border-[var(--border)]">
+      <div className="blog-codeblock rounded-lg overflow-hidden border border-[var(--border)] max-w-full">
         {/* Header with language/filename */}
         <div className="blog-codeblock__bar bg-[var(--secondary)] border-b border-[var(--border)]">
           <div className="flex items-center gap-2">
@@ -92,8 +92,8 @@ export const portableTextComponents: PortableTextComponents = {
           )}
         </div>
         {/* Code content */}
-        <pre className="bg-[var(--card)] p-4 overflow-x-auto">
-          <code className="text-sm font-mono text-[var(--foreground)] leading-relaxed">
+        <pre className="bg-[var(--card)] p-4 overflow-x-auto max-w-full">
+          <code className="text-sm font-mono text-[var(--foreground)] leading-relaxed whitespace-pre">
             {value?.code}
           </code>
         </pre>

@@ -1,14 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { createPortal } from 'react-dom'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { BlogNav } from '@/components/BlogNav'
 import { BlogLikeButton } from '@/components/BlogLikeButton'
 import BlogDrift from '@/components/blog/BlogDrift'
 import BlogCursor from '@/components/blog/BlogCursor'
-import BlogFooter from '@/components/blog/BlogFooter'
 import BackToTop from '@/components/blog/BackToTop'
 import { usePortfolioTheme } from '@/components/usePortfolioTheme'
 import { cn } from '@/lib/utils'
@@ -16,140 +14,114 @@ import { getProjectById } from '@/lib/portfolio-projects'
 import type { BlogPost } from '@/lib/sanity-queries'
 
 function formatWhen(createdAt: string) {
-  const d = new Date(createdAt)
-  return {
-    year: d.getFullYear(),
-    short: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    long: d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-  }
+  return new Date(createdAt)
+    .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    .toUpperCase()
 }
 
-function hashStr(s: string): number {
-  let h = 0
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
-  return Math.abs(h)
-}
-
-function FeaturedCard({ post }: { post: BlogPost }) {
-  const when = formatWhen(post.created_at)
+function CardPhoto({ post, sizes }: { post: BlogPost; sizes: string }) {
+  if (!post.cover_image) return null
   return (
-    <article className="blog-featured group">
-      <span className="blog-featured__stamp" aria-hidden="true">
-        Latest
+    <figure className="sk-photo">
+      <span className="sk-photo__frame">
+        <Image
+          src={post.cover_image}
+          alt=""
+          fill
+          quality={80}
+          sizes={sizes}
+          className="object-cover object-center"
+        />
       </span>
-      {post.cover_image ? (
-        <Link href={`/blog/${post.slug}`} className="blog-featured__art" aria-label={post.title}>
-          <span className="blog-featured__art-inner">
-            <Image
-              src={post.cover_image}
-              alt=""
-              fill
-              quality={85}
-              className="object-cover object-center transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-              sizes="(min-width: 768px) 45vw, 100vw"
-            />
-          </span>
-        </Link>
-      ) : null}
-      <div className="min-w-0">
-        {post.tags[0] && <span className="blog-tagtab">{post.tags[0]}</span>}
-        <h2 className="font-fraunces text-3xl sm:text-4xl leading-[1.06] tracking-tight mt-4">
-          <Link href={`/blog/${post.slug}`} className="blog-title-link">
-            {post.title}
-          </Link>
+      {post.tags[0] && <figcaption>{post.tags[0].toLowerCase()}</figcaption>}
+    </figure>
+  )
+}
+
+/* ── One sketchbook card per post ──────────────────────────────────────── */
+function SketchCard({
+  post,
+  entryNo,
+  latest,
+}: {
+  post: BlogPost
+  entryNo: string
+  latest?: boolean
+}) {
+  return (
+    <article className={cn('sk-card', 'sketch')} aria-label={post.title}>
+      <span className="sk-cardno sketch2">nº {entryNo}</span>
+      <CardPhoto post={post} sizes="(min-width: 900px) 22vw, 100vw" />
+      <div>
+        <div className="sk-date">
+          <span className="sk-stamp">{formatWhen(post.created_at)}</span>
+          {latest ? (
+            <span className="sk-stamp sk-stamp--hot">Latest</span>
+          ) : (
+            post.tags[0] && <span className="sk-stamp">{post.tags[0]}</span>
+          )}
+        </div>
+        <h2 className="sk-cardtitle">
+          <Link href={`/blog/${post.slug}`}>{post.title}</Link>
         </h2>
-        <p className="mt-3 text-[11px] font-mono tracking-[0.22em] uppercase text-[var(--blog-muted)]">
-          {when.long}
-        </p>
-        <p className="mt-4 text-[var(--blog-muted)] leading-relaxed text-[15px] sm:text-base">
-          {post.excerpt}
-        </p>
-        <div className="flex items-center gap-6 pt-4">
-          <Link
-            href={`/blog/${post.slug}`}
-            className="text-[11px] font-mono tracking-[0.22em] uppercase text-[var(--blog-ink)]"
-          >
-            Open →
-          </Link>
+        <p className="sk-excerpt">{post.excerpt}</p>
+        <div className="sk-meta">
           <BlogLikeButton postId={post.id} />
+          <Link href={`/blog/${post.slug}`} className="sk-read">
+            Read <span aria-hidden="true">→</span>
+          </Link>
         </div>
       </div>
     </article>
   )
 }
 
-function Book({
-  post,
-  onOpen,
-  onRequestClose,
-}: {
-  post: BlogPost
-  onOpen: (post: BlogPost, el: HTMLElement) => void
-  onRequestClose: (immediate?: boolean) => void
-}) {
-  const h = hashStr(post.id)
-  const height = 168 + (h % 44)
-  const width = 116 + (h % 28)
-  const tilt = ((((h >> 3) % 7) - 3) * 1.1).toFixed(1)
-  const when = formatWhen(post.created_at)
+function Separator({ variant }: { variant: 'star' | 'loop' }) {
   return (
-    <div
-      className="book"
-      style={{ height, '--letter-tilt': `${tilt}deg` } as CSSProperties}
-      onMouseEnter={(e) => onOpen(post, e.currentTarget)}
-      onMouseLeave={() => onRequestClose()}
-      onFocus={(e) => onOpen(post, e.currentTarget)}
-      onBlur={() => onRequestClose()}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') onRequestClose(true)
-      }}
-    >
-      <Link
-        href={`/blog/${post.slug}`}
-        className="letter"
-        style={{ width }}
-        aria-label={`${post.title} — open this letter`}
-      >
-        <span className="letter__tag">{post.tags[0] || 'Notes'}</span>
-        <span className="letter__title">{post.title}</span>
-        <span className="letter__meta">{when.year}</span>
-        <span className="letter__seal" aria-hidden="true" />
-      </Link>
+    <div className="sk-sep" aria-hidden="true">
+      <span className="line" />
+      {variant === 'star' ? (
+        <svg viewBox="0 0 40 40">
+          <path d="M20 5 L23.5 15.5 L34 13.5 L25.5 21.5 L32 31.5 L20.5 25.5 L10 32.5 L15.5 21.5 L6 14.5 L16.5 16.5 Z" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 60 30">
+          <path d="M5 18 C 15 8, 24 8, 30 16 C 36 24, 45 24, 55 12 M48 8 L56 11 L50 18" />
+        </svg>
+      )}
+      <span className="line" />
     </div>
   )
 }
 
-// Mobile-first catalog row: full title, thumb, excerpt — no popups.
-function CatalogRow({ post }: { post: BlogPost }) {
-  const when = formatWhen(post.created_at)
+function SketchFooter() {
   return (
-    <Link href={`/blog/${post.slug}`} className="catalog-row">
-      <span className="catalog-row__swatch" aria-hidden="true">
-        <span>{when.year}</span>
-      </span>
-      <span className="min-w-0">
-        {post.tags[0] && <span className="catalog-row__tag">{post.tags[0]}</span>}
-        <span className="catalog-row__title">{post.title}</span>
-        <span className="catalog-row__meta">{when.long}</span>
-        <span className="catalog-row__excerpt">{post.excerpt}</span>
-      </span>
-      <span className="catalog-row__go" aria-hidden="true">
-        →
-      </span>
-    </Link>
+    <>
+      <div className="sk-mountains" aria-hidden="true">
+        <svg viewBox="0 0 1200 110" preserveAspectRatio="none">
+          <path
+            d="M0,110 L0,70 L150,25 L280,65 L420,15 L560,60 L700,30 L850,70 L1000,20 L1120,58 L1200,42 L1200,110 Z"
+            fill="var(--blog-ink)"
+          />
+          <path
+            d="M0,110 L0,85 L200,48 L380,80 L520,44 L700,76 L900,48 L1080,80 L1200,62 L1200,110 Z"
+            fill="var(--blog-muted)"
+            opacity="0.55"
+          />
+        </svg>
+      </div>
+      <div className="sk-ticker" aria-hidden="true">
+        <span>CEREBRATION · CEREBRATION · CEREBRATION · CEREBRATION · CEREBRATION ·&nbsp;</span>
+      </div>
+      <div className="sk-foot">
+        © {new Date().getFullYear()} King Sharif · <Link href="/">kingsharif.com</Link>
+      </div>
+    </>
   )
 }
 
-interface InspectState {
-  post: BlogPost
-  x: number
-  y: number
-  below: boolean
-}
-
 // Broad shelves: each groups related subject tags so the filter stays a short,
-// scannable row instead of one pill per tag. A post appears on every shelf that
-// contains at least one of its tags.
+// scannable row instead of one pill per tag.
 const SHELVES: { name: string; tags: string[] }[] = [
   { name: 'Robots', tags: ['Roomba', 'Robotics', 'Raspberry Pi', 'ROS 2', 'Arduino', 'SLAM'] },
   { name: 'AI', tags: ['AI', 'Tech'] },
@@ -165,17 +137,9 @@ export default function BlogPage() {
   const [activeShelf, setActiveShelf] = useState<string | null>(null)
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [mounted, setMounted] = useState(false)
-  const [inspect, setInspect] = useState<InspectState | null>(null)
-  const closeTimer = useRef<number | null>(null)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    // Accept a shelf name directly; map legacy ?tag= values to their shelf.
     const tagParam = params.get('tag')
     if (tagParam) {
       if (SHELVES.some((s) => s.name === tagParam)) setActiveShelf(tagParam)
@@ -192,54 +156,6 @@ export default function BlogPage() {
       .then((d) => setPosts(Array.isArray(d.posts) ? d.posts : []))
       .catch(() => setPosts([]))
       .finally(() => setLoading(false))
-  }, [])
-
-  const cancelScheduledClose = () => {
-    if (closeTimer.current !== null) {
-      window.clearTimeout(closeTimer.current)
-      closeTimer.current = null
-    }
-  }
-
-  const requestClose = (immediate = false) => {
-    cancelScheduledClose()
-    if (immediate) {
-      setInspect(null)
-      return
-    }
-    closeTimer.current = window.setTimeout(() => setInspect(null), 140)
-  }
-
-  const openInspect = (post: BlogPost, el: HTMLElement) => {
-    cancelScheduledClose()
-    const r = el.getBoundingClientRect()
-    const w = 290
-    const x = Math.min(Math.max(r.left + r.width / 2, w / 2 + 12), window.innerWidth - w / 2 - 12)
-    const below = r.top < 330
-    setInspect({ post, x, y: below ? r.bottom + 14 : r.top - 14, below })
-  }
-
-  // The inspector floats over the page — dismiss it on scroll/resize.
-  useEffect(() => {
-    if (!inspect) return
-    const hide = () => setInspect(null)
-    window.addEventListener('scroll', hide, true)
-    window.addEventListener('resize', hide)
-    return () => {
-      window.removeEventListener('scroll', hide, true)
-      window.removeEventListener('resize', hide)
-    }
-  }, [inspect])
-
-  // Browsing changes the list — dismiss any open inspector.
-  useEffect(() => {
-    setInspect(null)
-  }, [searchQuery, activeShelf, activeProjectId])
-
-  useEffect(() => {
-    return () => {
-      if (closeTimer.current !== null) window.clearTimeout(closeTimer.current)
-    }
   }, [])
 
   const shelfCounts = useMemo(() => {
@@ -276,18 +192,8 @@ export default function BlogPage() {
   const activeProject = activeProjectId ? getProjectById(activeProjectId) : undefined
 
   const isBrowsing = activeShelf !== null || activeProjectId !== null || searchQuery.trim() !== ''
-  const featured = !loading && !isBrowsing && filteredPosts.length > 0 ? filteredPosts[0] : null
-  const rest = featured ? filteredPosts.slice(1) : filteredPosts
-
-  const shelves = useMemo(() => {
-    const byYear = new Map<number, BlogPost[]>()
-    for (const post of rest) {
-      const y = new Date(post.created_at).getFullYear()
-      if (!byYear.has(y)) byYear.set(y, [])
-      byYear.get(y)!.push(post)
-    }
-    return [...byYear.entries()].sort((a, b) => b[0] - a[0])
-  }, [rest])
+  const entryNo = (post: BlogPost) =>
+    String(posts.length - posts.findIndex((p) => p.id === post.id)).padStart(3, '0')
 
   return (
     <div id="top" className={cn('blog-world blog-library', isDark && 'dark')}>
@@ -295,38 +201,24 @@ export default function BlogPage() {
       <BlogDrift ink={isDark ? '#f0e6d8' : '#1a1612'} />
       <BlogCursor />
 
-      <header className="relative px-5 sm:px-10 lg:px-16 pt-8 pb-10 overflow-hidden">
-        <svg
-          className="blog-bleed"
-          viewBox="0 0 1000 150"
-          preserveAspectRatio="xMidYMid meet"
-          aria-hidden="true"
-        >
-          <text x="500" y="118" textAnchor="middle" textLength="990" lengthAdjust="spacing">
-            CEREBRATION
-          </text>
-        </svg>
-        <div className="relative -mt-2 sm:-mt-4 max-w-2xl">
-          <p className="text-[11px] font-mono tracking-[0.32em] uppercase text-[var(--blog-muted)] mb-4">
-            Cerebration · The Library · {new Date().getFullYear()}
-          </p>
-          <h1 className="font-fraunces text-3xl sm:text-4xl lg:text-5xl tracking-tight text-[var(--blog-ink)]">
+      <header className="px-5 sm:px-10 lg:px-16 pt-10 pb-6">
+        <p className="sk-kicker">Cerebration · a sketchbook</p>
+        <div className="sk-title-wrap">
+          <h1 className="sk-title">
             The Library
+            <svg className="swash" viewBox="0 0 320 20" preserveAspectRatio="none" aria-hidden="true">
+              <path pathLength={1} d="M6 12 C 80 4, 160 18, 240 8 S 300 14, 314 10" />
+            </svg>
           </h1>
-          <p className="mt-4 text-[15px] sm:text-base leading-relaxed text-[var(--blog-muted)] max-w-lg">
-            A builder&apos;s notebook: projects, breakdowns, and lessons,
-            shelved as I go. Pull one down.
-          </p>
         </div>
       </header>
 
-      {/* search + subject filters: one toolbar, pill subjects with counts */}
       <div className="px-5 sm:px-10 lg:px-16 pb-8">
         <label className="block max-w-sm mb-4">
           <span className="sr-only">Search the library</span>
           <input
             type="search"
-            placeholder="Search the stacks…"
+            placeholder="Search the sketchbook…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-transparent border-0 border-b border-[var(--blog-ink)]/25 py-2 text-sm outline-none placeholder:text-[var(--blog-muted)] focus:border-[var(--blog-bloom)]"
@@ -369,116 +261,45 @@ export default function BlogPage() {
         </div>
       </div>
 
-      <main className="px-5 sm:px-10 lg:px-16 pb-8">
+      <main className="px-5 sm:px-10 lg:px-16 pb-10">
         {loading ? (
-          <div aria-busy="true" aria-label="Loading the library">
+          <div className="sk-stack" aria-busy="true" aria-label="Loading the library">
             {[0, 1, 2].map((i) => (
-              <article
-                key={i}
-                className="blog-volume py-8 sm:py-10 border-t border-[var(--blog-ink)]/10"
-              >
-                <div className="blog-spine wait-copy">····</div>
-                <div className="space-y-3 max-w-xl">
-                  <div className="wait-block h-3 w-16" />
-                  <div className="wait-block h-9 w-4/5" />
-                  <div className="wait-block h-4 w-full" />
-                  <div className="wait-block h-4 w-2/3" />
+              <div key={i} className={cn('sk-card', 'sketch', 'sk-card--loading')} aria-hidden="true">
+                <div className="wait-block" style={{ aspectRatio: '4/3' }} />
+                <div>
+                  <div className="wait-block" style={{ height: '1.6rem', marginBottom: '0.7rem' }} />
+                  <div className="wait-block" style={{ height: '4.5rem' }} />
                 </div>
-                <div className="blog-volume__art wait-block" />
-              </article>
+              </div>
             ))}
           </div>
         ) : filteredPosts.length === 0 ? (
           <div className="py-20 text-[var(--blog-muted)]">
-            {posts.length === 0 ? 'The shelves are empty.' : 'Nothing on these shelves matches.'}
+            {posts.length === 0 ? 'No pages in the sketchbook yet.' : 'No pages match that.'}
           </div>
         ) : (
           <>
-            {featured && <FeaturedCard post={featured} />}
-            {/* Mobile-first catalog: full titles, no popups (shelf takes over at md+) */}
-            <div className="catalog">
-              {shelves.map(([year, books]) => (
-                <section key={year} aria-label={`Volumes from ${year}`}>
-                  <p className="catalog-year">{year}</p>
-                  {books.map((post) => (
-                    <CatalogRow key={post.id} post={post} />
-                  ))}
-                </section>
+            <div className="sk-stack">
+              {filteredPosts.map((post, i) => (
+                <Fragment key={post.id}>
+                  {i > 0 && <Separator variant={i % 2 === 0 ? 'loop' : 'star'} />}
+                  <SketchCard
+                    post={post}
+                    entryNo={entryNo(post)}
+                    latest={!isBrowsing && i === 0}
+                  />
+                </Fragment>
               ))}
             </div>
-            {shelves.map(([year, books]) => (
-              <section key={year} className="shelf" aria-label={`Volumes from ${year}`}>
-                <div className="shelf-head">
-                  <span className="shelf-plate">{year}</span>
-                </div>
-                <div className="shelf-books">
-                  {books.map((post) => (
-                    <Book key={post.id} post={post} onOpen={openInspect} onRequestClose={requestClose} />
-                  ))}
-                </div>
-                <div className="shelf-board" aria-hidden="true" />
-              </section>
-            ))}
-            <p className="blog-index__colophon" aria-hidden="true">
-              — that&apos;s everything in the library —
+            <p className="sk-colophon" aria-hidden="true">
+              — that&apos;s every page · more soon —
             </p>
           </>
         )}
       </main>
 
-      <BlogFooter />
-
-      {mounted &&
-        inspect &&
-        createPortal(
-          <div
-            className="book-inspector"
-            data-open="true"
-            data-below={inspect.below ? 'true' : 'false'}
-            style={{
-              left: inspect.x,
-              top: inspect.y,
-              transform: `translate(-50%, ${inspect.below ? '0' : '-100%'})`,
-            }}
-            onMouseEnter={cancelScheduledClose}
-            onMouseLeave={() => requestClose()}
-            onFocus={cancelScheduledClose}
-            onBlur={(e) => {
-              if (!e.currentTarget.contains(e.relatedTarget as Node)) requestClose()
-            }}
-            role="dialog"
-            aria-label={`${inspect.post.title} — details`}
-          >
-            {inspect.post.cover_image ? (
-              <span className="book-card__thumb">
-                <Image
-                  src={inspect.post.cover_image}
-                  alt=""
-                  fill
-                  quality={75}
-                  sizes="290px"
-                  className="object-cover object-center"
-                />
-              </span>
-            ) : null}
-            {inspect.post.tags[0] && <span className="blog-tagtab">{inspect.post.tags[0]}</span>}
-            <p className="book-card__title">
-              <Link href={`/blog/${inspect.post.slug}`}>{inspect.post.title}</Link>
-            </p>
-            <p className="book-card__date">{formatWhen(inspect.post.created_at).long}</p>
-            <p className="book-card__excerpt">{inspect.post.excerpt}</p>
-            <div className="book-card__actions">
-              <Link
-                href={`/blog/${inspect.post.slug}`}
-                className="text-[11px] font-mono tracking-[0.22em] uppercase text-[var(--blog-ink)]"
-              >
-                Open →
-              </Link>
-              <BlogLikeButton postId={inspect.post.id} />
-            </div>
-          </div>,
-          document.body
-        )}
+      <SketchFooter />
       <BackToTop />
     </div>
   )

@@ -235,7 +235,7 @@ html.dark body::before,
   --blog-ink: #1a1612;
   --blog-field: #d8d1c4;
   --blog-paper: #f3ead4;
-  --blog-muted: #6b6156;
+  --blog-muted: #52463a;
   --blog-bloom: #c45c4a;
   --blog-rule: #7a9ab8;
   --blog-spine: #4a3228;
@@ -245,7 +245,7 @@ html.dark body::before,
   --shelf-hi: #9a7a52;
   --shelf-mid: #6f5233;
   --shelf-lo: #4a3520;
-  --font-note: var(--font-caveat), 'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
+  --font-note: var(--font-hand), 'Gochi Hand', 'Segoe Print', 'Bradley Hand', cursive;
   --foreground: var(--blog-ink);
   --muted-foreground: var(--blog-muted);
   --background: var(--blog-field);
@@ -266,7 +266,7 @@ html.dark .blog-world,
   --blog-ink: #f0e6d8;
   --blog-field: #12100e;
   --blog-paper: #1c1814;
-  --blog-muted: #9a8f84;
+  --blog-muted: #a79b8d;
   --blog-bloom: #ffb7b2;
   --blog-rule: #5a6e86;
   --blog-spine: #c9b0a2;
@@ -442,6 +442,13 @@ html.dark .blog-world,
   }
 }
 
+/* mobile: the sheet goes full-bleed, edge to edge */
+@media (max-width: 639px) {
+  .blog-read {
+    width: 100%;
+  }
+}
+
 .blog-read .prose {
   font-family: var(--font-note), Georgia, serif;
   /* Caveat reads small — 1.5rem lands like a comfortable marker hand */
@@ -452,8 +459,8 @@ html.dark .blog-world,
 
 /* ---------- baseline grid ----------
    Everything inside .blog-ruled snaps to whole multiples of --blog-line,
-   so each line of text sits *between* the ruled lines instead of the
-   rules striking through the words. */
+   so each line of text floats just above its ruled line — like handwriting
+   resting on notebook paper — instead of the rules striking through words. */
 .blog-read .blog-ruled > :first-child {
   margin-top: 0;
 }
@@ -1275,20 +1282,24 @@ html.dark .blog-world,
   text-decoration-thickness: 2px;
 }
 
-/* --- Footnotes: auto-collected sources & further reading --- */
+/* --- Footnotes: auto-collected sources & further reading.
+   A hand-drawn box around the section, like a boxed-off bit of the notes. --- */
 .blog-footnotes {
   margin-top: calc(var(--blog-line) * 2);
-  /* 1px top border is absorbed so the kicker still starts on the grid */
-  padding-top: calc(var(--blog-line) - 1px);
-  border-top: 1px solid color-mix(in srgb, var(--blog-ink) 16%, transparent);
+  /* 2px borders are absorbed so the kicker still starts on the grid */
+  padding: calc(var(--blog-line) - 2px) 1.1rem var(--blog-line);
+  border: 2px solid color-mix(in srgb, var(--blog-ink) 72%, transparent);
+  /* wobbly corners = hand-drawn */
+  border-radius: 255px 18px 225px 18px / 18px 225px 18px 255px;
+  background: color-mix(in srgb, var(--blog-paper) 55%, transparent);
 }
 
 .blog-footnotes__kicker {
   font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 0.66rem;
+  font-size: 0.78rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--blog-muted);
+  color: var(--blog-ink);
   line-height: var(--blog-line);
   margin: 0 0 var(--blog-line);
 }
@@ -2653,7 +2664,9 @@ html.blog-cursor-on body select {
    Blog footer — mountain scene. Two SVG ridge layers drift slowly
    (seamless -50% loop, pure CSS); a moon/sun glows; stars twinkle
    in dark mode; soft clouds + wind streaks drift in light mode.
-   CEREBRATION is a news ticker scrolling left → right.
+   "Cerebration" is a giant handwritten ticker in the background,
+   drifting left → right behind the mountains, sitting above a
+   faint ruled line.
    No canvas, no pointer interaction.
    - Fades out of the page (transparent -> sky tone), no hard edge.
    - Light/dark adaptive via --foot-* vars.
@@ -2661,9 +2674,9 @@ html.blog-cursor-on body select {
    ============================================================ */
 .blog-footer {
   --foot-shade: #e7d9bd;
-  --foot-ink: #2a241d;
-  --foot-muted: #6b6156;
-  --foot-faint: #8a7d6c;
+  --foot-ink: #241e16;
+  --foot-muted: #52463a;
+  --foot-faint: #6b6055;
   --foot-stroke: rgb(42 36 29 / 0.34);
   --foot-word-fill: rgb(42 36 29 / 0.07);
   --foot-ridge-back: #c9b183;
@@ -2686,8 +2699,8 @@ html.blog-cursor-on body select {
 html.dark .blog-footer {
   --foot-shade: #14100a;
   --foot-ink: #f3ead4;
-  --foot-muted: #b8ab98;
-  --foot-faint: #8a7d6c;
+  --foot-muted: #bfae9c;
+  --foot-faint: #9a8f84;
   --foot-stroke: rgb(243 234 212 / 0.32);
   --foot-word-fill: rgb(243 234 212 / 0.07);
   --foot-ridge-back: #2c2517;
@@ -2746,7 +2759,7 @@ html.dark .blog-footer__stars {
   bottom: 0;
   height: 56%;
   max-height: 26rem;
-  z-index: 1;
+  z-index: 3;
   overflow: hidden;
   pointer-events: none;
 }
@@ -2780,34 +2793,42 @@ html.dark .blog-footer__stars {
 .blog-footer__inner,
 .blog-footer__base {
   position: relative;
-  z-index: 2;
+  z-index: 4;
 }
 
-/* ---- news ticker wordmark: CEREBRATION ✦ … scrolling left → right ---- */
+/* ---- giant handwriting ticker in the background: "Cerebration ✦ …"
+   drifting left → right behind the mountains, like a word written across
+   the sky. The words sit above a faint ruled line — actually handwritten
+   (Caveat). The line is the track's own bottom border: it scrolls with the
+   type, but a straight horizontal line looks identical, so the loop stays
+   seamless. ---- */
 .blog-footer__ticker {
-  position: relative;
+  position: absolute;
   z-index: 2;
+  left: 0;
+  top: 30%;
   /* break out of the footer padding: the ticker spans the full viewport */
   width: 100vw;
   margin-left: calc(50% - 50vw);
-  margin-top: auto;
   overflow: hidden;
-  border-top: 1px solid var(--foot-stroke);
-  border-bottom: 1px solid var(--foot-stroke);
-  padding: 0.9rem 0;
-  /* soft band behind the type so it reads over the mountains */
-  background: color-mix(in srgb, var(--foot-shade) 55%, transparent);
+  pointer-events: none;
 }
 
 .blog-footer__ticker-track {
   display: inline-flex;
   white-space: nowrap;
   will-change: transform;
+  /* the ruled line the handwriting sits above */
+  border-bottom: 2px solid color-mix(in srgb, var(--foot-stroke) 65%, transparent);
+  padding-bottom: 0.06em;
+  font-size: clamp(5rem, 17vw, 15rem);
+  line-height: 1.1;
   /* two identical halves; -50% → 0 drifts the type left → right, seamless */
-  animation: foot-ticker-scroll 36s linear infinite;
+  animation: foot-ticker-scroll 48s linear infinite;
 }
 
-.blog-footer__ticker:hover .blog-footer__ticker-track {
+/* hovering the footer pauses the drift */
+.blog-footer:hover .blog-footer__ticker-track {
   animation-play-state: paused;
 }
 
@@ -2822,24 +2843,21 @@ html.dark .blog-footer__stars {
 }
 
 .blog-footer__ticker-item {
-  font-family: var(--font-display), 'Young Serif', Georgia, serif;
-  font-weight: 700;
-  font-size: clamp(2.6rem, 7vw, 4.5rem);
-  letter-spacing: 0.08em;
-  color: transparent;
-  -webkit-text-stroke: 1.5px var(--foot-stroke);
-  text-stroke: 1.5px var(--foot-stroke);
-  padding: 0 1.6rem;
+  font-family: var(--font-note), 'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
+  font-weight: 600;
+  color: var(--foot-ink);
+  /* background treatment: present but quiet */
+  opacity: 0.42;
+  padding: 0 0.35em;
   user-select: none;
 }
 
 .blog-footer__ticker-sep {
-  color: var(--foot-muted);
-  -webkit-text-stroke: 0;
-  text-stroke: 0;
-  padding-left: 3.2rem;
-  font-size: 0.55em;
-  vertical-align: 0.35em;
+  font-family: var(--font-display), 'Young Serif', Georgia, serif;
+  padding-left: 0.7em;
+  font-size: 0.32em;
+  vertical-align: 0.9em;
+  opacity: 0.8;
 }
 
 /* ---- light-mode wind: soft clouds + streaks over the sky ---- */
@@ -2954,14 +2972,10 @@ html.dark .blog-footer__wind {
   color: var(--foot-ink);
 }
 
-/* fill the outlined ticker type faintly on hover */
-.blog-footer__ticker:hover .blog-footer__ticker-item {
-  color: var(--foot-word-fill);
-}
-
 .blog-footer__base {
   max-width: 72rem;
-  margin: 0 auto;
+  width: 100%;
+  margin: auto auto 0;
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 1.5rem;
@@ -3597,4 +3611,459 @@ html.dark .blog-oldbook,
     margin-left: 1.5rem !important;
     padding-left: 1.15rem !important;
   }
+}
+
+/* ── Library: masthead (kept) ─────────────────────────────────── */
+.lib-masthead {
+  font-family: var(--font-typewriter), 'Special Elite', 'Courier New', monospace;
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  letter-spacing: 0.02em;
+  color: var(--blog-ink);
+  line-height: 1.05;
+}
+
+/* ── Like button: smooth, tactile, with particle burst ─────────────────── */
+.like-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.5rem 0.75rem;
+  margin: -0.5rem -0.75rem;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--blog-muted);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  border-radius: 999px;
+  transition: color 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
+}
+.like-btn:hover { color: var(--blog-ink); background: color-mix(in srgb, var(--blog-ink) 6%, transparent); }
+.like-btn:active { transform: scale(0.94); }
+.like-btn:focus-visible { outline: 2px solid var(--blog-bloom); outline-offset: 2px; }
+.like-btn[data-maxed="true"] { opacity: 0.45; cursor: default; }
+.like-btn[data-maxed="true"]:active { transform: none; }
+
+.like-btn__heart-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+}
+.like-btn__heart {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  transition: fill 0.25s ease, stroke 0.25s ease, transform 0.18s ease;
+}
+.like-btn[data-liked="true"] .like-btn__heart {
+  fill: var(--blog-bloom);
+  stroke: var(--blog-bloom);
+}
+.like-btn__heart--pop {
+  animation: like-pop 0.35s cubic-bezier(0.34, 1.8, 0.64, 1);
+}
+@keyframes like-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.45); }
+  70% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+
+.like-btn__particle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 999px;
+  background: var(--blog-bloom);
+  pointer-events: none;
+  animation: like-burst 0.65s cubic-bezier(0.15, 0.85, 0.45, 1) forwards;
+}
+@keyframes like-burst {
+  0% {
+    transform: translate(-50%, -50%) rotate(var(--pa)) translateX(6px) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(var(--pa)) translateX(var(--pd)) scale(0.2);
+    opacity: 0;
+  }
+}
+
+.like-btn__plus {
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  transform: translateX(-50%);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--blog-bloom);
+  pointer-events: none;
+  animation: like-rise 0.8s ease-out forwards;
+}
+@keyframes like-rise {
+  0% { opacity: 0; transform: translate(-50%, 6px) scale(0.7); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -18px) scale(1.05); }
+}
+
+.like-btn__count {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  min-width: 1.5ch;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .like-btn__heart--pop, .like-btn__particle, .like-btn__plus { animation: none; }
+  .like-btn { transition: none; }
+}
+
+/* ── Library v5: the sketchbook — hand-drawn cards, light + dark ───────── */
+/* theme tokens for the sketchbook (extends the blog-world palette) */
+.blog-world {
+  --sk-card: #fffdf6;
+  --sk-gold: #a97e3f;
+  --sk-tape: rgba(232, 222, 182, 0.85);
+  --sk-shadow: rgba(0, 0, 0, 0.12);
+}
+.blog-world.dark {
+  --sk-card: #201a14;
+  --sk-gold: #c9a05e;
+  --sk-tape: rgba(120, 100, 70, 0.5);
+  --sk-shadow: rgba(0, 0, 0, 0.45);
+}
+
+/* hand-drawn wobble borders */
+.sketch {
+  border: 2.5px solid var(--blog-ink);
+  border-radius: 255px 18px 225px 18px / 18px 225px 18px 255px;
+}
+.sketch2 {
+  border: 2.5px solid var(--blog-ink);
+  border-radius: 18px 225px 18px 255px / 225px 18px 255px 18px;
+}
+
+/* masthead */
+.sk-kicker {
+  font-family: var(--font-typewriter), 'Special Elite', 'Courier New', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--blog-muted);
+  text-align: center;
+}
+.sk-title-wrap {
+  margin: 0.65rem 0 0.5rem;
+  text-align: center;
+}
+.sk-title {
+  font-family: var(--font-marker), 'Permanent Marker', cursive;
+  font-weight: 400;
+  font-size: clamp(2.9rem, 6vw, 4.75rem);
+  line-height: 1.1;
+  display: inline-block;
+  position: relative;
+  padding: 0 1.4rem;
+  transform: rotate(-1.5deg);
+  color: var(--blog-ink);
+}
+.sk-title .swash {
+  display: block;
+  margin: 0.1rem auto 0;
+  width: min(20rem, 70%);
+  height: 1.25rem;
+  overflow: visible;
+}
+.sk-title .swash path {
+  stroke: var(--sk-gold);
+  stroke-width: 5;
+  fill: none;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: sk-drawswash 1.1s ease-out 0.35s forwards;
+}
+@keyframes sk-drawswash {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* the catalog stack */
+.sk-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 60rem;
+  margin: 0 auto;
+}
+.sk-card {
+  background: var(--sk-card);
+  padding: 1.4rem 1.5rem;
+  display: grid;
+  grid-template-columns: 15rem 1fr;
+  gap: 1.5rem;
+  align-items: center;
+  box-shadow: 4px 5px 0 var(--sk-shadow);
+  position: relative;
+  transition: transform 0.18s ease;
+}
+.sk-card:hover {
+  transform: translateY(-3px) rotate(-0.3deg);
+}
+@media (max-width: 40rem) {
+  .sk-card {
+    grid-template-columns: 1fr;
+  }
+}
+.sk-cardno {
+  position: absolute;
+  top: -0.95rem;
+  left: 1rem;
+  font-family: var(--font-typewriter), 'Special Elite', 'Courier New', monospace;
+  font-size: 0.8rem;
+  background: var(--blog-field);
+  color: var(--blog-ink);
+  padding: 0.25rem 0.85rem;
+  transform: rotate(-3deg);
+  z-index: 2;
+}
+/* taped-on cover photo */
+.sk-photo {
+  position: relative;
+  display: block;
+  margin: 0;
+  transform: rotate(-1.5deg);
+  background: #fffdf8;
+  padding: 0.45rem 0.45rem 0.35rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+.sk-card:nth-child(even of .sk-card) .sk-photo {
+  transform: rotate(1.4deg);
+}
+.sk-photo__frame {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--blog-ink) 6%, transparent);
+}
+.sk-photo::before {
+  content: '';
+  position: absolute;
+  top: -0.7rem;
+  left: 50%;
+  transform: translateX(-50%) rotate(3deg);
+  width: 5.75rem;
+  height: 1.6rem;
+  background: var(--sk-tape);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  z-index: 1;
+}
+.sk-photo figcaption {
+  font-size: 1.05rem;
+  color: #6b5f4c;
+  text-align: center;
+  margin-top: 0.3rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+.blog-world.dark .sk-photo figcaption {
+  color: #a89a7d;
+}
+.sk-date {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 0.4rem;
+  flex-wrap: wrap;
+}
+.sk-stamp {
+  font-family: var(--font-typewriter), 'Special Elite', 'Courier New', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--blog-rule);
+  border: 2px solid var(--blog-rule);
+  padding: 0.25rem 0.65rem;
+  transform: rotate(-2deg);
+  opacity: 0.92;
+  border-radius: 225px 15px 255px 15px / 15px 255px 15px 225px;
+}
+.sk-stamp--hot {
+  color: var(--blog-bloom);
+  border-color: var(--blog-bloom);
+}
+.sk-cardtitle {
+  font-family: var(--font-hand), 'Gochi Hand', cursive;
+  font-weight: 400;
+  font-size: clamp(1.45rem, 2.8vw, 1.8rem);
+  line-height: 1.25;
+  margin-bottom: 0.4rem;
+  color: var(--blog-ink);
+}
+.sk-cardtitle a {
+  color: inherit;
+  text-decoration: none;
+  background-image: linear-gradient(var(--sk-gold), var(--sk-gold));
+  background-size: 0% 3px;
+  background-repeat: no-repeat;
+  background-position: 0 96%;
+  transition: background-size 0.25s ease;
+}
+.sk-cardtitle a:hover {
+  background-size: 100% 3px;
+}
+.sk-excerpt {
+  font-size: 1.2rem;
+  line-height: 1.45;
+  color: var(--blog-muted);
+  font-weight: 500;
+  margin-bottom: 0.65rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sk-meta {
+  display: flex;
+  gap: 0.9rem;
+  align-items: center;
+  font-size: 1.1rem;
+  color: var(--blog-muted);
+  font-weight: 600;
+}
+.sk-read {
+  font-family: var(--font-typewriter), 'Special Elite', 'Courier New', monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: var(--blog-bloom);
+  text-decoration: none;
+}
+.sk-read:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* hand-drawn separators */
+.sk-sep {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin: 1rem 0.65rem;
+  color: var(--blog-muted);
+  opacity: 0.75;
+}
+.sk-sep .line {
+  flex: 1;
+  height: 0.75rem;
+  background-image: radial-gradient(circle, currentColor 1.5px, transparent 1.7px);
+  background-size: 13px 12px;
+  background-repeat: repeat-x;
+  background-position: center;
+}
+.sk-sep svg {
+  width: 2.1rem;
+  height: 1.9rem;
+  overflow: visible;
+  flex: none;
+}
+.sk-sep svg path {
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sk-colophon {
+  text-align: center;
+  margin: 2rem 0 0.5rem;
+  font-size: 1.2rem;
+  color: var(--blog-muted);
+  font-weight: 500;
+}
+
+/* cool footer: mountains + ticker */
+.sk-mountains svg {
+  display: block;
+  width: 100%;
+  height: 6rem;
+  margin-top: 1.4rem;
+}
+.sk-ticker {
+  background: var(--blog-ink);
+  color: var(--blog-field);
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0.65rem 0;
+}
+.sk-ticker span {
+  display: inline-block;
+  font-family: var(--font-typewriter), 'Special Elite', 'Courier New', monospace;
+  font-size: 0.88rem;
+  letter-spacing: 0.44em;
+  padding-left: 100%;
+  animation: sk-tick 24s linear infinite;
+}
+@keyframes sk-tick {
+  to {
+    transform: translateX(-100%);
+  }
+}
+.sk-foot {
+  background: var(--blog-ink);
+  color: var(--blog-field);
+  text-align: center;
+  padding: 0.9rem;
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+.sk-foot a {
+  color: var(--sk-gold);
+  text-decoration: none;
+}
+
+/* loading skeleton */
+.sk-card--loading {
+  min-height: 20rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk-card {
+    transition: none;
+  }
+  .sk-title .swash path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .sk-ticker span {
+    animation: none;
+  }
+}
+
+/* like button inside the post-page rail / bottombar: no negative margins there */
+.blog-rail__item .like-btn,
+.blog-bottombar__item .like-btn {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+}
+.blog-rail__item .like-btn__heart-wrap,
+.blog-bottombar__item .like-btn__heart-wrap {
+  width: 22px;
+  height: 22px;
+}
+.blog-rail__item .like-btn__heart,
+.blog-bottombar__item .like-btn__heart {
+  width: 19px;
+  height: 19px;
 }

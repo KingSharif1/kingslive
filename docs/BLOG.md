@@ -337,3 +337,23 @@ User picked **Caveat** as the handwriting font (`next/font/google`, weights 400/
     `{ flagged: false }` and no `usingFallback` field, preserving the
     long-standing instant auto-approve of clean comments. Verified: `tsc`
     clean, `POST /api/moderate` → 200 `{flagged:false}` on the no-key path.
+  - **Comment fix, continued (2026-09-30):** he asked to check GitHub issue
+    #15 (KL-13) and the ARK, then fix. Issue #15 is open with no agent
+    activity; its scope item 1 wants submit fixed for Sanity `post.id`,
+    `author_email` nullable/dropped, RLS fixed, and prefers a server route
+    `/api/blog/comments` like `/api/blog/likes`. The ARK work queue
+    (`life/online-presence/WORK-QUEUE.md`) had no KL-13 entry — added. Live
+    DB re-checked: `author_email` still `NOT NULL` (the one-line ALTER was
+    never applied; neither the Supabase token nor the new GitHub `ghp_`
+    token — GitHub-only, can't touch the DB — can run DDL). Built per the
+    issue: `app/api/blog/comments/route.ts` (POST: validates, runs the basic
+    moderation check server-side, sanitizes, inserts via service-role key so
+    anon RLS is irrelevant, returns `{ ok, id, approved }` or a specific
+    error) and rewired `Comments.tsx` to POST there instead of inserting
+    directly (client keeps its profanity/OpenAI pre-check for UX). Verified:
+    `tsc` clean; live route test — valid submit → 500 with the real DB error
+    server-logged (`null value in column "author_email" ... violates
+    not-null constraint`, proving the route surfaces the true cause),
+    profanity → 400, missing fields → 400. After he runs the ALTER, the same
+    valid submit should return 200 — will re-verify then. KL-13 items 2–4
+    (replies, likes dedup, views) untouched.

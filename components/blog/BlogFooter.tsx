@@ -5,12 +5,13 @@ import Link from 'next/link'
 // Blog footer — a quiet mountain scene. Two SVG ridge layers drift slowly
 // (seamless -50% loop, pure CSS), a moon/sun glows, stars twinkle in dark
 // mode, and soft clouds + wind streaks drift through in light mode.
-// The CEREBRATION wordmark is a news ticker scrolling left → right.
+// "Cerebration" is a giant handwritten ticker in the background, drifting
+// left → right behind the mountains, sitting above a faint ruled line.
 // No canvas, no pointer interactions — just ambient motion.
 // - Fades out of the page (transparent -> sky tone), no hard edge.
 // - Light/dark adaptive via --foot-* vars.
 // - Static under prefers-reduced-motion. Zero assets.
-const WORD = 'CEREBRATION'
+const WORD = 'Cerebration'
 
 // Deterministic star field (seeded so server and client agree).
 function mulberry32(seed: number) {
@@ -118,12 +119,13 @@ export default function BlogFooter() {
         </nav>
       </div>
 
-      {/* News ticker wordmark, scrolling left → right (aria-hidden: decorative). */}
+      {/* Giant handwriting ticker in the background, drifting left → right
+          behind the mountains (aria-hidden: decorative). */}
       <div className="blog-footer__ticker" aria-hidden="true">
         <div className="blog-footer__ticker-track">
           {[0, 1].map((half) => (
             <span className="blog-footer__ticker-half" key={half}>
-              {Array.from({ length: 6 }).map((_, i) => (
+              {Array.from({ length: 3 }).map((_, i) => (
                 <span className="blog-footer__ticker-item" key={i}>
                   {WORD}
                   <span className="blog-footer__ticker-sep">✦</span>
