@@ -9,10 +9,7 @@ export interface SanityPost {
   title: string
   slug: { current: string }
   author: { name: string } | null
-  mainImage?: {
-    asset: { url: string }
-    alt?: string
-  }
+  cover_image?: string
   categories?: { title: string }[]
   publishedAt?: string
   _createdAt?: string
@@ -73,7 +70,7 @@ export function transformPost(post: SanityPost): BlogPost {
     title: post.title || 'Untitled',
     slug: post.slug?.current || '',
     author: post.author?.name || 'King Sharif',
-    cover_image: post.mainImage?.asset?.url,
+    cover_image: post.cover_image || undefined,
     tags: post.categories?.map((c) => c.title).filter(Boolean) || [],
     created_at: post.publishedAt || post._createdAt || new Date().toISOString(),
     // Last document update from Sanity (not full revision history)
@@ -92,7 +89,7 @@ const LIST_PROJECTION = `
   title,
   slug,
   "author": author->{ name },
-  mainImage { asset->{ url }, alt },
+  "cover_image": cover_image.asset->url,
   "categories": categories[]->{ title },
   publishedAt,
   _createdAt,
