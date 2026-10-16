@@ -8,6 +8,7 @@ import { BlogLikeButton } from '@/components/BlogLikeButton'
 import BlogDrift from '@/components/blog/BlogDrift'
 import BlogCursor from '@/components/blog/BlogCursor'
 import BackToTop from '@/components/blog/BackToTop'
+import TiltCard from '@/components/blog/TiltCard'
 import { usePortfolioTheme } from '@/components/usePortfolioTheme'
 import { cn } from '@/lib/utils'
 import { getProjectById } from '@/lib/portfolio-projects'
@@ -49,6 +50,7 @@ function SketchCard({
   latest?: boolean
 }) {
   return (
+    <TiltCard>
     <article className={cn('sk-card', 'sketch')} aria-label={post.title}>
       <span className="sk-cardno sketch2">nº {entryNo}</span>
       <CardPhoto post={post} sizes="(min-width: 900px) 22vw, 100vw" />
@@ -73,6 +75,7 @@ function SketchCard({
         </div>
       </div>
     </article>
+    </TiltCard>
   )
 }
 

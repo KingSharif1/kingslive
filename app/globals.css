@@ -442,10 +442,31 @@ html.dark .blog-world,
   }
 }
 
-/* mobile: the sheet goes full-bleed, edge to edge */
+/* mobile: the sheet goes full-bleed, edge to edge, with a deckled (torn) paper edge */
 @media (max-width: 639px) {
   .blog-read {
     width: 100%;
+    /* subtle deckled edge — irregular torn-paper silhouette on both sides */
+    clip-path: polygon(
+      0% 0%, 100% 0%, 100% 100%, 0% 100%,
+      0% 98%, 0.6% 97.2%, 0.2% 95.8%, 0.8% 94.5%,
+      0.1% 93%, 0.7% 91.5%, 0.2% 90%, 0.6% 88.5%,
+      0.1% 87%, 0.7% 85.5%, 0.3% 84%, 0.8% 82.5%,
+      0.2% 81%, 0.6% 79.5%, 0.1% 78%, 0.7% 76.5%,
+      0.3% 75%, 0.8% 73.5%, 0.2% 72%, 0.6% 70.5%,
+      0.1% 69%, 0.7% 67.5%, 0.3% 66%, 0.8% 64.5%,
+      0.2% 63%, 0.6% 61.5%, 0.1% 60%, 0.7% 58.5%,
+      0.3% 57%, 0.8% 55.5%, 0.2% 54%, 0.6% 52.5%,
+      0.1% 51%, 0.7% 49.5%, 0.3% 48%, 0.8% 46.5%,
+      0.2% 45%, 0.6% 43.5%, 0.1% 42%, 0.7% 40.5%,
+      0.3% 39%, 0.8% 37.5%, 0.2% 36%, 0.6% 34.5%,
+      0.1% 33%, 0.7% 31.5%, 0.3% 30%, 0.8% 28.5%,
+      0.2% 27%, 0.6% 25.5%, 0.1% 24%, 0.7% 22.5%,
+      0.3% 21%, 0.8% 19.5%, 0.2% 18%, 0.6% 16.5%,
+      0.1% 15%, 0.7% 13.5%, 0.3% 12%, 0.8% 10.5%,
+      0.2% 9%, 0.6% 7.5%, 0.1% 6%, 0.7% 4.5%,
+      0.3% 3%, 0.5% 1.5%
+    );
   }
 }
 
@@ -3820,6 +3841,54 @@ html.dark .blog-oldbook,
 }
 .sk-card:hover {
   transform: translateY(-3px) rotate(-0.3deg);
+}
+
+/* ── 3D tilt scene ─────────────────────────────────────────────────── */
+.tilt-scene {
+  perspective: 1200px;
+  perspective-origin: center;
+}
+.tilt-card {
+  transform-style: preserve-3d;
+  transform:
+    rotateX(var(--rx, 0deg))
+    rotateY(var(--ry, 0deg));
+  transition: transform 0.12s ease-out;
+  position: relative;
+}
+.tilt-scene:hover .tilt-card {
+  /* dynamic shadow follows the tilt */
+  box-shadow:
+    calc(var(--ry, 0deg) * -1.2) calc(8px + var(--rx, 0deg) * 0.8)
+    32px rgba(0, 0, 0, 0.28);
+}
+/* sheen that sweeps across the card as the cursor moves */
+.tilt-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    600px circle at var(--gx, 50%) var(--gy, 50%),
+    rgba(255, 255, 255, 0.14),
+    transparent 45%
+  );
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.tilt-scene:hover .tilt-card::after {
+  opacity: 1;
+}
+/* pop the photo and card number off the surface in 3D */
+.tilt-card .sk-photo {
+  transform: translateZ(36px) rotate(-1.5deg);
+}
+.tilt-card .sk-cardno {
+  transform: translateZ(52px) rotate(-3deg);
+}
+@media (hover: none) {
+  .tilt-card { transform: none !important; }
+  .tilt-card::after { display: none; }
 }
 @media (max-width: 40rem) {
   .sk-card {
