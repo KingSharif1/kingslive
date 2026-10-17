@@ -1,14 +1,13 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import {
-  ARCHIVE_PROJECTS,
-  FEATURED_PROJECTS,
   formatMonthYear,
   formatTimelineLabel,
   getGithubRepoPath,
+  shouldOptimizeImage,
   showGithubLink,
   splitFeaturedArchive,
   type PortfolioProject,
@@ -22,9 +21,9 @@ type RepoStats = {
   updatedAt: string | null
 }
 
-function usePublicRepoStats(projects: PortfolioProject[]) {
+function usePublicRepoStats(projects: PortfolioProject[], enabled: boolean) {
   const [stats, setStats] = useState<Record<string, RepoStats>>({})
-  const [waiting, setWaiting] = useState(true)
+  const [waiting, setWaiting] = useState(false)
 
   const publicRepos = useMemo(
     () =>
@@ -37,10 +36,7 @@ function usePublicRepoStats(projects: PortfolioProject[]) {
 
   useEffect(() => {
     let cancelled = false
-    if (!publicRepos.length) {
-      setWaiting(false)
-      return
-    }
+    if (!enabled || !publicRepos.length) return
 
     setWaiting(true)
     ;(async () => {
@@ -68,7 +64,7 @@ function usePublicRepoStats(projects: PortfolioProject[]) {
     return () => {
       cancelled = true
     }
-  }, [publicRepos.join('|')])
+  }, [enabled, publicRepos])
 
   return { stats, waiting }
 }
@@ -124,7 +120,7 @@ function ProjectRow({
                 : 'text-amber-600 dark:text-amber-400'
             }`}
           >
-            <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+            <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-500 motion-safe:animate-pulse' : 'bg-amber-500'}`} />
             {isLive ? 'Live' : project.status}
           </span>
         </div>
@@ -167,7 +163,7 @@ function ProjectRow({
             </a>
           )}
           {project.blogSlug && (
-            <Link href={`/blog/${project.blogSlug}`} className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link href={`/blog/${project.blogSlug}`} prefetch={false} className="text-muted-foreground hover:text-foreground transition-colors">
               Writing
             </Link>
           )}
@@ -181,10 +177,11 @@ function ProjectRow({
             src={project.image}
             alt={project.title}
             fill
-            sizes="(max-width: 1024px) 100vw, 420px"
-            className="object-cover object-top transition-transform duration-700 group-hover:scale-[1.03]"
+            sizes="(max-width: 1024px) calc(100vw - 3rem), 420px"
+            className="object-cover object-top transition-transform duration-700 motion-safe:group-hover:scale-[1.03]"
             quality={85}
-            unoptimized={project.image.startsWith('http')}
+            loading="lazy"
+            unoptimized={!shouldOptimizeImage(project.image)}
           />
         </div>
         <p className="mt-2 text-[11px] font-mono text-muted-foreground/70 truncate">
@@ -197,13 +194,31 @@ function ProjectRow({
 
 export function ProjectsSection({ projects }: { projects?: PortfolioProject[] }) {
   const [showAll, setShowAll] = useState(false)
+  const [statsEnabled, setStatsEnabled] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
   const loading = projects === undefined
 
-  const source = projects ?? [...FEATURED_PROJECTS, ...ARCHIVE_PROJECTS]
+  const source = projects ?? []
   const { featured, archive } = splitFeaturedArchive(source)
   const rest = archive
   const visible = showAll ? [...featured, ...rest] : featured
-  const { stats, waiting } = usePublicRepoStats(loading ? [] : source)
+  const { stats, waiting } = usePublicRepoStats(loading ? [] : source, statsEnabled && !loading)
+
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el || loading) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setStatsEnabled(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '0px' }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [loading])
 
   const statsFor = (p: PortfolioProject) => {
     const path = getGithubRepoPath(p.repoUrl)
@@ -211,7 +226,7 @@ export function ProjectsSection({ projects }: { projects?: PortfolioProject[] })
   }
 
   return (
-    <div className="space-y-12 sm:space-y-16">
+    <div ref={rootRef} className="space-y-12 sm:space-y-16">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <h2 className="text-3xl sm:text-4xl font-light font-sora tracking-tight">Projects</h2>
         <div className="text-sm text-muted-foreground font-mono">2024 — 2026</div>

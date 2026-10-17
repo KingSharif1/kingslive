@@ -1,5 +1,12 @@
 # DECISIONS.md
 
+## 2026-10-12 — Portfolio preloads Unbounded and Sora only
+- **Context:** Mobile LCP on `/` was 4.4s, almost all render delay. The document preloaded eight font files (Caveat alone ~75KB) plus every skill icon, before the hero paragraph could paint in Sora.
+- **Options:** Leave the root font list alone (blog PRs also edit `app/layout.tsx`) / stop preloading faces the portfolio does not use for first paint / split layouts.
+- **Choice:** `preload: false` on Young Serif, Inter, JetBrains Mono, Alegreya, Alegreya italic, and Caveat. Unbounded and Sora stay preloaded. Skill icons use `loading="lazy"`. Homepage data is server-rendered with a 300s revalidate.
+- **Tradeoff:** Mono labels and blog/CTROOM routes download their fonts when first used, with `font-display: swap`. A later edit to `app/layout.tsx` (PRs #18 and #20 add more blog faces) must keep `preload: false` on those new faces or the portfolio LCP regresses.
+- **Revisit if:** The portfolio hero starts using another family, or the root layout is split per route.
+
 ## 2026-10-08 — Blog engagement is a name and a cookie, not an account
 - **Context:** Comments were inserted from the browser into `blog_comments` and died on `author_email NOT NULL` and a `post_id` tied to legacy `blog_posts`. Likes incremented on every click. Views incremented from the client with the slug, so a refresh could count twice.
 - **Options:** Magic-link accounts / email on the comment / name remembered in the browser. Client writes vs a service-role route.

@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — KingsLive
 
-> Last updated: 2026-10-08
+> Last updated: 2026-10-12
 
 ## System (one line)
 
@@ -10,7 +10,7 @@ Public portfolio + Sanity blog on kingsharif.com; private CTROOM HQ (auth, Milo,
 
 | Surface | Route | Source of truth |
 |---------|-------|-----------------|
-| Portfolio | `/` | Supabase `portfolio_projects` (`published = true`), static seed only if table missing |
+| Portfolio | `/` | Server-rendered. Supabase `portfolio_projects` (`published = true`, revalidate 300s), static seed only if the table is missing or the read fails. Blog teasers are two Sanity titles/excerpts, not full post bodies. |
 | Blog | `/blog`, `/blog/[slug]` | Sanity project `n31jvc6a` / dataset `production` |
 | Studio | `/studio` | Sanity Studio (NextStudio) |
 | CTROOM | `/ctroom` | Supabase (`kinglive cms`) + client state in `CtroomDashboard`; views via `lazyViews.tsx` |

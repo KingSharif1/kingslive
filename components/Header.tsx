@@ -5,21 +5,31 @@ import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import { ThemeTransition } from "./ThemeTransition"
+import { usePortfolioTheme } from "./usePortfolioTheme"
 
-export function Header({ isDark, toggleTheme }: { isDark: boolean; toggleTheme: () => void }) {
+export function Header() {
+  const { isDark, toggleTheme } = usePortfolioTheme()
   const pathname = usePathname()
   const isHome = pathname === "/"
   const [isScrolled, setIsScrolled] = useState(false)
 
   useEffect(() => {
+    let frame = 0
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50)
+      if (frame) return
+      frame = window.requestAnimationFrame(() => {
+        frame = 0
+        setIsScrolled(window.scrollY > 50)
+      })
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
     handleScroll()
 
-    return () => window.removeEventListener('scroll', handleScroll)
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      if (frame) window.cancelAnimationFrame(frame)
+    }
   }, [])
 
   const navItems = [
@@ -67,7 +77,10 @@ export function Header({ isDark, toggleTheme }: { isDark: boolean; toggleTheme: 
                   return (
                     <button
                       key={item.label}
-                      onClick={() => document.getElementById(item.href.slice(1))?.scrollIntoView({ behavior: "smooth" })}
+                      onClick={() => {
+                        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+                        document.getElementById(item.href.slice(1))?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' })
+                      }}
                       className={`px-3 py-1.5 text-muted-foreground hover:text-foreground transition-colors duration-300 rounded-full hover:bg-accent ${isScrolled ? 'text-xs' : 'text-sm'}`}
                     >
                       {item.label}
@@ -80,6 +93,7 @@ export function Header({ isDark, toggleTheme }: { isDark: boolean; toggleTheme: 
                   <Link
                     key={item.label}
                     href={item.href}
+                    prefetch={item.href.startsWith('/') ? false : undefined}
                     className={`px-3 py-1.5 text-muted-foreground hover:text-foreground transition-colors duration-300 rounded-full hover:bg-accent ${isScrolled ? 'text-xs' : 'text-sm'}`}
                   >
                     {item.label}

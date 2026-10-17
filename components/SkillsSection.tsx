@@ -1,7 +1,3 @@
-'use client'
-
-import { motion } from 'framer-motion'
-
 type SkillId =
   | 'react'
   | 'reactnative'
@@ -129,7 +125,16 @@ function SkillMark({ skill }: { skill: Skill }) {
     return (
       <span className="relative inline-flex h-5 w-5 items-center justify-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="https://cdn.simpleicons.org/react/61DAFB" alt="" className="h-5 w-5 opacity-90" />
+        <img
+          src="https://cdn.simpleicons.org/react/61DAFB"
+          alt=""
+          width={20}
+          height={20}
+          loading="lazy"
+          decoding="async"
+          fetchPriority="low"
+          className="h-5 w-5 opacity-90"
+        />
         <span className="pointer-events-none absolute -bottom-1 -right-1 rounded-[3px] bg-sky-500 px-0.5 text-[6px] font-bold leading-none text-white" aria-hidden>
           RN
         </span>
@@ -206,26 +211,12 @@ function SkillMark({ skill }: { skill: Skill }) {
       alt=""
       width={20}
       height={20}
+      loading="lazy"
+      decoding="async"
+      fetchPriority="low"
       className={`h-5 w-5 ${skill.invertDark ? 'dark:invert' : ''}`}
     />
   )
-}
-
-const container = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.04, delayChildren: 0.04 },
-  },
-}
-
-const item = {
-  hidden: { opacity: 0, y: 10 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { type: 'spring' as const, stiffness: 420, damping: 28 },
-  },
 }
 
 export function SkillsSection() {
@@ -247,20 +238,14 @@ export function SkillsSection() {
               </h3>
               <p className="text-sm text-muted-foreground">{group.hint}</p>
             </div>
-            <motion.ul
+            <ul
               data-skills-rev="6"
               className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5"
-              variants={container}
-              initial="hidden"
-              whileInView="show"
-              viewport={{ once: true, amount: 0.15 }}
             >
               {group.skills.map((skill) => (
-                <motion.li
+                <li
                   key={skill.id}
-                  variants={item}
-                  whileHover={{ y: -3 }}
-                  className="group flex items-center gap-3 px-3 py-3 rounded-xl border border-border/40 bg-background/30 hover:border-foreground/30 hover:bg-background/60 transition-colors duration-300"
+                  className="group flex items-center gap-3 px-3 py-3 rounded-xl border border-border/40 bg-background/30 hover:border-foreground/30 hover:bg-background/60 transition-[color,background-color,border-color,transform] duration-300 motion-safe:hover:-translate-y-[3px]"
                 >
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.04] border border-border/50 group-hover:border-foreground/25 transition-colors">
                     <SkillMark skill={skill} />
@@ -268,9 +253,9 @@ export function SkillsSection() {
                   <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground transition-colors">
                     {skill.name}
                   </span>
-                </motion.li>
+                </li>
               ))}
-            </motion.ul>
+            </ul>
           </div>
         ))}
       </div>
